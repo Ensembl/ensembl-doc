@@ -91,15 +91,16 @@ so that if bad comes to worst, you at least already have the obvious bits
  - The next step is adding the family additions for genes that have no
    description. This is done by running
 
-     ensembl/scripts/desc-from-fam.sh coreDB famDB ENSEMBLGENE -h host -u user 
+     ensembl/scripts/desc-from-fam.sh coreDB famDB DBNAME -h host -u user 
 
    where coreDB is an ensembl database, famDB the family database, and DBNAME
    the database name used inside famDB for looking up the ids. This will be
-   typically ENSG or ENSMUSG. 
-   The script will, in famDB, create a merged gene_description table that is a
-   replacement for the old one in coreDB (note: famDB and coreDB should be on
-   the same mysql server, otherwise you can't do the required cross-database
-   joins). 
+   something like ENSEMBLGENE or ENSMUSPEPT or whatever (i.e., not the
+   prefix, but the thing that is used in the db_name column of the
+   family_members table).  The script will, in famDB, create a merged
+   gene_description table that is a replacement for the old one in coreDB
+   (note: famDB and coreDB should be on the same mysql server, otherwise you
+   can't do the required cross-database joins).
 
    The script writes a few statistics to stdout.  If the numbers under
    'all_old_descriptions' and 'all_new_descriptions' are the same, this means
