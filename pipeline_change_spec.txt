@@ -18,6 +18,8 @@ General Objectives
  Infrastructure API Changes
    RuleManager code
    Configuration
+   Pipeline dna database
+   VOID status
  Analysis API Changes
   Runnable/RunnableDB's
    Blast
@@ -126,6 +128,15 @@ General Objectives
    ************
 
    Give the runner script the possiblity of using a dna database
+
+   VOID status
+   ***********
+
+   most Jobs which get marked as Void will probably just eventually get 
+   added to the input_id_analysis table and the pipeline will continue
+   It may be a good idea to make the string used when setting jobs to VOID
+   as configurable somewhere so you can just continue on with the piepline
+   without delay
 
   Analysis API changes
   ####################
