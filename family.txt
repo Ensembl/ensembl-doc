@@ -25,11 +25,8 @@ User description (should this go elsewhere?):
 # admin description:
 ####
 
-# this describes the way to go from ensembl.pep to the family database.
+# this describes how to create family database from an ensembl.pep file.
 # 
-# Still incomplete; not yet tested myself, so possibly wrong/inaccurate in
-# places.  The blasting/clustering code is not (yet?) part of EnsEMBL; it
-# currently lives in Anton's acari home, ~ae1/{srs,bin,blast} etc.
 
 # First thing to do is to get the code
 
@@ -43,9 +40,9 @@ User description (should this go elsewhere?):
 
     source setenv.sh
 
-# If you're doing the source inside ensembl-external/family, you won't need 
+# (If you're doing the source inside ensembl-external/family, you won't need 
 # any adjustment (because it uses the value of `pwd`). It might be better to
-# hardcode this though (so you can source it from elsewhere).
+# hardcode this though (so you can source it from elsewhere)).
 
 # Next, compile things
 
@@ -62,12 +59,18 @@ User description (should this go elsewhere?):
 
     cd  srs
 
-    fetch.pl swissprot sptrembl
-
+    srs-fetch.pl swissprot sptrembl
 
 # gets all vertebrate seqs into vertebrate.pep and seq_types (latter says
 # wether a seq camefrom swissprot or trembl; needed later during annotation
 # phase).
+
+# If you want to SRS from within Sanger, use plato:
+# 
+# Log into plato.  The nfs/infodata is not mounted on acari.  This is the
+# second time I've been asked about it.  I'll get a working getz on acari,
+# it will fit into next week's todo list.
+
 
 # ------------------------------------------------------------------------
 # get the EnsEMBL data
@@ -83,7 +86,7 @@ User description (should this go elsewhere?):
 
 # or: cat ensembl.pep mouse.pep vertebrate.pep > $thedate.pep (etc.)
 
-    rm ensembl.pep vertebrate.pep # to save space. But keep seq_types
+#    rm ensembl.pep vertebrate.pep # to save space. But keep seq_types
 
 # ------------------------------------------------------------------------
 # set the location of a scratch area, and create a directory for it:
@@ -106,7 +109,7 @@ User description (should this go elsewhere?):
 
     cd $work/blast
 
-    formatdb_2.0.11 -p T  -i $work/srs/$release.pep
+    formatdb_2.0.11 -p T  -i $work/srs/$thedate.pep
 
 
 # results in $work/srs/$release.{pep,phr,pin,pesq}: the blast db to be run
@@ -121,7 +124,7 @@ User description (should this go elsewhere?):
 
     cd $release
 
-    cp $work/blast/$release.* ./
+    cp $work/srs/$thedate.* ./
 
     sync-data
 
@@ -133,7 +136,7 @@ User description (should this go elsewhere?):
 
     cd $work/blast
 
-chopper $work/srs/$release.pep -n 400  # see also -h
+chopper  -n 400  $work/srs/$thedate.pep  # see also -h
 # splits data into $work/blast/seq/
 
 # ------------------------------------------------------------------------
@@ -141,31 +144,36 @@ chopper $work/srs/$release.pep -n 400  # see also -h
 
     cd $work/blast
 
-    run-blasts.pl  /data/sync/$release.pep  # see also -h !
+    run-blasts.pl  /data/sync/$release/$thedate.pep  # see also -h !
 
 # This will show what would be done, but not do it
 # If all seems well, do:
 
-    run-blasts.pl  -g /data/sync/$release.pep
+    run-blasts.pl  -g /data/sync/$release/$thedate.pep
 
 # ------------------------------------------------------------------------
-# when blast finished (10 hours or so)
+# when blast finished (1 - 12 hours, depending on how loaded farm is )
 
 # check results:
 
 # you can already check results during the running:
 
-    run-blasts.pl -C /data/sync/$release.pep
+    run-blasts.pl -C /data/sync/$release/$thedate.pep
 
 # and already re-submit the failed ones (still during running):
 
-    run-blasts.pl -C -g  /data/sync/$release.pep
+    run-blasts.pl -C -g  /data/sync/$release/$thedate.pep
+
+# The *.joberr frequently contains stuff like
+#   [blastall_2.0.11] WARNING:  [000.000]  SetUpBlastSearch failed.
+#   [blastall_2.0.11] ERROR:  [000.000]  BLASTSetUpSearch: Unable to calculate Karlin-Altschul params, check query sequence
+# This is due to very short sequences. These messages can be ignored. 
 
 # If you're sure that missing results are not due to jobs that haven't
 # completed (e.g., if no lsf jobs are outstanding), then resubmit all those
 # whose counts don't add up:
 
-    run-blasts.pl -C -f -g /data/sync/$release.pep
+    run-blasts.pl -C -f -g /data/sync/$release/$thedate.pep
 
 # For e.g. testing, you can restrict the jobs to be checked/submitted using
 # the -n option
@@ -192,7 +200,7 @@ chopper $work/srs/$release.pep -n 400  # see also -h
 
 # (you may need to play with the -chunk option; see markov -h)
 
-# This may take 30-300 min, and 1.5 Gbyte of memory, so run on a big machine,
+# This may take 10-60 min, and 1.5 Gbyte of memory, so run on a big machine,
 # like ecs1h.
 # 
 # ------------------------------------------------------------------------
@@ -240,7 +248,7 @@ chopper $work/srs/$release.pep -n 400  # see also -h
 
 #  add the sp/trembl annotation lines (to each sp/trembl seq):
 
-    add-annotations.pl $work/srs/$release.pep $work/srs/seq_types \
+    add-annotations.pl $work/srs/$thedate.pep $work/srs/seq_types \
        $release.clusters > $release.annotated
 
 # ------------------------------------------------------------------------
@@ -252,15 +260,18 @@ chopper $work/srs/$release.pep -n 400  # see also -h
 
 # By now, there are many non-hits that have dropped out (sequences that
 # did't even match themselves during the blast hits, due to low-complexity
-# filtering. These are typically short repetive sequence). 
+# filtering. These are typically short repetive sequencs).
 
 # ------------------------------------------------------------------------
+# new directory for the families:
 
-# finally, put everything together using
+mkdir ../families
+
+# and put everything together using
 
     assemble-consensus.pl $release.annotated \
        $release.SWISSPROT-consensus $release.SPTREMBL-consensus  \
-       >  $release.families 2> $release.discarded
+       >  ../families/$release.families 2> $release.discarded
 
 # This not only puts things together, but also drastically cleans the
 # annotations up. Typically well over half of the annotations are useless,
@@ -280,7 +291,9 @@ chopper $work/srs/$release.pep -n 400  # see also -h
 # If the ENSP's are not yet final (e.g., if they look like COBP or PGBP or
 # so), then remap the ID's, using
 
-    pep-id-remap.pl mapping.dat  < final.family > families.out
+    universal-id-mapper.pl mapping.dat  < final.family > families.out
+
+# (universal-id-mapper.pl is in ensembl/scripts/)
 
 # load the families into the database:
 
