@@ -56,12 +56,7 @@ The main genebuild has 6 main stages
 A. The Pmatch run
 
 Pmatch is used to find exact matchs of species specific proteins to the 
-genome then find the best in genome matches for each protein. This stage
-consists of 2 separate analysis. Pmatch, which runs separately on each
-chromosome against the protein set and BestPmatch which runs the best in
-genome filter on the whole results set. These, as they use different input
-ids, must be separated by an accumulator analysis 
-(see using_the_ensembl_pipeline.txt for more information on accumlators)
+genome then find the best in genome matches for each protein 
 
 B. The Targetted Build. 
 
@@ -70,11 +65,7 @@ genewise alignments. The base RunnableDB used is FPC_Targetted_GeneWise.
 During the process the pmatch features are fetched. The protein
 sequences of the pmatch features is fetched and then those are reblasted
 against the genome. The results from the reblast are used to seed 
-genewise alignments which in turn produces gene structures. The targetted 
-build is generally run on slices of the chromosomes, normally 1MB sized 
-pieces. It depends on the best in genome pmatch filter being complete
-so is required to depend an accumulator aswell as the dummy analysis which
-is the source of its input_ids.
+genewise alignments which in turn produces gene structures
 
 
 C. The Similarity Build
@@ -86,12 +77,6 @@ the same as for the targetted build but those regions which contain
 genes which are predicted in the targetted stage are filtered out
 as it is generally assumed that the targetted genes from exon matches to
 proteins will be better than any genes build on the basis of similarity.
-The Similarity build is also generally run on 1MB sized pieces. This
-means it can use the same input_id_type as the Targetted analysis. It
-will always need to depend on the Targetted analysis but if you are running
-the raw computes and the genebuild as part of the same pipeline you 
-may also need an accumulator which indicates all the blasts your
-similarity analysis will use as its data source is complete
 
 
 D. Adding UTRS
@@ -100,44 +85,20 @@ The cDNA based predictions (described in est_cdna_genebuild.txt) and the
 protein based predictions are combined using the runnabledb 
 Combine_Genewises_and_E2G. Here if the cdna based predictions overlap 
 with the protein based predictions the algorithym decides whether extra 
-information can be added to the protein based prediction. This analysis
-tends to be run on 1MB slice pieces. It should depend on the similarity
-build being complete. It also depends on the exonerate cdna alignments
-being complete. If these are being run as part of the same pipeline an
-accumulator will be needed to mark the end of the exonerate cdna alignments
-as the input_ids for this analysis are filenames
+information can be added to the protein based preidction
 
 E. GeneBuilder
 
 here all the predictions mare are collapsed down into a not redundant 
 set of transcripts. Ab initio predictions which are well supported by
 blast results can also be added into the prediction set, all this
-is done from the RunnableDB Gene_Builder. This is best to run on whole
-chromosomes if possible. If you are going to use the PredictionGenebuilder
-which also consideres abinitio predictions the largest piece you should
-probably use is 50 MB but try and uses pieces this size if your chromosomes
-are bigger. AS you will be using bigger pieces that were used for UTR 
-addition you will need an accumulator to mark its finish. If you do run
-on pieces smaller than whole chromosomes you may need to run the 
-GeneBuilder a second time without the PredictionGenebuilder switched on
-on whole chromosomes to make sure the clustering is done correctly.
+is done from the RunnableDB Gene_Builder
 
 F. GeneCombiner
 
 Here the cdna predictions are used to add either new predictions where 
 they don't overlap with protein based predictions or they can also add
-new alternative transcripts to existing genes. This is again generally
-run on 1MB sized pieces. Again you will need an accumulator between
-GeneBuilder and GeneCombiner as the input_ids will be different
-
-
-The size of the pieces of chromosomes you should run these various analyses
-on does some what depend on your genome, how much information you already
-have about your genome and how much memory you compute systems have 
-availible. It is best to run them on as large as pieces as possible that 
-will run in a reasonable time and a reasonable amount of memory
-
-
+new alternative transcripts to existing genes.
 
 
 3. General preparation
@@ -149,16 +110,14 @@ stdout/stderr from the jobs, and for the data for the jobs.
 Get checkouts of the three pieces of code you need, ensembl, 
 ensembl-pipeline and bioperl and make sure they are in your PERL5LIB
 
-make sure you have access to binaries for pmatch and genewise which is 
-availble from the ensembl cvs under rd-utils and wise2 packages respectively
+make sure you have access to binaries for genewise which is availble 
+from the ensembl cvs under rd-utils and wise2 packages respectively
 
 setup the databases
 
 this is a diagram of all databases you require
 
 
-This are the names found in 
-Bio::EnsEMBL::Pipeline::Config::GeneBuild::Databases
  _______  
 |       |   pmatches
 | GB_DB |   features 
@@ -185,19 +144,11 @@ similarity genewise
       |                  |
        -----------------\|  
 	            genebuilder
-	                  _____|______	
+	            _____|______	
                    |            | 
                    | GB_FINALDB |
                    |____________| 
-                         |         
-                         |
-                    _____________
-                   |             |
-                   | FINAL_DB    |
-                   |_____________|        
-                    
-FINAL_DB is currently defined in 
-Bio::EnsEMBL::Pipeline::Config::GeneBuild::GeneCombiner
+
 
 they all need to contain the core schema and these tables need to be
 filled in clone, contig, assembly, analysis, meta, chromosome
@@ -217,6 +168,11 @@ the reference database GB_DB should also contain the pipeline tables
 which can be found in ensembl-pipeline/sql/table.sql and whose function
 are describe in using_the_ensembl_pipeline.txt
 
+
+If you have access to multiple mysql instances it is a good idea to
+put different database which will be accessed by the same analysis on 
+different instances otherwise the pipeline can produce database contention
+issues
 
 More info about the various databases:
 --------------------------------------
@@ -289,10 +245,7 @@ Some of these are required for the pipeline to run and this are located
 in Bio::EnsEMBL::Pipeline::Config,
 
 These files are General, BatchQueue and Blast and the entries are
-descibed in using_the_ensembl_pipeline.txt. One thing to note
-is you generally want to keep the output from your genebuild jobs so
-you need the entries for these analysis in BatchQueue.pm to have
-cleanup set to no rather than yes
+descibed in using_the_ensembl_pipeline.txt
 
 The genebuild has several general config files two. These are found in
 Bio::EnsEMBL::Pipeline::Config::GeneBuild
@@ -329,7 +282,8 @@ GB_KILL_LIST, this is the path to a file which cotains a list of
 
 
 GB_PROTEOME_FILES, this is used in the new_prepare_proteome.pl script
-		   
+		   and its function is described in 
+		   running_pmatches.txt
 
 There are more options in this file but they are involved with the 
 old way of running the genebuild and shouldn't be needed
@@ -560,11 +514,7 @@ Running the Pmatches
 The pmatches are run with the RuleManager like all parts of the pipeline.
 It is a good idea to test the system first by running a single job.
 The easiet way to do this is to run the RuleManager with the -id_listfile
-flag and pass in a file in the format input_id  input_id_type
-
-The First pmatch stage is generally run on full chromosomes and the second
-best in genome filter runs on the entire results set so its input id 
-doesn't really matter but we generally set it to Genome
+flag and pass in a file in the format input_id   input_id_type
 
 Once you test job has run sucessfully you should beable to start
 the pipeline running.
@@ -609,7 +559,6 @@ in further stages of the genebuild
 This is where the best in genome exact mapping of proteins to the 
 genome sequence produced in the pmatch stage are used to seed genewise
 alignments to produce gene structures.
-
 
 Before Starting
 ---------------
@@ -667,10 +616,6 @@ in the .err files
 presence of EXC, this mean an exception has been thrown and further 
 checking will be required 
 
-exon lies on a gap (prediction across a gap in the assembly)
- 
-this happens if an exon lies across a gap in the assembly there is nothing
-which can be done about it and it should just be left
 
 Genewise run failed
 this can happen for a few reasons, if you don't have enough memory 
@@ -696,11 +641,25 @@ significant  number you will need to resync the data and rerun the process
 look for the words Problem or Can't as this generally means there has been
 a uncaught perl error and the code is broken 
 
+Specifc errors which are thrown by the Genebuild process which are worth 
+looking for include
+
+'had no features to pass into BMG' (from FPC_BlastMiniGenewise.pm)
+means for what ever reason no features are being passed on to 
+BlastMiniGenewise this probably isn't a problem but if it happens a lot it may
+need investigating
+
+'Managed to get only' (from BlastMiniGenewise.pm) this should tell you
+the number of sequences which were actually sucessfully fetched by from
+the index, if a lot of sequences are being missed you probably want to 
+check the index
+
 
 also look for Exit codes in the .out files
 
 exit code 130 -> job was bkilled
-          139 -> weird memory error
+          139 -> attempt to access a virtual address which
+                 is not in your address space
           2   -> sequence fetching prob? can indicate a dodgy node
           1   -> out of memory 
 
@@ -772,9 +731,9 @@ too many times.
 =D. UTR Addition=
 =================
 
-The fourth analysis combines cdna alignments from exonerate with genes 
-built from the protein based analyses to hopefully produce genes with 
-UTR's. How the cdna genes are generated is explained in the document
+The fourth analysis combines genes built from cdnas with genes built
+from the protein based analyses to hopefully produce genes with UTR's.
+How the cdna genes are generated is explained in the document
 est_cdna_genebuild.txt The runnabledb used to do this is 
 Combined_gw_and_e2g.pm
 
@@ -784,9 +743,13 @@ Before Starting
 As before you need the Reference database with pipeline tables and the 
 genewise database. You also need the database where your cdna results have
 been written and a database to write the results of this combination too.
-As well as all the standard configuration you have already filled out you 
-also need to add another entry to the BatchQueue.pm and fill out the 
-Combined.pm file in the Genebuld config
+It is a good idea to copy your genewise genes to the output database before
+starting this analyses and the next stage will expect all your genes to be
+in that database and if the copy is performed while the tables are empty
+you will not need to alter the dbIDs in any of the tables. As well as
+all the standard configuration you have already filled out you also need
+to add another entry to the BatchQueue.pm and fill out the Combined.pm
+file in the Genebuld config
 
 Running the UTR Addition
 ------------------------
@@ -794,224 +757,6 @@ Running the UTR Addition
 Like the previous analyses it is good to both test a couple of jobs first
 and save the output so it can be checked for errors once the analysis is 
 complete
-
-
-
-================
-=E. Genebuilder=
-================
-
-The fifth analysis runs an set of heuristics which collapses down all the
-predicted transcripts into a non redundant set genes and transcripts
-
-Before Starting
----------------
-
-You need to make sure all your databases are set up, you will need another
-where the final genes can be written, all your config has been filled out
-
-We Generally run this stage on full chromosome so you may want an 
-accumulator stage between the UTR addition and this one as the input id
-type will be changing
-
-Running the Genebuilder
------------------------
-
-Again test a couple of runs first before running everything and also 
-remember to check the output for any strange errors
-
-
-
-=================
-=F. GeneCombiner=
-=================
-
-
-The sixth analysis is where the cdna genes built in the cdna analysis are
-used to fill gaps in the protein based gene build and also potentially
-add extra transcripts to already existing genes.
-
-Here is it best to use same species cdnas are more distantly related cdnas
-can results is very odd looking genes.
-
-
-Before Starting
----------------
-
-Again you need all you databases and config setup. Currently genecombiner
-only uses the config found in 
-Bio::EnsEMBL::Pipeline::Config::GeneBuild::GeneCombiner although there are
-plans to considate its config into the rest of the structure
-
-You also need to have a set of genes built from your cdna alignments.
-How this is done is described in est_cdna_genebuild.txt. 
-
-Running the Genecombiner
------------------------
-
-Again test a couple of runs first before running everything and also 
-remember to check the output for any strange errors
-
-
-
-Once you have completed all these steps you may want run the pseudogene
-analysis which is described in Pseudogenes.txt
-
-
-Here is a summary of the analysis you need to run along with the module
-they use and the size piece we run on. There is also a checklist for
-before and after the
-
-
-Analysis,          RunnableDB,           input size,             section
-
-Pmatch             Pmatch                slice, full chromosomes A
-BestPmatch         BestPmatch            genome (all results)    A
-TGE_gw             FPC_TargettedGenewise 5MBslice                B
-similarity_genewise FPC_BlastMiniGenewise 5MBslice               C
-UTR_Addition        Combined_gw_and_e2g   5MSlice                D
-Genebuilder         Gene_Builder          Chromosome             E
-GeneCombiner        GeneCombiner          5MSlice                F
-
-
-Remember after each stage is run you need to check the output for any
-strange errors (see end of section B for a description).
-
-
-
-
-Checklist
-=========
-
-When running the genebuild it is worth checking these things out
-before you hit go
-
-1. Do you have all the executables, and data files for the
-analysis you want to run? are they push out across you compute 
-farm where appropriate
-
-2. Have you filled out all the config files in 
-Bio::EnsEMBL::Pipeline::Config::Genebuild
-
-3. Does BatchQueue.pm contain entries for all the analyses you wish to run
-
-4. Have you filled in the analysis table
-
-5. Have you filled in the rule tables
-
-6. Are the appropriate dummy entries in the input_id_analysis table
-
-7. Have you tested jobs for your different analyses
-
-If the answers to all these questions are yes you are probably read
-to set the RuleManager going
-
-
-Here is an example of the conf file you may need to setup the analysis for
-the genebuild using the analysis_setup.pl script 
-(see using_the_ensembl_pipeline.txt)
-
-In these analysis objects there are no setting which are specific to the
-data you are using. You should note that all this objects do need a 
-input_id_type as specified by the type variable and if at anypoint the
-type of a goal analysis isn't the same as the type of the conditional
-analysis you need an accumulator between the two and another condition
-of the same type to provide the appropriate input_ids 
-
-
-[SubmitChr]
-type=CHROMOSOME
-
-
-[Pmatch]
-db=rodent_proteins
-module=Pmatch
-type=CHROMOSOME
-
-[Pmatch_Wait]
-module=Accumulator
-type=ACCUMULATOR
-
-[SubmitGenome]
-module=dummy
-type=GENOME
-
-[BestPmatch]
-db=rodent_proteins
-module=BestPmatch
-type=GENOME
-
-[Best_Wait]
-module=Accumulator
-type=ACCUMULATOR
-
-[Submit5MSlice]
-type=5MSLICE
-
-[TGE_gw]
-module=FPC_TargettedGeneWise
-type=5MSLICE
-
-[similarity_genewise]
-module=FPC_BlastMiniGenewise
-type=5MSLICE
-
-
-[SubmitChunks]
-module=PipelineExonerate
-type=CDNACHUNK
-
-[exonerate]
-db=rat_est
-program=exonerate
-program_version=0.6.7
-program_file=exonerate
-module=ExonerateToGene
-gff_source=exonerate
-gff_feature=est
-type=CDNACHUNK
-
-[exonerate_wait]
-module=Accumulator
-type=ACCUMULATOR
-
-[combined_gw_e2g]
-module=Combine_Genewises_and_E2Gs
-type=5MSLICE
-
-
-[Comb_Wait]
-module=Accumulator
-type=ACCUMULATOR
-
-[ensembl]
-module=Gene_Builder
-type=CHROMOSOME
-
-[Final_Wait]
-module=Accumulator
-type=ACCUMULATOR
-
-[cdna_genebuilder]
-module=EST_GeneBuilder
-type=5MSLICE
-
-[cdna_wait]
-module=Accumulator
-type=ACCUMULATOR
-
-[genecombiner]
-module=GeneCombiner
-type=5MSLICE
-
-
-
-
-
-
-
-
-
 
 
 
