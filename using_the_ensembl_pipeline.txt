@@ -332,6 +332,10 @@ and therefore, a combination of say 5MB and 1MB slices would
 produce many repeat results.
 
 
+Note if you have multiple databases all analysis tables must be identical 
+down to the internal ids otherwise this can break the pipeline
+
+
 3. Now you need to fill in the rule tables
 ------------------------------------------
 
@@ -1184,3 +1188,11 @@ by the genebuild are analysed using algorithms and data such as pfam
 prints, tmhmm and signalp. A description of this process can be found
 in running_the_protein_annotation.txt 
 
+General checkpoints
+
+1 do you have entries in BatchQueue.pm, General.pm and Blast.pm
+2 do you have entries in the analysis, input_id_type_analysis, rule_goal
+  rule_conditions and input_id_analysis tables
+3 if your pipeline is running against multiple databases do they all have
+  identical analysis tables down to the database ids
+4 will the pipeline_sanity script run without any problems
