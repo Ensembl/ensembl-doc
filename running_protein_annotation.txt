@@ -218,7 +218,7 @@ of the same type to provide the appropriate input_ids
 
 
 [SubmitTranscript]
-type=TRANSLATIONID
+input_id_type=TRANSLATIONID
 
 [Pfam]
 db=Pfam
@@ -228,10 +228,10 @@ program_file=/usr/local/ensembl/bin/hmmpfam
 module=Protein/Hmmpfam
 gff_source=Pfam
 gff_feature=domain
-type=TRANSLATIONID
+input_id_type=TRANSLATIONID
 
 [SubmitTranscriptChunk]
-type=FILENAME
+input_id_type=FILENAME
 
 
 [Signalp]
@@ -241,7 +241,7 @@ program_file=signalp
 module=Protein/Signalp
 gff_source=Signalp
 gff_feature=annotation
-type=FILENAME
+input_id_type=FILENAME
 
 [tmhmm]
 db=transmembrane
@@ -250,7 +250,7 @@ program_file=/path/to/run_tmhmm
 module=Protein/Tmhmm
 gff_source=Tmhmm
 gff_feature=annotation
-type=FILENAME
+input_id_type=FILENAME
 
 #note run_tmhmm can be found in the cvs reposistory here
 # ensemb-pipeline/scripts/protein_pipeline/run_tmhmm
@@ -263,7 +263,7 @@ program_file=FingerPRINTScan
 module=Protein/Prints
 gff_source=Prints
 gff_feature=domain
-type=FILENAME
+input_id_type=FILENAME
 
 [ncoils]
 db=coiled_coil
@@ -272,7 +272,7 @@ program_file=/usr/local/ensembl/bin/ncoils
 module=Protein/Coil
 gff_source=ncoils
 gff_feature=annotation
-type=FILENAME
+input_id_type=FILENAME
 
 
 [pfscan]
@@ -283,11 +283,11 @@ program_file=pfscan
 module=Protein/Profile
 gff_source=Profile
 gff_feature=Domain
-type=FILENAME
+input_id_type=FILENAME
 
 
 [SubmitProteome]
-type=PROTEOME
+input_id_type=PROTEOME
 
 [scanprosite]
 db=prosite
@@ -298,7 +298,7 @@ parameters=-confirm /path/to/confirm.patterns
 module=Protein/ScanProsite
 gff_source=Prosite
 gff_feature=domain
-type=PROTEOME
+input_id_type=PROTEOME
 
 [Seg]
 db=low_complexity
@@ -308,4 +308,4 @@ program_file=seg
 module=Protein/Seg
 gff_source=Seg
 gff_feature=annotation
-type=PROTEOME
+input_id_type=PROTEOME
