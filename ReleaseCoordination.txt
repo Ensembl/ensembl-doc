@@ -154,6 +154,8 @@ ln -s bioperl-1.2.3 bioperl-live (that is to comply with @INC set up
 in conf/httpd.conf file)
 
 mkdir logs (needed for webserver logs)
+mkdir src
+ln -s /usr/local/ensembl/apache/bin/httpd src/httpd
 
 if /nfs/acari/websites/ensembl_26 already exists, running
 a cvs up -dP on each module should be enough (unless a lot of conflicts appears). 
