@@ -1,0 +1,97 @@
+Running EST analysis in Ensembl
+-------------------------------
+
+Val Curwen 02.10.2001
+
+Overview
+--------
+
+Our aim is to use EST (and cDNA) data 
+
+Like the genebuild, the EST build is controlled by scripts and a
+config file, which should hopefully make it fairly painless. The scripts
+files live in ensembl-pipeline/scripts/EST, and the config file lives in 
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/EST_conf.pl
+
+Modules
+-------
+
+The modules that control the EST run are:
+
+1. ExonerateESTs - this runs exonerate between a file of ESTs and a genomic sequence, and writes the results out to file.
+
+2. FilterESTs_and_E2G - this retrieves exonerate features from an ensembl database, filtered by score and %id, blasts against the genomic region, filters using the FeatureFilter (so we don't stack up 100s of identical hits), makes a minigenomic, runs est_genome and writes out a gene prediction for each EST.
+
+3. EST_GeneBuilder - clusters the est_genome predictions, generates potential alternative transcripts and uses Genomewise to produce gene structures that are written to the database. (still in testing)
+
+Scripts
+-------
+
+The running of these 3 modules is currently coordinated by a range of scripts:
+get_human_ests.pl - retrieves human ests from dbEST and polyA/polyT clips the ends
+prepare_ests.pl   - splits the ESTs into small files
+make_bsubs.pl     - generates bsub commands for running the various stages
+submit.pl         - submits jobs (basically just a  system call!)
+load_exonerates.pl- writes exonerate results into feature table
+
+Step by step instructions
+-------------------------
+
+1. You need to have 2 databases:
+
+main ensembl database - we call this "refdb" - holds dna sequences, static_golden_path, 
+pipeline results etc. We just use this as a source for dna sequence information
+
+est database - called "estdb" - we store the est results in a separate database to keep 
+table sizes under control. This database needs to have the clone, contig and static_golden_path 
+tables filled in - dump the data from these tables in refdb, and load it up into estdb.
+
+2. you will need to have some sort of sequence fetcher installed. We use James Cuff's makeindex 
+and getseqs as they are the fastest and best we've found, but you can use anything you like as 
+long as the ensembl modules know how to use it ...
+
+3. fill in the fields in EST_conf.pl; it should be self explanatory but email me (vac@sanger.ac.uk) if it isn't.
+
+4. run get_human_ests.pl against (sections of) dbEST
+
+get_human_ests.pl -estfile dbEST-1 -outfile myoutfile
+
+5. run prepare_ests.pl
+all options are set in EST_conf.pl
+this prepares a sequence index for the ESTs so we can fetch them out later.
+
+6. prepare a multiple entry fasta file of the contigs in the golden path, repeatmasked and preferably dusted (or a file of whatever sequence you are going to run against)
+
+7. distribute est seq index across farm and specify its location in EST_conf.pl::est_genome_conf::est_index
+
+8. distribute gp seq file across farm - this is critical otherwise nfs overhead is horrific - at least, 
+it is here.
+
+9. make_bsubs.pl
+
+10. submit.pl exonerate_ests.jobs.dat
+
+11. cd to the place where you ahve specified output files to go, then use load_exonerates.pl to load 
+up the data::
+
+ecs1g[vac] % foreach i ( exest* )
+foreach? gunzip $i
+foreach? /work2/vac/ensembl-pipeline/scripts/EST/load_exonerates.pl -estfile $i:r
+foreach? end
+
+
+12. submit.pl filter_ests.jobs.dat
+
+(will fill in the next section when genomewise is really running properly)
+
+Genomewise
+
+make sure there's a sgp in the est database
+
+/work2/vac/ensembl-pipeline/scripts/run_EST_RunnableDB -runnable Bio::EnsEMBL::Pipeline::RunnableDB::EST_GeneBuilder -dbname est_to_main_trunk -dbhost ecs1f -dbuser ***REMOVED*** -dbpass ensembl -input_id chr6.181727278-181767874 -write
+
+
+
+
+
+
