@@ -95,6 +95,21 @@ needs to do organism specific stuff
 
 ox this should be the taxonomy_id for your organism
 
+
+You then need to load the external db table
+
+the information about this can be found here
+
+ensembl/misc-scripts/external_db
+
+the external_db.txt contains all of the current entries
+
+if you have new xrefs to add you need to add them to this file
+
+this file can be loaded into the database using sql like this
+
+load data infile 'path/to/external_db.txt' into table external_db
+
 What you need to run
 ====================
 
