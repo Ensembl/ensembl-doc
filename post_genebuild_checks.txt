@@ -52,9 +52,9 @@ where x is the assembly number
      have the same entries but be the sticky_rank 2, say, of two different sticky exons.
 
 2. check for sane exon coords
-     select * from exon where contig_start < 1;
-     select * from exon where contig_start > contig_end;
-     select exon_id from exon, contig where exon.contig_id =contig.contig_id and exon.contig_end > contig.length;	  
+     select count(*) from exon where contig_start < 1;
+     select count(*) from exon where contig_start > contig_end;
+     select count(exon_id) from exon, contig where exon.contig_id =contig.contig_id and exon.contig_end > contig.length;	  
 
      note that until we have a better way of storing genewise frameshifts we will have very small exons ( < 10bases ) so not much point in testing seq_start=seq_end. 
 
@@ -155,7 +155,7 @@ where x is the assembly number
 
 3. check analysis - there must be no features with an invalid analysis id!
 
-     select analysis_id, logic-name from analsyis;
+     select analysis_id, logic_name from analysis;
      select analysis_id, count(*) from dna_align_feature group by analysis_id;
      select analysis_id, count(*) from protein_align_feature group by analysis_id ;
      select analysis_id, count(*) from protein_feature group by analysis_id ;
@@ -196,7 +196,7 @@ make sure things are properly defined and they have useful names
      select count(*) from protein_align_feature where hit_start > hit_end;     
      select count(*) from protein_align_feature where hit_start < 1;     
      
-     select coutn(*) from dna_align_feature where contig_start > contig_end;
+     select count(*) from dna_align_feature where contig_start > contig_end;
      select count(*) from dna_align_feature where contig_start < 1;
      select count(dna_align_feature_id) from dna_align_feature f, contig c where f.contig_id = c.contig_id and f.contig_end > c.length;
 
