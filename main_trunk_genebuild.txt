@@ -1,7 +1,11 @@
 Running an assembly based genebuild
 -------------------------
 
-(Contact: vac@sanger.ac.uk, eae@sanger.ac.uk, lec@sanger.ac.uk)
+(Contact: ensembl-dev@ebi.ac.uk)
+
+some of this document is out of date and there are better ways of running
+most of the genebuild now although these methods should still all work, 
+more documentation about this should added soon (04/08/03)
 
 A. Overview
 -----------
@@ -250,6 +254,9 @@ use the string from the 'type' column of the assembly table.
 
 C. TargettedGenewise build
 ----------------------------------
+
+for a more upto date set of instructions about running the pmatch section
+of the targetted build see running_pmatch.txt
 
 1. download assembled sequence eg for the human build:
 

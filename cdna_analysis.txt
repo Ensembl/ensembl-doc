@@ -1,7 +1,12 @@
 Running cDNA analysis in Ensembl
 -------------------------------
 
-Val Curwen 01.02.2002
+contact ensembl-dev@ebi.ac.uk
+
+This document is out of date and the code it suggests using may not work
+anymore
+
+new documentation should be on its way (04/08/03)
 
 The method for running cDNA analyses in EnsEMBL is virtually identical
 to the method for running EST analysis, though there are a couple of

@@ -2,7 +2,13 @@
 Running EST analysis in Ensembl
 -------------------------------
 
-(Contact: vac@sanger.ac.uk, eae@sanger.ac.uk)
+(Contact: ensembl-dev@ebi.ac.uk)
+
+This document is very old an the process it describes is no longer used so
+the code may not function properly
+
+newer documentation should be on its way (04/08/03)
+
 
 Overview
 --------
