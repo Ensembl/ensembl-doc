@@ -1,0 +1,41 @@
+This text has been yanked from an out-of-date document - it seems to be have been lost, more recently, so I'm putting it here just in case...
+
+Another index system: INDICATE (by Steve Searle)
+
+	First of all you need to be able to use some libraries:
+	setenv LD_LIBRARY_PATH /nfs/acari/searle/progs/local2/lib:${LD_LIBRARY_PATH}
+
+	There is a program:
+	/nfs/acari/searle/progs/ensembl/ensembl-nci/src/bioglib/program/indicate
+
+	which creates the OBDA indexes.
+
+	Example usage
+
+	1. Make a directory for the index
+	mkdir dbSTS
+
+	2. Run:
+
+	/nfs/acari/searle/progs/ensembl/ensembl-nci/src/bioglib/program/indicate
+	--data_dir /data/blastdb/Ensembl --file_prefix dbSTS- --index dbSTS
+	--parser dbParser
+
+	Where:
+	--data_dir is directory contain fasta files to index
+	--file_prefix is prefix of files to index (all files beginning with
+	  prefix and ending in a number will be indexed). If you want to index a single
+	  fasta file you can write here just the name of that file
+	--index directory created in step 1
+	--parser parser function to use (dbParser for db* databases,
+	  swallParser for swall, rikenParser for riken,... )
+	  ( if you only have 1-word display_ids in a multiple-entry fasta file
+	  the parser to use is 'singleWordParser')
+
+
+	The seqfetcher to use with this index is Bio::EnsEMBL::Pipeline::SeeFetcher::OBDAIndexSeqFetcher.pm
+	make sure that it is correctly defined in your Runnables
+
+	You'll also need to use Bioperl 1 to be abkle to use OBDAIndex
+
+
