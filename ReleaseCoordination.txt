@@ -216,6 +216,8 @@ to stop it
   new data coming in, the schema changes, and a summary of mart
   translation (that can be obtained from the martians). Mention there
   that the mart db is expected 3 working days after the handover.
+  If there have been any schema changes, send the appropriate patch SQL
+  file to the web team so that they can publish it.
 
 Here is an example,
 
