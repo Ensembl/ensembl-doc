@@ -131,8 +131,8 @@ stdout/stderr from the jobs, and for the data for the jobs.
 Get checkouts of the three pieces of code you need, ensembl, 
 ensembl-pipeline and bioperl and make sure they are in your PERL5LIB
 
-make sure you have access to binaries for genewise which is availble 
-from the ensembl cvs under rd-utils and wise2 packages respectively
+make sure you have access to binaries for pmatch and genewise which is 
+availble from the ensembl cvs under rd-utils and wise2 packages respectively
 
 setup the databases
 
@@ -865,7 +865,7 @@ strange errors (see end of section B for a description).
 Checklist
 =========
 
-When running the raw computes it is worth checking these things out
+When running the genebuild it is worth checking these things out
 before you hit go
 
 1. Do you have all the executables, and data files for the
