@@ -35,6 +35,7 @@ Mosquito:       MOZx
 C. elegans:     CELx
 C. briggsae:    CBRx
 Mouse:          MGSCx
+Mouse:          NCBIMx (new mouse assemblies from NCBI combining MGSC with finished BAC sequences)
 Human:          NCBIx
 
 where x is the assembly number
