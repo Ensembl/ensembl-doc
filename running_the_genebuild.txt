@@ -152,29 +152,34 @@ similarity genewise
                    |____________| 
 
 
-they all need to contain the core schema and these tables need to be
-filled in clone, contig, assembly, analysis, meta, chromosome
+They all need to contain the core schema and these 8 tables need to be
+filled in:
+coord-system, seq_region, assembly,
+meta, meta_coord,  
+seq_region_attrib,attrib_type,
+assembly
 
-the meta table should contain an assembly.default entry
-
+The meta table should contain an assembly.default entry
 
 | meta_id | meta_key         | meta_value |
 +---------+------------------+------------+
 |       2 | assembly.default | RGSC3.1    |
 
-the analysis table should be identical in all the databases even down
+The analysis table should be identical in all the databases even down
 to the analysis_id as at present if this is not the case it breaks
-the pipeline system
+the pipeline system.  If you are creating new analyses as you go along, 
+keep the analysis table (and these other common tables) in synchrony 
+between your databases.
 
-the reference database GB_DB should also contain the pipeline tables
-which can be found in ensembl-pipeline/sql/table.sql and whose function
-are describe in using_the_ensembl_pipeline.txt
-
+The reference database GB_DB should also contain the pipeline tables
+which can be found in ensembl-pipeline/sql/table.sql and whose functions
+are described in using_the_ensembl_pipeline.txt
 
 If you have access to multiple mysql instances it is a good idea to
 put different database which will be accessed by the same analysis on 
 different instances otherwise the pipeline can produce database contention
-issues
+issues.
+
 
 More info about the various databases:
 --------------------------------------
@@ -183,8 +188,12 @@ Here we descibe the various databases and the configuration options
 relevant to each. These configuration options can be found in 
 Bio::EnsEMBL::Pipeline::Config::Database
 
-all these databases should contain contig, clone, dna, chromosome, 
-assembly, meta and analysis tables filled in
+Remember that the following tables need to be filled in:
+coord-system, seq_region, assembly,
+meta, meta_coord,  
+seq_region_attrib,attrib_type,
+assembly
+
 
 * reference db ( or sometimes called dna db )
 Contain the dna, the features from the pre-compute pipeline and the 
