@@ -558,6 +558,15 @@ This is described in ensembl-doc/post_genebuild_checks.txt
 I. Preparations of the Data before handing Over:
 ------------------------------------------------
 
+#################
+Dump the peptides
+#################
+
+dump the translations from the built genes into multiple fasta format.
+This will be used for protein-mapping ( see .../ensembl-doc/protein_mapping.txt )
+You can use the script .../ensembl-pipeline/scripts/GeneBuild/dump_peptides.pl*
+
+
 ########################
 Final GeneBuild Database
 ########################
@@ -618,6 +627,33 @@ dump the feature table from the interim database into a file
 mysql> select * from feature into outfile 'path/to/interim_feature_before_pruning.file';
 
 parse the feature file and reject all those BLAST features (and only BLAST features) with score below 150.
+
+delete the feature table from the interim database ( make sure you have a back-up and
+that you are deleting the right table from teh right database )
+and load the resulting features back into the feature table
+
+mysql > load data infile 'path/to/pruned_features' into table feature;
+
+
+#########################################
+Convert Supporting Evidence into Features
+#########################################
+
+The Web page only displays features and no supporting features, therefore we need
+to convert all the supporting evidence from the supporting_feature table
+into the format for the feature table.
+
+This requires to make sure that we have a proper analysisprocess table,
+and that every feature load (or to be loaded) has an analysis correctly assigned and
+present in the analysisprocess table.
+
+
+#######################
+Remove redundant tables
+#######################
+
+Remove tables pmatch_feature and protein, used in the pmatch analysis.
+Make a back-up of this data somewhere before hand.
 
 
 
