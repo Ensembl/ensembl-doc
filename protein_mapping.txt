@@ -21,11 +21,15 @@ III-General strategy 2 different mapping are undertaken
 IV-How to run the mapping
 	a-First fill in the mapping_conf file, this should be pretty
 	straightforward.
+	! All of the fields don't have specifically to be completed. The mapping is 
+	organism specific and can be run without any pb only using SP files for example.
+	If you need specific Xmapping (eg MGI for mouse) you can add your own options 
+	in mapping_conf and modify get_Xmapping.pl script.
 	
 	b-If you need to fetch the specific SP sequences for the given
 	organism run grep_sptr_entries.pl. It will also format the SP file
 	in fasta format. But this script will retrieve only sequences from 
-	one specific organism. If you can its recommended to prepare the file
+	one specific organism. If you can it is recommended to prepare the file
 	yourself
         
         If you already have all of the files prepared you can
@@ -36,10 +40,12 @@ IV-How to run the mapping
 	curated databases (SPTR or Refseq) to other databases. This external
 	databases mapped will depend of the organism. eg for human (GO, HUGO,
 	Locuslink, OMIM,...), mouse (MGI).
-	
+		
 
 	d-Run pmatch.pl: perl pmatch.pl, pmatch.pl will run and postprocess the comparison
-	of the protein from (SP/Refseq) and your protein file.
+	of the protein from (SP/Refseq) and your protein file. Ok, pmatch.pl is currently a
+	mess. I will rewrite it as soon as possible. A specific version of pmatch is currently
+	needed to work with pmatch.pl, if needed contact me.
 	
 	e-Run maps2db.pl (perl maps2db.pl), this will take the result of
 	both mappings and load everything into the database.
