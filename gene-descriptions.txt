@@ -48,8 +48,10 @@ used to choose a description.
 
 Maintainer description:
 
-This is incomplete, since it needs the family database as well, which hasn't
-been properly documented yet. But the first bits are:
+Descriptions are taken from SWISS-PROT/TREMBL, and if no close enough mapping
+is found, from the family database. You can run the non-family bit already,
+so that if bad comes to worst, you at least already have the obvious bits
+(the family thing adds another 30% though, so it's well worth doing it). 
 
  - make sure the peptide mapping has been done
 
