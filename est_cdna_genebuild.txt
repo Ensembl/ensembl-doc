@@ -103,10 +103,13 @@ this is a diagram of all databases you require
                |___________|  
 
 
-they all need to contain the core schema and these tables need to be
-filled in clone, contig, assembly, analysis, meta, chromosome
+They all  need to contain the core schema and these 8 tables need to be filled in:
+- coord-system, seq_region, assembly,
+- meta, meta_coord,  
+- seq_region_attrib,attrib_type,
+- assembly
 
-the meta table should contain an assembly.default entry
+The meta table should contain an assembly.default entry
 
 
 | meta_id | meta_key         | meta_value |
