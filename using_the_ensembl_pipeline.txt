@@ -243,8 +243,10 @@ ensembl-pipeline/scripts/add_analysis
 This will allow you to add individual lines to an analysis table. This
 script depends on the database already having the pipeline tables included
 
-The second method will fill the analysis table and input_id_type_analysis 
-table all at once. This method takes a conf file which has this format
+
+The second method uses the ensembl-pipeline/scripts/analysis_setup.pl and
+will fill the analysis table and input_id_type_analysis table all at once.
+This method takes a conf file which has this format
 
 [RepeatMask]
 db=repbase
