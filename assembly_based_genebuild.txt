@@ -179,8 +179,15 @@ together with a golden path (fpc contig) location to which that
 protein matches. The first stage is downloading human protein
 sequences from SwissProt/TrEMBL and Refseq. 
 
+TargettedGeneWise needs as input protein ids 
+together with a golden path (fpc contig) location to which that
+protein matches. The first stage is downloading human protein
+sequences from SwissProt/TrEMBL and Refseq. 
+
 mkdir /work2/vac/GeneBuild/Apr_gp/human_proteome
 cd /work2/vac/GeneBuild/Apr_gp/human_proteome
+
+ftp: username: anonymous, passwd is your email address
 
 #downloading swissprot files:
 ftp ftp.ebi.ac.uk
@@ -581,8 +588,15 @@ Dump the peptides
 #################
 
 dump the translations from the built genes into multiple fasta format.
-This will be used for protein-mapping ( see .../ensembl-doc/protein_mapping.txt )
+This will be used for protein-mapping 
+( see .../ensembl-doc/protein_mapping.txt )
+
 You can use the script .../ensembl-pipeline/scripts/GeneBuild/dump_peptides.pl*
+
+Make sure to produce a log-file where you keep record of the translations with
+stop codos, maybe as well of monkey-exons, and the transcript ids being dumped
+etc. Communicate the ones with stop codos to the people checking the data
+so that they can remove them from the database.
 
 
 ########################
