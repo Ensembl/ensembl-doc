@@ -40,6 +40,21 @@ Human:          NCBIx
 
 where x is the assembly number
 
+###############
+# CHROMOSOMES #
+###############
+
+check that the chromosome lengths reported in the chromosome table are the same as the max(chr_end) in the assembly table:
+
+select c.name, max(a.chr_end) - c.length from assembly a, chromosome c where c.chromosome_id = a.chromosome_id group by c.name;
+
+If not, you'll have to dump a corrected chromosome table:
+
+/post_GeneBuild/ mysql -N -u ensro -h ecs2c -D NCBI31_estgene_rerun -e "select c.chromosome_id, c.name, max(a.chr_end) from chromosome c, assembly a where a.chromosome_id = c.chromosome_id group by c.name, chromosome_id;" > chromosome_table
+
+and load it in (after deleting the wrong one):
+
+mysql> load data infile '...full_path/chromosome_table' into table chromosome;
 
 ###################
 # checks on exons #
@@ -93,6 +108,12 @@ e1.end_phase=e2.end_phase and e1.exon_id != e2.exon_id and e1.contig_id
 
      select distinct(e.exon_id), c.name, a.chr_start, a.chr_end from chromosome c, assembly a, exon e left join supporting_feature on e.exon_id=supporting_feature.exon_id where supporting_feature.exon_id is NULL and e.contig_id = a.contig_id and c.chromosome_id = a.chromosome_id;
 
+
+7.- A very crude method to check for suspicious exons is as follows:
+
+    select exon_id, sticky_rank, ( contig_end - contig_start + 1 ) from exon where sticky_rank > 1 or (contig_end - contig_start + 1 )= 1  order by exon_id;
+
+real stickies will appear next to their other halves, so you can have a feeling fo howmany with length 1 there are
 
 
 ###################################
