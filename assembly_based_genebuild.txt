@@ -230,6 +230,11 @@ in sptr:
 >Q62021 (Q62021) 89 kDa protein (Fragment)
 >Q9CRG9 (Q9CRG9) 2410041F14Rik protein (Fragment)
 
+Apr 6 2002: also 
+Q8VEW3
+NP_291080.1
+O89080
+
 Options to be set in GeneConf.pm:
 
 GB_REFSEQ  Path to fasta file of Refseq protein sequences
@@ -407,6 +412,13 @@ Common errors in the Targetted jobs: look for things like:
 'lost' (use case insensitive search) -  If you have jobs that lost their database connection, first check the mysql parameters to make sure you don't have a ludicrously short connection  timeout (these jobs can take HOURS to run), and resubmit them.
 Also look for gapcontig, gap contig ( in gaps it won't be able to remap the gene ) - there's not much to be done about these - we need to make a fix in the code.
 
+grep for exit codes in .out files
+exit code 130 -> job was bkilled
+          139 -> weird memory error
+          2   -> sequence fetching prob? can indicate a dodgy node
+          1   -> out of memory
+          9   -> out of pfetch servers
+
 Look also for exceptions which do not fall into these categories - they might be new bugs that need fixing!
 
 In some cases, some runs on certain proteins fail for other reasons e.g. blast cannot open a file  
@@ -433,6 +445,10 @@ submissions.
 4. If all is well, submit the rest of the jobs as before
 
 Options to be set in GeneConf.pm:
+GB_SIMILARITY_DATABASES                 An array of hashes representing the sequence database(s) from which blast 
+					hits can be retrieved to seed the genewises. A separate entry must be filled 
+					in for each database, containing database type (db column in analysisprocess table), 
+					minimum score threshold and full path to sequence index that's rdisted across farm.
 GB_PROTEIN_INDEX			Path to index of all protein sequences eg swall, swissprot, trembl
 GB_SIMILARITY_TYPE			db entry from analysisprocess table for the protein blast features you'll be using eg swall
 GB_SIMILARITY_THRESHOLD			minimum score threshold for blast features to be used ni build eg 200
