@@ -270,7 +270,11 @@ mkdir ../families
 
 # This not only puts things together, but also drastically cleans the
 # annotations up. Typically well over half of the annotations are useless,
-# and are therefore assigned 'UNKNOWN'.
+# and are therefore assigned 'UNKNOWN'. The reason not to do this straight
+# away in consensifier.pl is that the latter is fairly slow, so you can't
+# really easily tweak scores and things to make the annotations ready for
+# consumption. 
+#
 # 
 # Have a look (grep -v UNK) through the result to see if there's not too much
 # junk, as well as through $release.discarded (grep -v UNK) to see if not too
@@ -340,7 +344,24 @@ mkdir ../families
 # numbers (although I have seen +- 50% ... not sure what to make of that, it
 # looked OK).
 # 
-# If the gene-descriptions (see gene-descriptions.txt) have not been done
+# As far as the histogram is concerned, typical output is shown here:
+#
+# 0-0: 6558
+# 1-1: 9171
+# 2-10: 3800
+# 11-100: 248
+# 101-1000: 5
+# 1001-10000: NULL
+# Largest family has  784 ensembl members. Row is:
+# internal_id     id      description     release annotation_confidence_score     num_ens_pepts
+# 1       ENSF00000000001 ZINC FINGER PROTEIN     3       91      784
+# 
+# 
+# Families with 0 members are OK: we're only looking at the ENSPEPT members
+# in this figure. 
+#
+# If the gene-descriptions (see ensembl-doc/gene-descriptions.txt) have not
+# been done
 # yet, do them, then run the script 
 
     ensembl/scripts/desc-from-fam.sh coreDB MUSG -h host -u user famDB
@@ -371,20 +392,23 @@ mkdir ../families
 # new families.
 # 
 # Note on the algorithm: nothing fancy really, the two lists of families are
-# sorted by size, then starting with the largest of the old families, the best
-# matching family is greedily picked from the new list, and so on down till we
-# have run out of matches. The 'best matching' family is the one that has the
-# largest MAX(overlap(SPTR), overlap(ENSPEP)), where overlap(X) is the
-# percentage of matching cross-references to database X in the old and new
-# family databases. The percentage used is
+# sorted by size, then starting with the largest of the old families, the
+# best matching family is greedily picked from the new list, and so on down
+# till we have run out of matches. The 'best matching' family is the one that
+# has the largest MAX(overlap(SPTR), overlap(ENSPEP)), where overlap(X) is
+# the percentage of matching cross-references to database X in the old and
+# new family databases. The percentage used is
 # 100*accessions-in-both-old-and-new/those-in-either. If this max overlap
-# percentage is > $minperc, the match is kept; otherwise, new id's will be
-# used.  
+# percentage is > $minperc (default: 10), the match is kept; otherwise, new
+# id's will be used.
 # 
 # You may want to fiddle with the -minperc option; the default is 10.  (And for
 # a twilight zone of $minperc + 10, the match is kept, but a warning is output;
 # since the old and new family descriptions are printed to stderr, you can look
-# through it to see if you trust it.
+# through it to see if you trust it. Search for '%' in stderr, to see
+# instances that may be dodgy, and raise $minperc if necessary. The large
+# majority of mappings appears the be perfect, with identical description
+# lines in old and new release.
 # 
 # NOTE: (1) To run the mapping, the gene/peptide id's that are read from the old
 #           and new databases must already have been mapped !
