@@ -1,0 +1,133 @@
+This document describes how we run our markers against any genome
+
+The code you need to run this is
+
+The ensembl cvs modules
+
+ensembl
+ensembl-pipeline 
+ensembl-analysis
+
+and bioperl
+
+bioperl-live branch bioperl-release-1-2-3
+
+
+To place the markers we run epcr but first data needs to be fetched and 
+tables need to be loaded
+
+
+Data
+----
+
+STS markers can be fetched for many species from UniSTS
+
+ftp://ftp.ncbi.nih.gov/repository/UniSTS/UniSTS.sts
+
+then you need to grep your species markers out of that file which
+can simply be done like this
+
+grep -i 'Homo sapiens' UniSTS.sts > human.sts
+
+
+Some species have other marker sets like you can get markers for rat from
+RGD 
+
+You also need to fetch the map location files for at least the UniSTS 
+markers these files specify the map location for each marker in the genome.
+These files can be found here for UniSTS
+
+ftp://ftp.ncbi.nih.gov/repository/UniSTS/UniSTS_MapReport
+
+Loading tables
+--------------
+
+Once you have your data you need to load the database tables.
+
+First you need to load the map table. This is currently done by hand
+using a statement like this
+
+insert into map (map_name) values('FHH_X_ACI');
+
+the name for UniSTS maps are generally the name of the file without the
+tax id or the .txt
+
+Then you need to load the marker and marker synonym tables
+
+This is done with a script
+
+ensembl-analysis/scripts/markers/load_markers.pl
+
+This script which takes the standard database commandline args and then
+is pointed at a file which should fit the UniSTS format described below
+and a source which should be a name like UniSTS or RGD loads the primer
+sequences into the marker table and names into the marker synonym table
+
+The file must fit the format
+
+numeric_id left_primer right_primer distance name random accession species
+
+The script loads the numeric_id, the name and the accession as synonyms
+the name and accession are given the source specified on the commandline
+the numeric_id is given the source source_NUM and this is the synonym which
+is specified as the display_marker_synonym_id as this is 
+generally the easier id for the webteam to link to external sites using
+
+One that is run you need to load the marker_map_location table which can
+be done using this script
+
+ensembl-analysis/scripts/markers/load_markers.pl
+
+Again this script takes the standard db args plus a map_name which should
+match one of the lines in the map table and a map_file
+
+The file is expected to be in the standard unists format which has comment
+lines starting with # then data lines in this order
+
+numeric_id name chr_name position
+
+The chr_name needs to match the name in the seq_region table of your
+chromosomes.
+
+The numeric id is used to figure out which marker this references then
+the name is looked for in the marker_synonym table if it doesn't exist a
+new line is inserted pointing at the same marker but the source will be the
+name of the map
+
+
+Lastly you need to dump out your marker table into a file in the format
+EPCR expects.
+
+This can be done with the script
+
+ensembl-analysis/scripts/markers/dump_markers.pl
+
+This script takes the standard database arguments and a path to an outfile
+
+Running the analysis
+--------------------
+
+the runnable Bio::EnsEMBL::Analysis::RunnableDB::EPCR should be used to
+run the markers. This is generally run on 1MB slices but this will depend
+on your species to a certain extent
+
+You need 2 analysis objects,  a dummy object to associate with your 1MSlice
+input ids (you may already have this) and an object we generally call 
+marker which points at the runnabledb EPCR , the file of dumped markers 
+using the db_file column and is given these parameters
+
+-M=>150,-W=>7,-NMIN=>0, -NMAX=>2
+
+which mean the margin will be 150 and the word size 7 and epcr will be run
+three times. First with a mismatch of 0, then 1 then 2 each time ignoring
+markers which have already been hit with a higher stringency
+
+
+You will also need one rule which tells the pipeline it can 
+run epcr when their are 1M slice identified pointed at your dummy analysis
+in the input_id_analysis table
+
+
+For more information about the pipeline setup, and the analysis and rule
+tables please see the document using_the_ensembl_pipeline.txt
+
