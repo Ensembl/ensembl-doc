@@ -11,6 +11,8 @@ how to do this
 
 if you have any questions please contact ensembl-dev@ebi.ac.uk
 
+Document last updated (19/06/2003)
+
 this document therefore assumes you have these things
 
 What you need
@@ -18,8 +20,8 @@ What you need
 
 a mysql_instance with an instance of the ensembl core database
 
-bioperl-072 
-ensembl core 
+bioperl-072
+ensembl core
 ensembl pipeline
 
 these are all availible from cvs on the web
@@ -47,7 +49,7 @@ schema is the analysis table
 
 job
 ---
-this contains information about specific jobs, what input_id they are 
+this contains information about specific jobs, what input_id they are
 using what analysis they are running where their stdout and stderr and
 being redirected, how many times the job has been retries and the id from
 which ever submission system has been used
@@ -57,7 +59,7 @@ job_status
 ----------
 
 this contains the record of the various statuses a particular job has
-the current_status has a y flag in the is_current column and the 
+the current_status has a y flag in the is_current column and the
 time records when the entry was made
 
 rule_goal
@@ -66,7 +68,7 @@ rule_goal
 this contains the analysis_id of the analysis that should be completed
 when this rule is executed
 
-rule_condition 
+rule_condition
 --------------
 this contains the rule_id of the goal which should be
 executed together with the logic_name of an analysis which needs to be
@@ -76,7 +78,7 @@ each rule can have more than one condition and all conditions need to
 have the same rule_id and must be complete before that rule
 will be executed
 
-you shouldn't have two different rules which have the same goal but 
+you shouldn't have two different rules which have the same goal but
 different conditions
 
 
@@ -92,9 +94,9 @@ input_id_type_analysis
 
 this table specifies which type of input_id an particular analyses
 has analysis can have what ever type you want, it is good syntax to have
-types all in uppercase like CONTIG, the only type which has to be a 
+types all in uppercase like CONTIG, the only type which has to be a
 specifc spelling and syntax is ACCUMULATOR which should always look
-like this, what these are and what they do is explained later in the 
+like this, what these are and what they do is explained later in the
 document
 
 
@@ -105,34 +107,34 @@ there are 3 different types of dependancies that the ensembl pipeline
 can handle
 
 first a basic premise, the RuleManager script which runs the pipeline
-finds the input ids it should use for a particular job which input_ids 
+finds the input ids it should use for a particular job which input_ids
 it takes depend on the condition that rule has
 
 A. No dependancies, these are analysis which don't depend on anything
    being complete before they are run they just need the sequence and
    possibly the assembly to have been loaded, These currently need to
-   depend on a Dummy Analysis which provides the input ids 
-   
+   depend on a Dummy Analysis which provides the input ids
+
    For example the RepeatMask analysis has no dependancies but in the
    rule_goal table  it depends on SubmitContig and it has an input_id
    type of CONTIG, before the pipeline is set of the input_id_analysis
-   table has entries added for each contig under the analysis 
+   table has entries added for each contig under the analysis
    SubmitContig and then when checking those input_ids, which are contig
    names against the rule for RepeatMasker it will know it can run
 
 B. Dependancies which use the same input_id, these are analysis which
    depend on another analysis being complete and use the same input
-   id. 
-   
+   id.
+
    An example of this is a blast against swall, most of our blasts
    run on contigs and all of our blasts depend on RepeatMasker being
-   complete so a Swall blast job would depend on RepeatMask being 
-   complete for a particular contig and that contig having an entry in 
+   complete so a Swall blast job would depend on RepeatMask being
+   complete for a particular contig and that contig having an entry in
    the input_id_analysis table so when the rule was checked it could
-   be run. 
+   be run.
 
    Rules can be dependant on more than one condition here you
-   would have too entries in the rule_condition table under the same 
+   would have too entries in the rule_condition table under the same
    rule_id and each condition would need to be complete for the same
    input_id for it to beable to start the goal analysis
 
@@ -144,32 +146,32 @@ C. Accumulator dependancies are where a type of analysis which require
    and best in genome type analyses
 
 D. Dependancies which don't use the same input id type, This is a new
-   feature of our pipeline you can now run analysis which don't use the 
+   feature of our pipeline you can now run analysis which don't use the
    same input_id type this is done by introducing a Wait for all stage
    between the two analysis which use different input ids.
-   
+
    The way to mark between different input_ids is to use Accumulators
    which are described in type C
-   
+
    An example of this would be the Pmatch run for the targetted genewise
    the Pmatches are run in two stages, first each chromosome is pmatched
    against a set of peptides, then the Pmatch results across the entire
    genome are taken and filtered to get the best in genome hits and those
    within 2% of those hits
-   
-   The structure of the rules for this go like this the first pmatch 
-   stage can have no dependancies so only need depend on a 
-   SubmitChromosome dummy analysis which already have entries 
+
+   The structure of the rules for this go like this the first pmatch
+   stage can have no dependancies so only need depend on a
+   SubmitChromosome dummy analysis which already have entries
    representing each chromosome in the input_id_analysis table.
-   
+
    Both the SubmitChromosome and pmatch analyses have the type CHROMOSOME
    There is then an accumulator called Best_Wait with type ACCUMULATOR
-   which depends all the pmatches being complete, when they are all 
-   complete the accumulator runs. 
-   
-   BestPmatch (the best in genome pmatch analysis) then depends on two 
-   things the Best_Wait accumulator and a SubmitGenome dummy analysis 
-   which already has an entry in the input_id_analysis table, given 
+   which depends all the pmatches being complete, when they are all
+   complete the accumulator runs.
+
+   BestPmatch (the best in genome pmatch analysis) then depends on two
+   things the Best_Wait accumulator and a SubmitGenome dummy analysis
+   which already has an entry in the input_id_analysis table, given
    that the SubmitGenome entry should already by in the input_id_analysis
    table when the pipeline starts the BestPmatch then just has to wait
    for the Best_Wait accumulator to complete which will happen once
@@ -181,7 +183,7 @@ this diagram should hopefully describe an example flow of rules
  SubmitContig      SubmitChromosome   SubmitGenome     	SubmitSlice
     CONTIG           CHROMOSOME         GENOME            SLICE
  A   ^               A   ^                 ^                ^
-     |                   |                 |		    |	
+     |                   |                 |		    |
  RepeatMask            Pmatch		   |		    |
    CONTIG            CHROMOSOME		   |		    |
  B   ^			 ^		   |		    |
@@ -191,39 +193,39 @@ this diagram should hopefully describe an example flow of rules
    CONTIG	     ACCUMULATOR     	/		    |
  C   ^			 ^	      /			    |
      |			 |	    /			    |
-     |			 |	  /			    /  
-  Blast_Wait          BestPmatch/			  /    
-  ACCUMULATOR	        GENOME			        /	    
-     ^			 ^			      /	    
-     |		      C	 |			    /	    
-     |			 |			  /	    
-     |                Pmatch_Wait	        /		    
-     |                ACCUMULATOR	      /		   
-     |		         ^		    /		    
-     |			 |		  /		    
-     |			 |	        /		    
-       \	     TargettedGenewise/ 			    
-	 \		 SLICE	
+     |			 |	  /			    /
+  Blast_Wait          BestPmatch/			  /
+  ACCUMULATOR	        GENOME			        /
+     ^			 ^			      /
+     |		      C	 |			    /
+     |			 |			  /
+     |                Pmatch_Wait	        /
+     |                ACCUMULATOR	      /
+     |		         ^		    /
+     |			 |		  /
+     |			 |	        /
+       \	     TargettedGenewise/
+	 \		 SLICE
 	   \ 		 ^
 	     \		 |
 	       \	 |
 		 \	 |
                    \SimilarityGenewise
-  			  SLICE	
+  			  SLICE
 
 
-this is an example of the the flow between rules those arrows labeled 
+this is an example of the the flow between rules those arrows labeled
 with either A, B or C are explained the A, B and C type of dependancies
 all other of the connections are covered by D
 
 Rules can have more than one condition. In this situation there are only
 multiple conditions for a single rule where one of the two conditions is
-an accumulator. If there are multiple conditions which aren't 
+an accumulator. If there are multiple conditions which aren't
 accumulators all the conditions should provide the same type of input_id
 
 
-Setting up the system
-=====================
+Setting up the database
+=======================
 
 you should already have an ensembl core database with sequence in it now
 i will describe what you need to do to setup the pipeline system to run,
@@ -242,7 +244,7 @@ mysql -hecs1a -u***REMOVED*** -p*** ensembl_db <ensembl-pipeline/sql/table.sql
 
 there is a script to do this
 
-ensembl-pipeline/scripts/add_Analysis 
+ensembl-pipeline/scripts/add_Analysis
 
 this script has options to specify all the fields in the analysis table
 aswell as a input_type to go in the input_id_type_analysis
@@ -256,36 +258,36 @@ these are the fields in the analysis table
 logic name this is a name for your analysis, we try and make them
 informative
 
-db this is a name for the database your database, 
-db_version the version of your database 
-db_file a path to a database file or matrix file needed by the program 
-for blast the path needs to be from whatever you set to be the 
-environment variable BLASTDB for  example if you BLASTDB is 
-/data/blastdb and you want to use the  database in 
-/data/blastdb/Ensembl/swall Ensembl/swall would be what 
+db this is a name for the database your database,
+db_version the version of your database
+db_file a path to a database file or matrix file needed by the program
+for blast the path needs to be from whatever you set to be the
+environment variable BLASTDB for  example if you BLASTDB is
+/data/blastdb and you want to use the  database in
+/data/blastdb/Ensembl/swall Ensembl/swall would be what
 to put in the db_file column
 
-program this is the name for the program 
-program_version version of program 
+program this is the name for the program
+program_version version of program
 program_file this is the file for the program if the program is
 located in the directory specified in BIN_DIR in General.pm(see later in
-docs) you only need give the program name otherwise it is best to 
+docs) you only need give the program name otherwise it is best to
 specify the full path
 
 parameters this is any commandline parameters your program might need,
 the format should be a comma delimited list, if the option is just a
 commandline flag e.g -gi or -low that is what should appear but if it
-is a flag and a value the entry should look like this 
-'-lib => /path/to/library_file' for example the parameters string 
-'-low, -lib => /ecs2/work1/lec/briggsae.lib' would be parsed to 
-produce a command line like this 
-/usr/local/ensembl/bin/RepeatMasker  -low -lib 
+is a flag and a value the entry should look like this
+'-lib => /path/to/library_file' for example the parameters string
+'-low, -lib => /ecs2/work1/lec/briggsae.lib' would be parsed to
+produce a command line like this
+/usr/local/ensembl/bin/RepeatMasker  -low -lib
 /ecs2/work1/lec/briggsae.lib AC091216.24470.32005.2980374.seq
 
 
 module this should either be the name of the module which is located in
 Bio::EnsEMBL::Pipeline::RunnableDB or if the module isn't located there
-it should be the full name of the module 
+it should be the full name of the module
 module_version version of module
 
 gff_source the source or program which produces these results
@@ -294,27 +296,27 @@ gff_feature the type of feature e.g repeat, homology or gene
 the input_id_type_analysis table is also filled in by the add_Analysis
 this table links the analysis_id to an input_id_type
 
-this input_id types can in theory be anything. The only fixed 
-input id type is ACCUMULATOR, analysis which are to act as 
-ACCUMULATOR's should have the type ACCUMULATOR and use the module 
-Accumulator other than that the only guideline is that any analysis 
+this input_id types can in theory be anything. The only fixed
+input id type is ACCUMULATOR, analysis which are to act as
+ACCUMULATOR's should have the type ACCUMULATOR and use the module
+Accumulator other than that the only guideline is that any analysis
 which use the same set of input_ids should share an input_id type
 examples of this are, if analysis use contig names as input_ids they
-all should be of type CONTIG but if they use slice names ie 
-chr_name.start-end the size of the slices should all be the same ie 
+all should be of type CONTIG but if they use slice names ie
+chr_name.start-end the size of the slices should all be the same ie
 you shouldn't use a combination say of 5MB and 1MB slices otherwise
-you analysis may contain a lot of repeat results 
+you analysis may contain a lot of repeat results
 
 3. Now you need to fill in the rule tables
 ------------------------------------------
 
-there are two rule tables. 
+there are two rule tables.
 
 rule_goal which contains a rule_id and an analysis_id (labelled as goal),
 the analysis_id points to the analysis which should be run when the rule
 is executed
 
-rule_condition contains rule_id and a logic_name(labelled condition) 
+rule_condition contains rule_id and a logic_name(labelled condition)
 which is the logic_name of an analysis that rule depends on, a single
 rule can have multiple conditions
 
@@ -354,7 +356,7 @@ rule_goal
 |      14 | 11   |	Swall	     CONTIG
 |      17 | 30   |	Blast_Wait   ACCUMULATOR
 |      19 | 3    |	Pmatch       CHROMOSOME
-|      20 | 28   |	Best_Wait    ACCUMULATOR	
+|      20 | 28   |	Best_Wait    ACCUMULATOR
 |      23 | 13   |	BestPmatch   GENOME
 |      24 | 4    |	Pmatch_Wait  ACCUMULATOR
 |      26 | 2    |	TGE_gw       SLICE
@@ -382,7 +384,7 @@ rule_conditions
 +---------+------------------+
 
 
-these rules should allow for a rule flow like in the diagram for the 
+these rules should allow for a rule flow like in the diagram for the
 dependancies
 
 i will describe how one chain from that diagram is representing in the
@@ -390,12 +392,12 @@ rules, this is the first chain which starts with SubmitContig
 
 the RepeatMask analysis has no dependancies some must be made to depend
 on a Dummy Analysis which is SubmitContig and will already have
-entries in the input_id_analysis table so the RuleManager script 
+entries in the input_id_analysis table so the RuleManager script
 will know it can run
 
 Once a RepeatMask job has run sucessfully entires should be written to
-the input_id_analysis table, After each sucessful RepeatMask job has 
-finished a Swall job can run. 
+the input_id_analysis table, After each sucessful RepeatMask job has
+finished a Swall job can run.
 
 Blast_Wait an accumulator type job is dependant on Swall, logic within
 the RuleManager script and the modules it uses recognise that Blast_Wait
@@ -404,21 +406,21 @@ jobs are finished
 
 similarity_Genewise is dependant on both TGE_gw jobs being finished
 and the Blast_Wait job being run, the jobs get their input_ids from the
-TGE_gw analysis, the Blast_Wait marker is just an entry in the 
-input_id_analysis table to mark the accumulator being finished 
+TGE_gw analysis, the Blast_Wait marker is just an entry in the
+input_id_analysis table to mark the accumulator being finished
 
 
-you can add rules to the rule table using the 
+you can add rules to the rule table using the
 ensembl-pipeline/scripts/RuleHandler.pl
 
 here is an example commandline
 
-./RuleHandler.pl -host ecs1a -dbname pipeline_db -dbuser ***REMOVED*** 
--pass ensro -insert -goal BestPmatch -condition SubmitAll 
--condition Best_Wait 
+./RuleHandler.pl -host ecs1a -dbname pipeline_db -dbuser ***REMOVED***
+-pass ensro -insert -goal BestPmatch -condition SubmitAll
+-condition Best_Wait
 
 more information about this script can be got if the -help flag is
-used this script can also be used to disply the rules and analysis and
+used this script can also be used to display the rules and analysis and
 also delete rules
 
 4. filling in the input_id_analysis table
@@ -429,4 +431,293 @@ analysis table in my rule flow example the dummy entries which require
 entries in the analysis table before the pipeline was started are
 SubmitContig, SubmitChromosome, SubmitAll and SubmitSlice
 
-a script can be used to 
+a script can be used to load the table
+
+ensembl-pipeline/scripts/make_input_ids
+
+this script currently lets you generate 4 different types of input_ids
+
+contig, this using contig names
+
+slice, this creates slice names in the format chr_name.start-end
+
+file this takes a directory and uses the files in that directory as
+input_ids, a regex can also be specified so only a subset of the files
+are used
+
+single, this just enters a single input_id which would be used for
+whole genome analyses
+
+an example commandline would look like this
+
+./make_input_ids -host ecs1a -pass *** -user ***REMOVED*** -dbname pipeline_db
+-slice -slice_size 1000000
+
+this would produce a list of input_ids which looked like this
+
+1.1-1000000
+1.1000001-2000000
+2.1-1000000
+2.1000001-1543529
+
+if you want your slice ids to cover whole chromosomes you need to make
+your slice length longer than the longest chromosome as the code won't
+make the slices longer than the length of the chromosome they are part
+of
+
+
+Configuration
+=============
+
+Now you have setup the database you are nearly ready to go
+The last thing which you have ot do is fill out some configuration
+
+the config all lives in this directory
+
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/Config
+
+the files present in the intial checkout will be appended with a
+.example but you need to rename the file
+
+e.g General.pm.example should become General.pm
+
+there are 2 files which need filling out for the pipeline to work
+
+General.pm
+----------
+
+General.pm contains general settings for the pipeline, the values i descibe
+below are required for the pipeline to work. This file does contain other
+options which will be discussed later
+
+
+BIN_DIR, DATA_DIR, LIB_DIR should be the directories where most of the
+binaries/data files/lib files live for the analyses you wish to run
+
+These variables are then used to locate programs or data files when
+they are to be run
+
+
+PIPELINE_WORK_DIR this is the directory where analyses will be run,
+this is set up in RunnableI and as default will be /tmp/
+
+
+PIPELINE_RUNNER_SCRIPT location of the runner script to run the
+pipeline normally ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/runner.pl is used
+
+
+BatchQueue.pm
+-------------
+
+BatchQueue.pm contains settings for the job object and
+the batch submission system
+
+
+
+QUEUE_MANAGER, this is the name of the module which should be used
+submit jobs to you batch submission system, These modules all live
+under Bio::EnsEMBL::Pipeline::BatchSubmission, there are currently two
+modules LSF which will submit jobs to an LSF system and GridEngine
+which uses Suns Gridengine If you wanted to use a different submission
+system the you would need to implement a module which inherits from
+Bio::EnsEMBL::Pipeline::BatchSubmission and implements two methods,
+construct_command_line and open_command_line which are used by the Job
+to submit the analysis
+
+
+MAX_PENDING_JOBS this is the maximum number of pending jobs allowed
+before the RuleManager script will stop submitting more jobs to the
+farm
+
+AUTO_JOB_UPDATE this being true (ie = 1) means when a jobs status is
+changed it get automatically updated if its set to 0 this won't happen
+generally its better to have it set to 1
+
+Next there are a series of default values and an array of hashes which
+contain specific values for each analysis type(keyed in Job.pm on
+logicname), The values which have default settings are all of which are
+prefixed with the word DEFAULT these are used if you don't have an
+entry for an analysis logic name that you are running
+
+batch_size this is how many jobs the batchsubmission system will run in
+one command on one know, for long jobs this is best left at 1 but for
+short jobs for more efficient use of compute its good to set this to
+around 10
+
+retries this is the number of times that the script will resubmit a job
+when its hass failed
+
+output_dir this is where the stderr and stdout get written
+
+batch_queue this is the queue in your batchsubmission system that the
+job will get submitted to, If your system doesn't use queues this can
+probably be left blank
+
+the array of hashs also have a few other arguments which are used by
+job to help construct the correct commandline
+
+logic_name is the logic name of a particular analysis this must be
+filled in
+
+resource is any resource requirements which need to be passed to your
+batch submission for example at sanger we have a mixed os architecture
+farm so here you can specify either alpha or linux if you analysis runs
+better on one or the other
+
+sub_args are any other commandline arguments your job submission system
+might need
+
+resource and sub_args args are used to pass information into the
+batchsubmission object when it is created. In theory you could use them
+to pass in any information you wanted provided your
+construct_command_line method knew how to utilise that information,
+their function above relates to how we use them in the LSF module these
+are both optional
+
+runner is if you want to use a different runner script for a particular
+analysis type than the one specified in General.pm
+
+Running the Pipeline
+====================
+
+Now the database and the configuration is setup you can run your pipeline
+the script used to run the pipeline is called RuleManager3.pl
+
+here i will describe the basics of using the script and the basic loop
+the script executes, there are other documents about the specifics of
+using this system to run parts of the ensembl analysis which will be 
+detailled at the end of the document
+
+the script used to run the ensembl pipeline system is 
+
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/RuleManager3.pl
+
+the RuleManager script's basic process is a loop which cycles through each 
+input_id (these are fetched at the start of the script) and check what analyses
+are complete for that input_id and given that what rules can be executed for 
+that input_id, when a rule can be executed for a particular input id then a job
+is created for that input_id and analysis and enters the system to wait to be
+submitted, many jobs can be retries and if a job for a particular input_id and
+analysis has failed its retry count is checked against the configured number
+which is allowed and if is can be retried it is
+
+the RuleManager script can take several arguments
+
+perl RuleManager3.pl -dbname pipeline_genebuild_050303 -dbhost ecs2b
+-dbuser ***REMOVED*** -dbpass ***** 
+
+the database arguments are manditory and the script cannot run without a database
+connection
+
+other arguments are
+
+other flags that can be used are
+
+-local this will mean the jobs run on the machine the script is running
+on rather than using the batch submission system
+
+-runner  this should be the path to a runner script it you don't want
+to use the one in config
+
+-output_dir this should be the path to a output dir it you don't want
+to use the one in config
+
+-once this makes the script only check each input_id once rather than
+looping over them consistently so it means failed jobs won't be rerun
+and jobs which depend on analysis which haven't ben run but will be
+completed in the first loop also won't be submitted, this flag is good
+to use if you are just going to test you have your setup correct or
+that the jobs work but if you want everything to run you need to leave
+the script running and continually looping over the input_ids
+
+-shuffle this randomises the input_id list each time it is to loop over
+it so it won't check the ids in the same order each time
+
+
+-v this is the verbose flag which will make the script a lot more
+chatty
+
+You can monitor the progress of your jobs using the monitor script
+which is located here ensembl-pipeline/scripts/monitor
+
+it takes several command line options which affect what it displays for
+you
+
+the 4 options which are required are -dbname, -host, -pass, -user as
+these provide the database connection
+
+you must then specify other options inorder for the script to display
+information
+
+these are all flags which you just need to specify on the command line
+they don't need any values
+
+-current tell you what is currently runnning by status and logic_name
+
+-current_summary tells you the total number of jobs with each status
+
+-finished tell you what is finshed by logic_name
+
+-analysis give a summary of the analysis table
+
+-rules gives you a summary of the rule_goal table
+
+-conditions tells you what rule and analyses depend other analyses
+
+the last flag
+
+-status_analysis does require a value this is in the format
+status:logicname and then shows a summary of the job table for that
+status and logic name for example -status_analysis failed:RepeatMask
+would show you information about RepeatMask jobs which had failed
+
+here is an example command line and output
+
+ecs2a[lec]183: ./../../../../scripts/monitor -dbname
+pipeline_genebuild_050303 -host ecs2b -user ensro -pass ***** -current
+-current_summary -finished
+
+Pipeline current status [ecs2b pipeline_genebuild_050303]
+
+Name            Status   Count
+ ----            ------   -----
+Briggsae_ESTs   FAILED   55 
+Briggsae_ESTs   VOID     45 
+Briggsae_mRNAs  FAILED   55 
+Briggsae_mRNAs  VOID     45 
+Elegans_ESTs    FAILED   55
+Elegans_ESTs    VOID     45 
+Elegans_mRNAs   FAILED   55 
+
+
+
+Pipeline status summary [ecs2b pipeline_genebuild_050303]
+
+Status   Count 
+------   ----- 
+FAILED   522 
+RUNNING  3 
+VOID     405
+
+
+Finished job summary [ecs2b pipeline_genebuild_050303]
+
+Count Name            Id 
+----- ----            -- 
+5605  SubmitContig    1 
+5605  RepeatMask      2 
+5605  Genefinder      3 
+5498  WormPep         5 
+5482  Swall           10 
+5505  Elegans_ESTs    11 
+
+this information is all derived from the job tables
+
+
+if you now need specific details about what analyses can be run with the ensembl-pipeline
+system you need to look at these documents
+
+rawcomputes.txt, genebuild.txt and protein_pipeline.txt 
+
+please direct any questions about this document to ensembl-dev@ebi.ac.uk
+
