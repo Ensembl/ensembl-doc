@@ -1,7 +1,7 @@
 Running an assembly based genebuild
 -------------------------
 
-Val Curwen 22.1.2002
+(Contact: vac@sanger.ac.uk, eae@sanger.ac.uk)
 
 A. Overview
 -----------
@@ -111,14 +111,87 @@ fields to be filled in should be self explanatory.
 
 10. Make sure you have 2 databases:
 
-a. Database with clone, contig, static_golden_path, dna, features from raw compute pipeline
-b. Database for writing out genes from final stage of build - need to have clone, contig and static_golde_path; does not need dna or features.
 
-Load up appropriate entries into the analysisprocess table of each database:
+Diagram of jobs and databases:
+
+ _______  
+|       |   pmatches
+| GB_DB |   features 
+|_______|
+      |
+      |
+targetted genewise
+      |
+      |
+similarity genewise
+      |	   
+      |              __________	
+      |             |          | 
+      |------------>| GB_GW_DB |
+      |             |__________|         ____________
+      |                  |              |            |
+      |-----------------\|/-------------| GB_cDNA_DB |
+      |     combine genewises and cdnas |____________|
+      |                  |
+      |             _____|______	
+      |            |            | 
+      |            | GB_COMB_DB |
+      |            |____________| 
+      |                  |
+       -----------------\|  
+	            genebuilder
+	            _____|______	
+                   |            | 
+                   | GB_FINALDB |
+                   |____________| 
+
+
+All these databases will have to have the following tables filled in:
+clone, contig, static_golden_path, analysisprocess, meta
+
+* reference db ( or sometimes called dna db )
+it will contain the dna, the features from the pre-computes pipeline and the pmatch_features
+(included in the extra tables pmatch_feature and protein).
+All the other databases will use it as dna_db to get sequence when necessary.
+GB_DBHOST
+GB_DBNAME
+GB_DBUSER
+GB_DBPASS
+
+* genewise db
+In this database we will store the genes/transcripts/exon/translation/supporting_evidence
+from the runs of similarity_genewise (FPC_BlastMiniGenewise) and targetted_genewise (FPC_TargettedGeneWise)
+GB_GW_DBHOST
+GB_GW_DBNAME
+GB_GW_DBUSER
+GB_GW_DBPASS   
+
+* cdna db
+this database contains the genes/transcripts/... from the analysis of cdnas with est2genome
+GB_cDNA_DBHOST
+GB_cDNA_DBNAME
+GB_cDNA_DBUSER
+GB_cDNA_DBPASS
+
+* combined genes db
+This db will have the genes/... built by combining the cdnas from GB_cDNA with the genewise genes from GB_GW_DB.
+GB_COMB_DBHOST             
+GB_COMB_DBNAME
+GB_COMB_DBUSER
+GB_COMB_DBPASS
+
+* final genes db
+This database will have the genes built by GeneBuilder from the genewise genes in GB_GW_DB 
+GB_FINALDBHOST
+GB_FINALDBNAME
+
+The appropriate entries into the analysisprocess table for each database (except the db with features) can be loaded from:
 
 mysql -uuser -ppassword -hhost databasename < /path/to/ensembl-pipeline/sql/GeneBuild_analysisprocess.sql
 
-11. Make sure these 2 databases have an entry in the meta table to
+The db with features will contain other entries in the analysisprocess derived from the pre-computes pipeline
+
+11. Make sure these databases have an entry in the meta table to
 tell it the default assembly name - should look something like this:
 
 | meta_id | meta_key         | meta_value                 |

@@ -79,7 +79,7 @@ ensembl-pipeline
 ensembl-core
 ensembl-external
 
-2. DATABSES:
+2. DATABASES:
 
 the strategy with the databases has chaged:
 
@@ -102,10 +102,10 @@ EST_REFDBPASS
 this one contains the features loaded from the exonerate runs. It also contains
 a non-ensembl table called est, where the lengths of the ests are held.
 Specify details in ESTConf.pm:
-EST_REFDBHOST
-EST_REFDBNAME
-EST_REFDBUSER
-EST_REFDBPASS
+EST_DBHOST
+EST_DBNAME
+EST_DBUSER
+EST_DBPASS
 
 * est2genome transcripts
 this contains the genes/transcripts/exons/supporting_evidence produced after running 
