@@ -5,8 +5,7 @@ whether or not to commit it somewhere...
 Deadlines Summary
 =================
 
-
-Thew deadlines are counted backwards from the release date so that every phase
+The deadlines are counted backwards from the release date so that every phase
 has a consistent amount of time each month.  The declaration of intentions is 
 the expception and is always on the 1st of the month.
 
@@ -18,62 +17,64 @@ DECLARATION OF INTENTIONS
   peptide dumps
 
 GENEBUILD HANDOVER to Core/Compara
-5 Working days before Core handover  (~13-15th)
+10 Working days before Core handover  
   core-like dbs, snp, vega should be ready to copy over ecs2d
   ready meaning, gene_build complete
-  stabel_id and id-mapping done
+  stable_id and id-mapping done
   protein annotation and mapping done
 
 
 CORE/COMPARA HANDOVER to Mart/Webteam
-5 Working days before Mart handover, (7 before release ~20th)
+5 Working days before Mart handover,
 
 MART HANDOVER to Webteam
-2 Working days before release (~28th)                                          
+2 Working days before release 
 
 RELEASE - 
 1st of the next month or the following Monday if the 1st is on a Friday, 
 Saturday, or Sunday (webteam do not release on Fridays).
     
-
+Note that there is a script at which will generate the dates for you, given the
+release date. It should take account of weekends and Bank Holidays.
 
 Main steps in release coordination
 ==================================
 
-* A- on the 1st of the month previous to release send a mail with
+* A - on the 1st of the month previous to release send a mail with
   subject like "July release: declaration of intention", asking people
   to declare what are the new databases and schema changes expected.
 
-* B- Ask the martians to copy from ecs2d over to ecs2f the old dbs. When
+* B - Ask the martians to copy from ecs2d over to ecs2f the old dbs. When
   they acknoledge that is done, you can drop from ecs2d all the old dbs
   (use drop database command in a MySQL client, never do a rm -rf as
   mysqlens user). Do not delete database like ensembl_% and with
   %_expression_% in their name.
 
-* C- Based on the synthesis of what is new coming, you can decide what are
+* C - Based on the synthesis of what is new coming, you can decide what are
   the databases that will not change, and can copy their latest version
   from ecs3d using ensembl/scritps/CopyDBoverServer.pl scripts, -h gives
   you an idea how to use it.
   You have to run it as mysqlens user.
 
-* D- keep a tight contact with the persons involved in the production of
+* D - keep a tight contact with the persons involved in the production of
   new data, i.e.
   Yuan for snp,
   Laura for worm dbs,
   Val for mammalian dbs,
-  Manu for insect dbs,
-  Kertin for Zebrafish,
+  Martin for insect dbs,
+  Kerstin for Zebrafish,
   Stephen for vega,
+  Vivek for honeybee,
   Abel/Cara for compara/family...
 
 Send them a mail from time to time, to see how things are going.
 
 From time to time ask James Smith to run lite in the corresponding 
 
-* E- On the Genebuild handover date all dbs but compara/family are expected 
+* E - On the Genebuild handover date all dbs but compara/family are expected 
 to be ready and copied over to ecs2d.
 
-* F- Set up a web test server on ecs2d port 5000. When done, send a mail
+* F - Set up a web test server on ecs2d port 5000. When done, send a mail
   to ensembl-admin to ask everyone concerned to check the display of
   his/her data on the web.
 
@@ -185,15 +186,15 @@ to stop it
 ./stop_ensembl
 
 
-* G- Ask the release core assistant to run health check suite and to
+* G - Ask the release core assistant to run health check suite and to
   update schema if needed. To advertise any inconsistancy in the dbs,
   and fix or arrange someone to fix them. 
 
-* H- Run a healthcheck again just before handover (checking things
+* H - Run a healthcheck again just before handover (checking things
   we had done before plus new things that have been added during the data
   shakedown) - if possible of course
 
-* I- By the Core/Compara handover date if everything is fine, send a mail to
+* I - By the Core/Compara handover date if everything is fine, send a mail to
 hand-over the dbs, listing all dbs, specifying what are the new data coming in,
 the schema changes, and a summary of mart translation (that can be
 obtained from the martians). Mention there that the mart db is
@@ -385,7 +386,7 @@ Abel
   were the problem during the release, propose/ask for possibles
   solutions/improvements for the next release.
   The main persons to be there should be Jim, James, Arne, Graham, Arek,
-  Abel, Val, Ewan and Michele. I found out that find the right day and time to have
+  Abel, Val, Ewan. I found out that find the right day and time to have
   most of those people together has been the most complicated task. You
   will have to organize that in morning as Val is working part time.
 
