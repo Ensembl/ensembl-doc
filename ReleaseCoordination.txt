@@ -95,6 +95,24 @@ Main steps in release coordination
     - generate lite databases
     - recalculate SNP density features
 
+* D1 - For new genebuilds, various density features and seq_region attributes 
+  need to be calculated. To do this the following scripts should be run, all of
+  which are in ensembl/misc-scripts/density_feature/ and produce several types
+  of density_feature:
+
+    gene_density_calc.pl     (takes about 15 minutes)
+    percent_gc_calc.pl       (takes about 12 HOURS)
+    repeat_coverage_calc.pl  (takes about 12 HOURS)
+
+  The above three scripts can be run at any time after the database has been 
+  received from the genebuilders.
+
+  There are 2 more scripts that need to be run *after* the SNP *and* lite 
+  databases have been built:
+
+    snp_lite_density.pl      (takes about XXX, produces SNP density features)
+    seq_region_stats.pl      (takes about XXX, produces seq_region_attribs)
+
 * E - On the Genebuild handover date all dbs but compara/family are expected 
   to be ready and copied over to ecs2d.
 
