@@ -36,7 +36,7 @@ An ensembl core database with the pipeline tables added (ensembl-pipeline/sql/ta
 you also need access to some sort of batch submission system in order to submit you analysis to your compute. At ensembl we use LSF and there is 
 also code with in the pipeline for using Suns Gridengine 
 
-The rest of this document will also assume you have a database which contains sequence and if desired an assembly (see loading_sequence_into_ensembl.txt)
+The rest of this document will also assume you have a database which contains sequence and if desired an assembly (see loading_sequence_into_ensembl.txtx)
 and will describe how to configure and run the pipeline
 
 
@@ -63,8 +63,6 @@ BIN_DIR, DATA_DIR, LIB_DIR should be the directories where most of the binaries/
 
 These variables are then used to locate programs or data files when they are to be run
 
-PIPELINE_OUTPUT_DIR this is the directory where the stdout and stderr from your analyses will be written this can be set from the 
-command line of RuleManager but this will be explained later on
 
 PIPELINE_WORK_DIR this is the directory where analyses will be run, this is set up in RunnableI and as default will be /tmp/
 
@@ -98,21 +96,22 @@ AUTO_JOB_UPDATE this being true (ie = 1) means when a jobs status is changed it 
 generally its better to have it set to 1
 
 Next there are a series of default values and an array of hashes which contain specific values for each analysis type(keyed in Job.pm on logicname), 
-The values which have default settings are 
+The values which have default settings are all of which are prefixed with the word DEFAULT these are used if you don't have an entry for an 
+analysis logic name that you are running
 
-BATCH_SIZE this is how many jobs the batchsubmission system will run in one command on one know, for long jobs this is best left at 1 but for 
+batch_size this is how many jobs the batchsubmission system will run in one command on one know, for long jobs this is best left at 1 but for 
 short jobs for more efficient use of compute its good to set this to around 10
 
-RETRIES this is the number of times that the script will resubmit a job when its hass failed
+retries this is the number of times that the script will resubmit a job when its hass failed
 
-OUTPUT_DIR this is where the stderr and stdout get written
+output_dir this is where the stderr and stdout get written
 
-BATCH_QUEUE this is the queue in your batchsubmission system that the job will get submitted to, If your system doesn't use queues this 
+batch_queue this is the queue in your batchsubmission system that the job will get submitted to, If your system doesn't use queues this 
 can probably be left blank
 
-the array of hashs also have a few other arguments
+the array of hashs also have a few other arguments which are used by job to help construct the correct commandline
 
-logic_name is the logic name of a particular analysis
+logic_name is the logic name of a particular analysis this must be filled in
 
 resource is any resource requirements which need to be passed to your batch submission for example at sanger we have a mixed os architecture farm 
 so here you can specify either alpha or linux if you analysis runs better on one or the other
@@ -121,7 +120,7 @@ sub_args are any other commandline arguments your job submission system might ne
 
 resource and sub_args args are used to pass information into the batchsubmission object when it is created. In theory you could use them to 
 pass in any information you wanted provided your construct_command_line method knew how to utilise that information, their function above 
-relates to how we use them in the LSF module
+relates to how we use them in the LSF module these are both optional
 
 runner is if you want to use a different runner script for a particular analysis type than the one specified in General.pm 
 
