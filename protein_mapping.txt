@@ -36,7 +36,7 @@ First of all you need to set up your configuration.
 
 All of the configuration lies in
 
-    ensembl/misc-scripts/protein_match/mapping_conf.pl
+    ensembl/misc-scripts/protein_match/mapping_conf.pl.example
 
 This first contains a set of general options.
 
@@ -236,4 +236,4 @@ This means the only script you should need to run is
     load_elegans_CE.pl
 
 For more information where to get the file needed, links or
-email contacts are provided in the mapping.conf file.
+email contacts are provided in the mapping_conf.pl file.
