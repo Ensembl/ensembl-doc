@@ -154,6 +154,9 @@ ln -s bioperl-1.2.3 bioperl-live (that is to comply with @INC set up
 in conf/httpd.conf file)
 
 mkdir logs (needed for webserver logs)
+
+Then create a symlink to the httpd exacutable in a src directory
+
 mkdir src
 ln -s /usr/local/ensembl/apache/bin/httpd src/httpd
 
