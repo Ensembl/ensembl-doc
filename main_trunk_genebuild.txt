@@ -191,7 +191,17 @@ in GB_COMB_DB and the genescan prediction in GB_DB.
 GB_FINALDBHOST
 GB_FINALDBNAME
 
+GB_LENGTH_RUNNABLES  this is an arry of hashes each hash contains the logic name and the runnable name for a particular analysis as these are both required by the run script
+
+GB_INPUTID_REGEX this should be a regex for parsing what ever format your stand input ids will be in for most people name.start-end which will be (\S)\.(\d+).(\d+)
+
+GB_REPEAT_MASKING this is an annoymous array which should contain the logic name of each repeat analysis you want masked for, at present there are only RepeatMask but soon there will tandem repeats and low complexity repeats in the repeat table too as standard we advise only making what RepeatMask flags
+
 The appropriate entries into the analysisprocess table for each database (except the db with features) can be loaded from:
+
+first you need to load the analysis table from the raw compute database you are using as these analysis ids will be required in order to fetch the repeat masking and the blast hits properly
+
+then load the genebuild analysis
 
 mysql -uuser -ppassword -hhost databasename < /path/to/ensembl-pipeline/sql/GeneBuild_analysis.sql
 
@@ -430,6 +440,7 @@ Options to be set in GeneConf.pm:
 GB_PFASTA     Path to file containing cleaned up proteome data produced by prepare_proteome.pl
 GB_PMATCH     Path to pmatcn executable
 GB_PM_OUTPUT  Path to directory to write pmatch output files
+
 GB_FPCDIR     Path to top level directory containing genomic sequence in subdirectories
 GB_TMPDIR     Path to scratch directory for output files
 
@@ -506,6 +517,7 @@ seconds in the sleep statement as required.
 Options to be set in GeneConf.pm:
 GB_TARGETTED_PROTEIN_INDEX	Path to indexed rdisted proteome file produced earlier
 
+GB_TARGETTED_PROTEIN_SEQFETCHER if you have used makeseqindex this will be Bio::EnsEMBL::Pipeline::SeqFetcher::GetSeqs
 
 10. Check for errors
 
@@ -515,14 +527,12 @@ are. Once I identify key words seen in exceptions I'll grep through
 for those, and use comm to find if there are more things I am missing
 eg
 
-foreach i(*.err)
-grep -l EXCE $i >> EXCE.err
-grep -l "exon lies on a gap" $i >> gapcontigs.err
-end
+find ./ -name "*.err" -exec grep -q EXCE {} \; -print > EXEC.txt
+find ./ -name "*.err" -exec grep -q "exon lies on a gap" {} \; -print > gaps.txt
 
 (comm only works on sorted files, but effectively these already are sorted)
 
-comm -23 EXCE.err gapcontigs.err 
+comm -23 EXCE.txt gaps.txt
 
 this will tell you which files have EXCE in them but not "gap contigs" so you can look at those.
 
@@ -534,7 +544,10 @@ Common errors in the Targetted jobs: look for things like:
 'abort' (in out files) - Jobs that have aborted can be rerun.
 'memory' - f you see jobs that have run out of memory, the thing to do is to split the vcontig into smaller chunks and rerun them.
 'lost' (use case insensitive search) -  If you have jobs that lost their database connection, first check the mysql parameters to make sure you don't have a ludicrously short connection  timeout (these jobs can take HOURS to run), and resubmit them.
-Also look for gapcontig, gap contig ( in gaps it won't be able to remap the gene ) - there's not much to be done about these - we need to make a fix in the code.
+Also look for 'exon lies on a gap' ( in gaps it won't be able to remap the gene ) - there's not much to be done about these - we need to make a fix in the code.
+
+
+
 
 grep for exit codes in .out files
 exit code 130 -> job was bkilled
