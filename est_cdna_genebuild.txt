@@ -258,6 +258,11 @@ with exonerate called
  <outputdir> = dir where we're going to put the chunks
  <chunknum>  = total number of chunks
 
+alternatively:
+
+/nfs/acari/searle/progs/fastasplit/fastasplit [-size] <fastaFile> <nchunk> <outdir>
+ (this one is better, as it does not skip any chunk number)
+
 or you can do something similar to the script which chunks up the proteome
 fasta file for the protein_annotation
 
