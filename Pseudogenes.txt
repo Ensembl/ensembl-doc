@@ -255,7 +255,7 @@ that they will not be conserved across species. In the checks there is an alignm
 reports the transcript alignment on a homologous region on a closely related genome.
 
 So our first definition could be:
-1) transcripts which are based on evidence which is spliced elsewhere in the genome, where any intron is a frameshit and
+1) transcripts which are based on evidence which is spliced elsewhere in the genome, where any intron is a frameshift and
 there is no homology to two closely related genomes:
 
    > cat pseudogene_label.out | grep "frameshift:1" | grep -v "spliced_elsewhere:0" | grep "real_introns:0" | grep "homology1:0" | grep "homology2:0" > pseudogenes1
@@ -268,7 +268,7 @@ So another set of pseudogenes could be obtained as:
 2) transcripts which are based on evidence which is spliced elsewhere in the genome 
 and 80% of the (real) intron sequence contain repeats, and there is no homology to other genomes:
 
-   > cat pseudogene_label.out | grep -v "spliced_elsewhere:0" | | grep "homology1:0" | grep "homology2:0" | perl -lane '$F[3]=~/:(\d+)/; $a=$1; $F[11]=~/:(\d+)/; $b=$1; next unless ( $a !=0 && $a=$b ); print $_' > pseudogenes2
+   > cat pseudogene_label.out | grep -v "spliced_elsewhere:0" | grep "homology1:0" | grep "homology2:0" | perl -lane '$F[3]=~/:(\d+)/; $a=$1; $F[11]=~/:(\d+)/; $b=$1; next unless ( $a !=0 && $a==$b ); print $_' > pseudogenes2
 
 
 Processed pseudogenes may have a polyA tail downstream, reminiscent of the reinserted cDNA, although this might be mutated beyond
