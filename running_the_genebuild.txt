@@ -887,3 +887,113 @@ Bio::EnsEMBL::Pipeline::Config::Genebuild
 
 If the answers to all these questions are yes you are probably read
 to set the RuleManager going
+
+
+Here is an example of the conf file you may need to setup the analysis for
+the genebuild using the analysis_setup.pl script 
+(see using_the_ensembl_pipeline.txt)
+
+In these analysis objects there are no setting which are specific to the
+data you are using. You should note that all this objects do need a 
+input_id_type as specified by the type variable and if at anypoint the
+type of a goal analysis isn't the same as the type of the conditional
+analysis you need an accumulator between the two and another condition
+of the same type to provide the appropriate input_ids 
+
+
+[SubmitChr]
+type=CHROMOSOME
+
+
+[Pmatch]
+db=rodent_proteins
+module=Pmatch
+type=CHROMOSOME
+
+[Pmatch_Wait]
+module=Accumulator
+type=ACCUMULATOR
+
+[SubmitGenome]
+module=dummy
+type=GENOME
+
+[BestPmatch]
+db=rodent_proteins
+module=BestPmatch
+type=GENOME
+
+[Best_Wait]
+module=Accumulator
+type=ACCUMULATOR
+
+[Submit5MSlice]
+type=5MSLICE
+
+[TGE_gw]
+module=FPC_TargettedGeneWise
+type=5MSLICE
+
+[similarity_genewise]
+module=FPC_BlastMiniGenewise
+type=5MSLICE
+
+
+[SubmitChunks]
+module=PipelineExonerate
+type=CDNACHUNK
+
+[exonerate]
+db=rat_est
+program=exonerate
+program_version=0.6.7
+program_file=exonerate
+module=ExonerateToGene
+gff_source=exonerate
+gff_feature=est
+type=CDNACHUNK
+
+[exonerate_wait]
+module=Accumulator
+type=ACCUMULATOR
+
+[combined_gw_e2g]
+module=Combine_Genewises_and_E2Gs
+type=5MSLICE
+
+
+[Comb_Wait]
+module=Accumulator
+type=ACCUMULATOR
+
+[ensembl]
+module=Gene_Builder
+type=CHROMOSOME
+
+[Final_Wait]
+module=Accumulator
+type=ACCUMULATOR
+
+[cdna_genebuilder]
+module=EST_GeneBuilder
+type=5MSLICE
+
+[cdna_wait]
+module=Accumulator
+type=ACCUMULATOR
+
+[genecombiner]
+module=GeneCombiner
+type=5MSLICE
+
+
+
+
+
+
+
+
+
+
+
+

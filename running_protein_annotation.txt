@@ -36,109 +36,9 @@ PA_CHUNKS_DIR   the location of the directory the chunks of the peptide
 PA_CHUNKS_SIZE  the size of the chunks file, we tend to use 100
                 peptides in a file
 
-
-Bio::EnsEMBL::Pipeline::Config::Protein_Annotation::Analysis
-
-This contains the information to set up the analysis, input_id_analysis
-and rule tables so the pipeline can be run.
-
-PA_ANALYSIS_TYPE this is an array of hashes which contain specific
-                 information for each analysis type
-
-{
-  logic_name   => '', # logic name of analysis type 
-  module       => 'Protein/Prints', # runnabledb for analysis, if the 
-                   #analysis uses a runnabledb which is found in the 
-                   #Protein directory Protein/RunnableDB name
-		   # will be needed as the runner script used to run the 
-                   #analysese assumes all modules which don't start with 
-		   #a / should be prepended with Bio/EnsEMBL/Pipeline/
-		   #RunnableDB	
-  program_file => '', # this should be the full path to the program file 
-                      # which should be run 
-  db_file      => '', # this should be the path the db file which should 
-                      #be used 
-  db           => 'prints', # this is more of a human readble name for 
-			    # the database
-  chunk_size   => '', # this should be the logic name for either the 
-                      #single the chunk or the proteome dummy entries
-  gff_source   => 'Prints', # program name
-  gff_feature  => 'domain', # domain or annotation
-  input_id_type => '', #the type of input id
-  parameters => '', #any parameters the program needs
-},
-
-PA_SINGLE_DUMMY   the name of the dummy analysis object for analysis
-                  which are done on each transcript individually 
-                  (we do pfam this way)
-
-PA_CHUNK_DUMMY    this is the name of the dummy analysis object for
-                  analysis which are done on chunks of the proteome 
-                  most of our analysis are done this way
-
-PA_PROTEOME_DUMMY this is the name of the dummy analysis object 
-                  for analysis which are done on the whole proteome, 
-                  this is used for quick analysis like seg
-
-there are also three similar variable postfixed with type which
-are meant to contain the input_id_type for each of these analysis
-
-There is an example of this file at the bottom of this document.
-
-The dummy analyses are needed so the script which sets off the jobs has
-an idea of what analyses to start when it is running.
-
-there are three different types of 
-
-Bio::EnsEMBL::Pipeline::Config::General
-
-These are general settings used by the runnabledbs and by the 
-rulemanager script.  The important entries to have filled in are:
-
-BIN_DIR
-DATA_DIR
-LIB_DIR  
-
-These are the locations of you programs, data file and library files. If
-you don't want to have to put the full path in you analysis table your
-files must be in these directories
-
-
-
-Bio::EnsEMBL::Pipeline::Config::BatchQueue
-
-QUEUE_MANAGER this is the module you are using to control your batch
-              submission, here are ensembl we use LSF. There is also 
-              a BatchSubmission module for Suns GridEngine.
-
-MAX_PENDING_JOBS this is the maximum jobs the rulemanager script will 
-                 have pending and still submit more
-
-AUTO_JOB_UPDATE this set to one will mean the job module will automatically 
-                change the status of jobs, we usuallly have this set to one
-
-QUEUE_CONFIG this is another array of hashes, each element contains 
-             information about a particular analysis type
-
-{
-  logic_name => 'Prints', logic_name of analysis
-  batch_size => 1,  the number of jobs to give to the runner script at once
-  resource   => '', any resource requirements the jobs need to give to the batch submission module
-  retries    => 3, the number of times the RuleManager should retry the job
-  sub_args   => '', other args for the batchsubmission manager
-  runner     => '', the runner script if different from the one in General
-  queue => 'acari', the queue to use for the resource manager
-  output_dir => '/acari/work1/lec/out/' the directory to write stdout and stderr
-},	      
-
-
-There are also default settings for Batch_size, retries output_dir and
-queue and runner script that Job will use if an analysis doesn't have an 
-entry here
-
-Here at Hinxton these are the analyses we run and on
-
-*****************************************************************
+There are also three other files which must be filled out which live in
+Bio::EnsEMBL::Pipeline::Config and are described in the document
+using_the_ensembl_pipeline.txt
 
 What to run
 -----------
@@ -183,29 +83,10 @@ completely split.
 This doesn't damage the file it is pointed at 
 
 
-Now this is done you need to run the script 
-generate_analysis_and_rules.pl
-
-In order for this to work the database you are dealing with must
-contain the tables in ensembl-pipeline/sql/table.sql
-
-This script fills the pipeline tables and the analysis table
-
-An example command line looks like this
-
-./generate_analysis_and_rules.pl -dbname elegans_95 -dbuser ***REMOVED*** -dbpass ***** -dbhost ecs1b -input_id_analysis -rules -analysis
-
-The input_id_analysis, rules and analysis flags tell the script which
-tables to fill:
-
- -analysis          - fill the analysis an the input_id_type_analysis 
-                      table. This must be done before the other steps 
-		      can be done
- -rules             - fill the rule tables the dependancies are worked 
-		      out based on the chunk option set for each analysis
- -input_id_analysis - fill the input_id_analysis table so the 
-                      rulemanager script will know what it can run
-
+You now need to make sure you pipeline database has analyses, rules to 
+represent this process and input_ids associated with the appropiate
+dummy analysis in the input_id_analysis table. There are scripts for
+doing all this and they are described in using_the_ensembl_pipeline.txt
 
 Now all these set up steps have been carried out it is time to run the
 RuleManager script.
@@ -252,111 +133,129 @@ into table interpro;
 load data infile '/acari/analysis/iprscan/interpro_update/interpro_desc.txt' into table xref;
 
 
-Here is an example of the %Analysis entry in Analysis.pm  
 
-%Analysis = (
-	     PA_SINGLE_DUMMY => 'SubmitTranscript', # this is the logic 
-				#name for the dummy analysis type 
-				#required in order to start those 
-				#analyses
-	     PA_SINGLE_TYPE => 'TRANSLATIONID',	
-	     PA_CHUNK_DUMMY => 'SubmitTranscriptChunk', # as above but 
-	     #for chunk of peptides
-	     PA_CHUNK_TYPE => 'FILENAME',
-	     PA_PROTEOME_DUMMY => 'SubmitProteome',
-	     PA_PROTEOME_TYPE => 'PROTEOME'
 
-	     PA_ANALYSIS_TYPE => [
-				  {
-				   logic_name   => 'Prints',  # logic name in analysis table
-				   module       => 'Protein/Prints', # module path, the runner script prefixes this with Bio/EnsEMBL/Pipeline/RunnableDB
-				   program_file => '/acari/analysis/iprscan/bin/OSF1/FingerPRINTScan', #location of binary
-				   db_file      => '/acari/analysis/iprscan/data/prints.pval', # locations of any db files needed
-				   db           => 'prints', # more human name for db
-				   chunk_size   => 'SubmitTranscriptChunk', # Can be either single (run on a single transcript), chunk (run on a chunk file) or genome (run on all transcripts in genome)
-				   gff_source   => 'Prints', # program name
-				   gff_feature  => 'domain', # domain or 
-				   #annotation 
-				   input_id_type => 'FILENAME',
-				  },
-				  {
-				   logic_name   => 'pfscan',
-				   module       => 'Protein/Profile',
-				   program_file => '/acari/analysis/iprscan/bin/OSF1/pfscan',
-				   db_file      => '/acari/analysis/iprscan/data/prosite_prerelease.prf',
-				   db           => 'pfscan',
-				   chunk_size   => 'SubmitTranscriptChunk',
-				   gff_source   => 'Profile',
-				   gff_feature  => 'Domain',
-				   input_id_type => 'FILENAME',
-				  },
-				  {
-				   logic_name   => 'scanprosite',
-				   module       => 'Protein/ScanProsite',
-				   program_file => '/acari/analysis/iprscan/bin/scanregexpf.pl',
-				   db_file      => '/acari/analysis/iprscan/data/prosite.patterns',
-				   db           => 'prosite',
-				   chunk_size   => 'SubmitProteome',
-				   gff_source   => 'Prosite',
-				   gff_feature  => 'domain',
-				   parameters   => '-confirm /acari/analysis/iprscan/data/confirm.patterns',
-				   input_id_type => 'PROTEOME',
-				   
-				  },
-				  {
-				   logic_name   => 'Signalp',
-				   module       => 'Protein/Signalp',
-				   program_file => 'signalp',
-				   db_file      => '',
-				   db           => 'signal_peptide',
-				   chunk_size   => 'SubmitTranscriptChunk',
-				   gff_source   => 'Signalp',
-				   gff_feature  => 'annotation',
-				   input_id_type => 'FILENAME',
-				  },
-				  {
-				   logic_name   => 'Seg',
-				   module       => 'Protein/Seg',
-				   program_file => 'seg',
-				   db_file      => '',
-				   db           => '',
-				   chunk_size   => 'SubmitProteome',
-				   gff_source   => 'Seg',
-				   gff_feature  => 'annotation',
-				   input_id_type => 'PROTEOME',
-				  },
-				  {
-				   logic_name   => 'ncoils',
-				   module       => 'Protein/Coil',
-				   program_file => '/usr/local/ensembl/bin/ncoils',
-				   db_file      => '',
-				   db           => '',
-				   chunk_size   => 'SubmitTranscriptChunk',
-				   gff_source   => 'ncoils',
-				   gff_feature  => 'annotation',
-				   input_id_type => 'FILENAME',
-				  },
-				  {
-				   logic_name   => 'tmhmm',
-				   module       => 'Protein/Tmhmm',
-				   program_file => '/acari/work5a/lec/code/run_tmhmm',
-				   db_file      => '',
-				   db           => '',
-				   chunk_size   => 'SubmitTranscriptChunk',
-				   gff_source   => 'Tmhmm',
-				   gff_feature  => 'annotation',
-				   input_id_type => 'FILENAME',
-				  },
-				  {
-				   logic_name   => 'Pfam',
-				   module       => 'Protein/Hmmpfam',
-				   program_file => '/usr/local/ensembl/bin/hmmpfam',
-				   db_file      => '/data/blastdb/Ensembl/Pfam_ls;/data/blastdb/Ensembl/Pfam_fs',
-				   db           => 'Pfam',
-				   chunk_size   => 'SubmitTranscript',
-				   gff_source   => 'Pfam',
-				   gff_feature  => 'domain',
-				   input_id_type => 'TRANSLATIONID',
-				  },
-				 ]
-	   );
+This system generally has three dummy analyses and three types of input ids
+
+First there is SubmitTranscript which represents the individual transcripts.
+Generally we only make Pfam depend on SubmitTranscript as the pfam
+analysis is the only one slow enough to warrent running each protein
+individually. Even so we still batch together the indivual jobs within
+the batch submission system to improve CPU useage, generally the batch size
+is set to about 5
+
+Second there is SubmitTranscriptChunk. Here the input_ids would be file 
+names which should be located in the directory specified in PA_CHUNKS_DIR.
+These are relatively quick programs which can run in a time frame
+which makes it worthwhile running them across multiple proteins
+at once but they still can't run across the whole proteome.
+
+
+Lastly there is SubmitProteome, not the input_id for this must be
+proteome otherwise the code won't work. These are used for the programs
+which can run so quickly it is worth giving them the whole proteome at once
+like seg. 
+
+Here is an example of the conf file you may need to setup the analysis for
+the genebuild using the analysis_setup.pl script 
+(see using_the_ensembl_pipeline.txt)
+
+In these analysis objects there are settings which are specific to the
+data you are using so you may need to change some entries before using 
+the data. You should note that all this objects do need a 
+input_id_type as specified by the type variable and if at anypoint the
+type of a goal analysis isn't the same as the type of the conditional
+analysis you need an accumulator between the two and another condition
+of the same type to provide the appropriate input_ids
+
+
+
+[SubmitTranscript]
+type=TRANSLATIONID
+
+[Pfam]
+db=Pfam
+db_file=/data/blastdb/Ensembl/Pfam_ls;/data/blastdb/Ensembl/Pfam_fs
+program=/usr/local/ensembl/bin/hmmpfam
+program_file=/usr/local/ensembl/bin/hmmpfam
+module=Protein/Hmmpfam
+gff_source=Pfam
+gff_feature=domain
+type=TRANSLATIONID
+
+[SubmitTranscriptChunk]
+type=FILENAME
+
+
+[Signalp]
+db=signal_peptide
+program=signalp
+program_file=signalp
+module=Protein/Signalp
+gff_source=Signalp
+gff_feature=annotation
+type=FILENAME
+
+[tmhmm]
+db=transmembrane
+program=/path/to/run_tmhmm
+program_file=/path/to/run_tmhmm
+module=Protein/Tmhmm
+gff_source=Tmhmm
+gff_feature=annotation
+type=FILENAME
+
+[Prints]
+db=prints
+db_file=/path/o/prints.pval
+program=FingerPRINTScan
+program_file=FingerPRINTScan
+module=Protein/Prints
+gff_source=Prints
+gff_feature=domain
+type=FILENAME
+
+[ncoils]
+db=coiled_coil
+program=/usr/local/ensembl/bin/ncoils
+program_file=/usr/local/ensembl/bin/ncoils
+module=Protein/Coil
+gff_source=ncoils
+gff_feature=annotation
+type=FILENAME
+
+
+[pfscan]
+db=pfscan
+db_file=/path/to/prosite_prerelease.prf
+program=pfscan
+program_file=pfscan
+module=Protein/Profile
+gff_source=Profile
+gff_feature=Domain
+type=FILENAME
+
+
+[SubmitProteome]
+type=PROTEOME
+
+[scanprosite]
+db=prosite
+db_file=/path/to/prosite.patterns
+program=/path/to/scanregexpf.pl
+program_file=/path/to/scanregexpf.pl
+parameters=-confirm /path/to/confirm.patterns
+module=Protein/ScanProsite
+gff_source=Prosite
+gff_feature=domain
+type=PROTEOME
+
+[Seg]
+db=low_complexity
+db_file=low_complexity
+program=seg
+program_file=seg
+module=Protein/Seg
+gff_source=Seg
+gff_feature=annotation
+type=PROTEOME

@@ -63,7 +63,6 @@ You need to decide which analyses you are going to run.
 
 You need to make sure you database contains sequence and possibly an 
 assembly if you wish to run on pieces of chromosomes. 
-
 Lastly you need to fill in both the analysis table, the rule tables 
 and the configuration.
 
@@ -161,6 +160,88 @@ provided in a file which limits what the RuleManager can do
 
 The -analysis flag makes the RuleManager run on a specified analysis
 again limiting its actions
+
+These are all the options which can be passed to the RuleManager script
+
+
+DB Connection Details
+
+
+   -dbhost     The host where the pipeline database is.
+   -dbport     The port.
+   -dbuser     The user to connect as.
+   -dbpass     The password to use.
+   -dbname     The database name.
+
+Other Useful Options
+
+   -idlist_file a path to a file containing a list of input ids to use
+    this file need to be in the format input_id input_type, for example
+    1.1-100000 SLICE
+   -skip_idlist_file, file same format as above of ids to skip, note
+    if two different id types use the same input_id the id must be
+    present in the list twice, under both types in order to always be
+    skipped
+   -once only run through the RuleManager loop once
+   -shuffle before running though the loop shuffle the order of the 
+    input ids
+   -analysis only run with these analyses objects, can be logic_names or
+    analysis ids, this option can appear in the commandline multiple 
+    times
+   -skip_analysis  don't run with these analyses objects, like -analysis 
+    can be logic_names or dbIDs and can appear in the commandline 
+    multiple times '
+   -input_id_types, which input id types to run the RuleManager with,
+    this option can also appear in the commandline multiple times
+   -skip_id_types, which types of input ids not to run, again this option
+    can appear on the commandline many times
+
+Other options
+
+   -local run the pipeline locally and not using the batch submission 
+    system
+   -runner path to a runner script (if you want to overide the setting
+				    in BatchQueue.pm)
+   -output_dir path to a output dir (if you want to overide the 
+				     setting in BatchQueue.pm)
+   -v verbose mode
+   -dbsanity peform some db sanity checks, can be switched of with 
+             -nodbsanity
+   -start_from, this is which analysis to use to gather the input ids
+    which will be checked by the RuleManagers central loop
+   -accumulators, this flag switches the accumulators on, the 
+    accumulators are on by default but can be swtiched on with the 
+    -noaccumulators flag, if this flag is on the accumulator sanity check
+    will also run
+   -accumulator_die this is a boolean flag which if it appears in the
+    command line when the accumulator sanity check is run the script will
+    die if it fails rather than just printing a warning
+   -max_job_time, can overide the $MAX_JOB_TIME value from General.pm
+    with this flag
+   -killed_file can overide the path to the $KILLED_INPUT_IDS file from
+    General.pm
+   -kill_jobs, this is a switch to tell the RuleManager to check how long
+    jobs have been running for and kill them if they have been running for 
+    to long (defined either on the commandline or in config). this is on
+    by default but can be swtiched off with -no_kill_jobs
+   -queue_manager can overide the $QUEUE_MANAGER from General.pm
+   -rename_on_retry, this means any output already produced will be deleted
+    before a job is retried, this defaults to off currently, it was put in 
+    as LSF appends output and error files and sometimes you don't want 
+    this'
+   -rules_sanity, this checks the types are consistent between rule goals
+    and rule_conditions , it is on by default but can be switched off with
+    -norules_sanity
+   -rerun_sleep, the amout of time to sleep for after a loop when no jobs
+    were submitted, as standard it is 300s
+   -base_sleep, the minumun time to sleep if there are too many pending 
+    jobs, defaults to 180s
+   -max_sleep, the maximum amount of time to sleep for if there are too
+    many pending jobs defaults to 5400s
+   -sleep_per_job, the amount of time to sleep per pending job over the 
+    maximum defaults to 60s
+   -max_pending_jobs defaults ot what is set in MAX_PENDING_JOBs in 
+    BatchQueue.pm
 
 The progress of the pipeline can be watched by using the monitor script.
 This script lives in ensembl-pipeline/scripts. It is also documented
@@ -364,3 +445,142 @@ BatchQueue.pm plus any analysis specific files like Fathom.pm
 
 If the answers to all these questions are yes you are probably read
 to set the RuleManager going
+
+
+Here is an example of the conf file you may need to setup the analysis for
+the genebuild using the analysis_setup.pl script 
+(see using_the_ensembl_pipeline.txt)
+
+In these analysis objects there are settings which are specific to the
+data you are using so you may need to change some entries before using 
+the data. You should note that all this objects do need a 
+input_id_type as specified by the type variable and if at anypoint the
+type of a goal analysis isn't the same as the type of the conditional
+analysis you need an accumulator between the two and another condition
+of the same type to provide the appropriate input_ids 
+
+
+[SubmitContig]
+type=CONTIG
+
+[TRF]
+program=trf
+program_version=1
+program_file=trf
+module=TRF
+gff_source=trf
+gff_feature=tandem_repeat
+type=CONTIG
+
+[tRNAscan]
+db=trna
+program=tRNAscan-SE
+program_version=1.23
+module=tRNAscan_SE
+gff_source=tRNAscan
+gff_feature=tRNA
+type=CONTIG
+
+[RepeatMask]
+db=repbase
+db_version=13-07-2002
+db_file=repbase
+program=RepeatMasker
+program_version=1
+parameters=-m
+module=RepeatMasker
+gff_source=RepeatMasker
+gff_feature=repeat
+type=CONTIG
+
+
+[Genscan]
+db=HumanIso.smat
+db_version=NULL
+db_file=HumanIso.smat
+program=genscan
+program_version=1
+parameters=NULL
+module=Genscan
+gff_source=genscan
+gff_feature=similarity
+type=CONTIG
+
+[Unigene]
+db=uniuni
+db_file=uniuni
+program=wutblastn
+program_file=wutblastn
+parameters=-cpus => 1, -hitdist => 40
+module=BlastGenscanDNA
+gff_source=wutblastn
+gff_feature=similarity
+type=CONTIG
+
+[Swall]
+db=swall
+db_file=swall
+program=wublastp
+program_file=wublastp
+parameters=-cpus => 1, -hitdist => 40
+module=BlastGenscanPep
+gff_source=wublastp
+gff_feature=similarity
+type=CONTIG
+
+[Vertrna]
+db=embl_vertrna
+db_file=embl_vertrna
+program=wutblastn
+program_file=wutblastn
+parameters=-cpus => 1, -hitdist => 40
+module=BlastGenscanDNA
+gff_source=wutblastn
+gff_feature=similarity
+type=CONTIG
+
+[Submit1MSlice]
+type=1MSLICE
+
+[Eponine]
+db=Eponine
+program=eponine-scan
+program_version=1
+program_file=/usr/opt/java141/bin/java
+parameters=-epojar => /usr/local/ensembl/lib/eponine-scan.jar, -threshold => 0.999
+module=Slice_EponineTSS
+gff_source=Eponine
+gff_feature=TSS
+type=1MSLICE
+
+[Marker]
+db_version=14-02-2003
+program=e-PCR
+program_version=1
+parameters=-M => 150, -NMIN => 0, -NMAX => 2
+module=Slice_EPCR
+gff_source=e-PCR
+gff_feature=sts
+type=1MSLICE
+
+[SubmitChr]
+type=CHROMOSOME
+
+
+
+[Dust]
+program=dust
+program_version=1
+program_file=tcdust
+module=Slice_Dust
+gff_source=dust
+gff_feature=dust
+type=CHROMOSOME
+
+[CpG]
+db=cpg
+program=cpg
+module=Slice_CPG
+gff_source=cpg
+gff_feature=cpg_island
+type=CHROMOSOME
