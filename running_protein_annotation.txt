@@ -97,9 +97,9 @@ find it useful to name them something meaningful. Once you have your
 three dummy analyses all the protein annotation you want to run will need
 rules which depend on them. Generally we have the pfam analyses depend on
 the translation ids. Signal Peptide detection, transmembrane domain
-detection, prints and profile domain detection and ncoils analyses are
-running with the protein chunk files and scanprosite and seg are run
-with the whole proteome.
+detection, prints and profile domain detection and scanprosite and ncoils 
+analyses are running with the protein chunk files and pfscan and seg are 
+run with the whole proteome.
 
 These three types of input_ids can all be generated with and stored in the
 input_id_analysis table with the make_input_ids script described in 
@@ -284,7 +284,7 @@ program_file=pfscan
 module=Protein/Profile
 gff_source=Profile
 gff_feature=Domain
-input_id_type=FILENAME
+input_id_type=PROTEOME
 
 
 [SubmitProteome]
@@ -299,7 +299,7 @@ parameters=-confirm /path/to/confirm.patterns
 module=Protein/ScanProsite
 gff_source=Prosite
 gff_feature=domain
-input_id_type=PROTEOME
+input_id_type=FILENAME
 
 [Seg]
 db=low_complexity
