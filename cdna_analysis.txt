@@ -1,0 +1,369 @@
+Running cDNA analysis in Ensembl
+-------------------------------
+
+Val Curwen 01.02.2002
+
+The method for running cDNA analyses in EnsEMBL is virtualy identical
+to the method for running EST analysis, though there are a couple of
+differences in the configuration options used. The same modules are
+used for both, even though their names suggest they are EST specific
+:-)
+
+Overview
+--------
+
+Our aim is to use cDNA data initially to add UTRs to genewise
+predicted genes, and ultimately for gene prediction int heir own right
+using Genomewise
+
+Like the genebuild, the cDNA build is controlled by scripts and a
+config file, which should hopefully make it fairly painless. The scripts
+files live in ensembl-pipeline/scripts/EST, and the config file lives in 
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/ESTConf.pm
+
+Modules
+-------
+
+The modules that control the cDNA run are:
+
+1. ExonerateESTs - this runs exonerate between a file of cDNAs and a
+genomic sequence, and writes the results out to file.
+
+2. FilterESTs_and_E2G - this retrieves exonerate features from an
+ensembl database, filtered by score and %id, blasts against the
+genomic region, filters using the FeatureFilter (so we don't stack up
+100s of identical hits), makes a minigenomic, runs est_genome and
+writes out a gene prediction for each EST.
+
+3. EST_GeneBuilder - clusters the est_genome predictions, generates
+potential alternative transcripts and uses Genomewise to produce gene
+structures that are written to the database. (still in testing)
+
+4. Combine_Genewises_and_E2Gs - uses est2genome predictions from
+FilterESTs_and_E2G to add UTRs onto genewise predicted genes from the
+main gene build - running this is described in
+ensembl-doc/assembly_based_genebuild.txt
+
+Scripts
+-------
+
+The running of these 3 modules is currently coordinated by a range of scripts:
+( ultimately need something groovy for polyA/polyT clipping/masking )
+prepare_ests.pl   - splits the ESTs into small files
+make_bsubs.pl     - generates bsub commands for running the various stages
+submit.pl         - submits jobs (basically just a  system call!)
+
+Step by step instructions
+-------------------------
+
+A. Prerequisites
+----------------
+1. bioperl-0.7
+ensembl-pipeline
+ensembl core
+ensembl-external
+
+PERL5LIB correctly set to access each of these!
+
+2. Two databases:
+
+main ensembl database - we call this "refdb" - holds dna sequences,
+static_golden_path, pipeline results etc. We just use this as a source
+for dna sequence information. This is fairly common in ensembl as it
+saves space - not every database has to have all the genomic DNA in it.
+
+est database - called "estdb" - we store the est results in a separate
+database to keep table sizes under control, rather than adding
+millions of extra features into the main ensembl database feature
+table. This database needs to have the clone, contig and
+static_golden_path tables filled in - dump the data from these tables
+in refdb, and load it up into estdb.
+
+Also, the estdb needs to have certain entries in the analysisprocess
+table. These are in ensembl-pipeline/sql/EST_analysisprocess.sql. You
+need to edit this file so that the string dbEST is replaced with the
+EST_SOURCE string you've defined in ESTConf.pm (see 4 below). Then
+load up the file using:
+
+mysql -uuser -ppass -hhost estdbname < path/to/ensembl-pipeline/sql/EST_analysisprocess.sql
+
+3. Some sort of sequence fetcher. We use James Cuff's makeseqindex and
+getseqs as they are the fastest and best we've found, but you can use
+anything you like as long as the ensembl modules know how to use
+it. Look at ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/SeqFetcher/*
+for inspiration.
+
+4. fill in the fields in ESTConf.pm; it should be self explanatory but
+email me (vac@sanger.ac.uk) if it isn't.  If you're not going to run
+the EST_GeneBuilder, you don't need to fill in the EST_GeneBuilder
+options ...
+
+5. fastasplit or something similar to divide the cDNA file into smaller chunks.
+
+6. dust for low complexity masking of genomic sequence
+
+B. Preparing cDNA sequences
+---------------------------
+
+1. Make a file of the cDNAs/mRNAs you want to use. For human we use
+the human entries from embl_vertrna, and will be using Refseq NM_*
+sequences. The file should be a multiple entry fasta format file;
+headers are best kept simple ie 
+>Accession number 
+ATCGGCGGTTAGCA...
+
+2. Index the cDNA file so you can retrieve sequences later - as
+mentioned above we currently use James Cuff's makeseqindex to index
+the file and getseqs to retrieve sequences but you can use any
+sequence fetcher you like as long as you have implemented an
+appropriate Bio::EnsEMBL::Pipeline::Seqfetcher module for it.
+
+Also, a gotcha with makeseqindex - if you've made a beautiful simple
+fasta file, avoid giving it a name that contains swall, humanest or
+EST, or you'll end up using the wrong parsing method and be unable to
+fetch any sequences.
+
+3. distribute cDNA seqfile and indexfile somewhere where
+they can be seen from all run nodes 
+eg at Hinxton they need to be in /data/blastdb/Ensembl and rdisted over
+the farm.
+
+options to be set in ESTConf.pm:
+
+EST_INDEX			location of the cDNA seqfile which can be seen from al run nodes
+
+4. run prepare_ests.pl
+All options are set in ESTConf.pm:
+
+EST_FILE			location of fasta file containing all cDNAs
+EST_CHUNKDIR			path to directory where cDNA chunks are to be placed
+EST_CHUNKNUMBER			number of chunks to split cDNA file into
+EST_FILESPLITTER		path to fastasplit
+
+This script splits the cDNA file into smaller chunks to be run with
+exonerate. The size of each chunk is CRITICAL - too large and your
+exonerate jobs will run out of memory, too small and they'll just
+waste time.
+
+Our farm nodes have 1G of memory. We have found that for human
+sequence (dumped as RawContigs) ~350 seqs per chunk is optimal, while
+for mouse (very small RCs, dumpaed as 500K virtual contigs) we had to
+drop this to <100 seqs per chunk. You'll always get some jobs failing
+and have to resplit and rerun the troublesome chunks.
+
+Set ESTConf::EST_CHUNKNUMBER appropriately - this is the total number
+of chunks, not the number of sequences in each chunk!!!
+
+
+
+C. Preparing genomic sequence for exonerate
+-------------------------------------------
+
+Exonerate runs a cDNA sequence file against the entire genome. 
+
+1. prepare a multiple entry fasta file of the contigs in the golden
+path, repeatmasked and dusted (or a file of whatever sequence you are
+going to run against)
+
+a. cd to somewhere which has plenty of space! You'll be dumping the whole
+genome effectively 3 times though you can delete interim files as you
+go.
+
+b. For human sequence we dump RawContigs as these are of reasonable size (10s of kb)
+You can use ensembl-pipeline/scripts/EST/dump_golden_contigs.pl and set the following options in ESTConf.pm:
+
+EST_REFDBNAME		name of reference database
+EST_REFDBUSER		user of reference database - read only is a good idea!
+EST_REFDBHOST		host of reference database
+EST_GOLDEN_PATH		name of assembly - copy the 'type' column of your static_golden_path table
+
+Run the script like this:
+
+dump_golden_contigs.pl -outfile masked_contigs.fa
+
+c. Or, for mouse, where the RawContigs were tiny, we dump 500K masked virtual contigs using ensembl-pipeline/scripts/GeneBuild/dump_vc_seq.pl:
+
+generate the chrname, start, end you need for each of the contigs (mysql + perl -e), then for each:
+
+dump_vc_seq.pl -dbname dbname -dbhost dbhost -dbuser dbuser -path golden_path -start start -end end -chrname chrname -masked -outfile masked_contigs.fa
+
+2. dust the masked sequence:
+a. mkdir contig_chunks
+
+b. mkdir dust_results
+
+c. split contig file into smaller chunks (for human we use 4000
+chunks) using eg fastasplit and put these in the directory
+contig_chunks
+
+d. edit ensembl-pipeline/scripts/EST/dust/config.txt to reflect the
+path to your dust executable and the path to the contig_chunks
+directory
+
+At Hinxton I tend to restrict dust jobs to just the ecsnodes to avoid
+having to distribute sequence files across the farm.
+
+e. cp ensembl-pipeline/scripts/EST/dust/* dust_results
+
+f. cd contig_chunks
+   ls *chunk* > ../dust_results/job_ids.txt
+
+g. ensembl-pipeline/scripts/EST/dust/fam.sh /path/to/dust_results init
+   sets up directories for output in the dust_results directory you made above
+
+h. ensembl-pipeline/scripts/EST/dust/fam.sh /path/to/dust_results submit
+   makes a script called to_submit.sh
+
+i. run to_submit.sh to submit jobs (as usual I generally run a couple
+by hand to make sure all the configuration has been correctly set)
+
+j. ensembl-pipeline/scripts/EST/dust/fam.sh /path/to/dust_results collate > dusted_masked_contigs.fa
+   collates results into a multiple entry fasta file
+
+3. Put dusted_masked_contigs.fa into the place you specified in
+ESTConf::EST_GENOMIC and distribute across all nodes where you intend
+to run - this is CRITICAL otherwise nfs overhead is horrific - at
+least, it is here.
+
+D. ExonerateEST
+---------------
+
+1. ensembl-pipeline/scripts/EST/make_bsubs.pl
+
+The ExonerateEST jobs will go to the file you specified in ESTConf::EST_EXONERATE_BSUBS
+
+There are a number of ESTConf options that need to be set for this to work properly:
+
+EST_TMPDIR		      path to a scratch area
+EST_REFDBHOST		      host of reference database
+EST_REFDBUSER		      user of reference database - read only is good!
+EST_REFDBNAME		      name of reference database
+EST_EXONERATE_BSUBS	      location to write jobs file for ExonerateEST jobs
+EST_FILTER_BSUBS	      location to write jobs file for FilterEsts_and_E2G jobs
+EST_QUEUE		      queue (plus any host restricting options) where jobs are to be run
+EST_SCRIPTDIR		      full path to ensembl-pipeline/script/EST
+EST_CHUNKNUMBER		      number of chunks the cDNA file has been split into
+EST_FILTERCHUNKSIZE	      size of genomic chunk for running est2genome jobs; we tend to use 1000000 bases
+EST_GENEBUILDER_BSUBS	      location to write jobs file for EST_GeneBuilder jobs
+EST_GENEBUILDER_CHUNKSIZE     size of genomic chunk for running EST_GeneBuilder jobs
+EST_FILE		      location of the original unsplit cDNA file
+EST_EXONERATE                 path to exonerate executable
+
+check that the bsub commands look something like:
+
+bsub -q acari -C0 
+-o /scratch2/ensembl/eae/est_NCBI_28//exonerate_est/bsub/stdout/human.cdna_chunk_0000056 
+-e /scratch2/ensembl/eae/est_NCBI_28//exonerate_est/bsub/stderr/human.cdnas_chunk_0000056 
+-E "/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/EST//check_node.pl human.cdnas_chunk_0000056" 
+/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/EST//exonerate_est.pl -chunkname human.cdnas_chunk_0000056
+
+We are currently using exonerate-0.3d with arguments -w 14 -t 65 -H 100 -D 15 -m 500
+
+2. submit the jobs
+
+I ALWAYS check a few jobs by hand to make sure the output directories
+are set up right, and there are going to be no nasty bouncing jobs due
+to failing pre-exec commands etc. Then I send the rest of the jobs
+off, but be careful not to overload LSF - at Hinxton this means try
+not to have >5000 odd jobs in the queues at any time.
+
+Then 
+ submit.pl exonerate_ests.jobs.dat
+
+3. Once they are run, you'll need to check for memory errors. 
+
+     grep -il glib *.stderr 
+
+     in the .../exonerate_est/bsub/stderr/ (and .../results/stderr/ ) directories.
+     Since they are surely very big, use a foreach loop
+
+     ecs1g[vac] % foreach i ( exest* )
+     foreach? grep -il 'glib' $i
+     foreach? end
+
+If you identify chunks that have run out of memory, you need to split
+them up smaller (using fastasplit again) and rerun them until you have
+successfully run all the cDNA sequences.
+
+4. Load the results into the database
+
+cd to the place where you have specified output files to go (ESTConf::EST_TMPDIR)
+
+Dump out information about the golden contigs into a file with form:
+     id	 internal_id
+You can do this by:
+
+edit ensembl-pipeline
+(/work2/vac/ensembl-scripts/)exonerate2mysqltab.pl -> converts o/p files into tab delimited files for loading
+
+
+need to dump out golden contig ids first
+
+ecs1g[vac] % foreach i ( exest* )
+foreach? gunzip $i
+foreach? exonerate2mysqltab.pl $i:r >> estfeatures
+foreach? gzip $i:r
+foreach? end
+
+strips out features with id <90:
+
+5. make est table in est database - 
+
+mysql estdb < ensembl-pipeline/sql/est.sql
+(/work2/vac/ensembl-scripts/)get_estlengths > estlengths
+load data infile 'estlengths' into table est
+
+check for duplicates before loading!
+
+6.  make appropriate entries in the analysisprocss table by loading up
+
+mysql -uuser -ppass -hhost dbname < ensembl-pipeline/sql/EST_analysisprocess.sql
+
+Now you need to make sure the db column is the same as the EST_SOURCE
+you've defined in ESTConf - or no features will be retrieved during
+later stages eg
+
+mysql> update analysisprocess set db='wibble' where db='dbEST';
+
+
+F. FilterESTs_and_E2G
+---------------------
+
+1. submit the jobs that are listed in ESTConf::EST_FILTER_BSUBS
+
+check that the bsub commands look something like:
+
+bsub -q acari -C0 
+-o /scratch2/ensembl/eae/est_NCBI_28//filter_and_e2g/1/1.49000001-50000000.out 
+-e /scratch2/ensembl/eae/est_NCBI_28//filter_and_e2g/1/1.49000001-50000000.err 
+-E "/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/run_EST_RunnableDB -check -runnable Bio::EnsEMBL::Pipeline::RunnableDB::FilterESTs_and_E2G" 
+/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/EST//filter_and_e2g.pl -input_id 1.49000001-50000000
+
+As ever, I start off slowly and make sure to test the pre-exec command before loading up the farm.
+
+2. these jobs will read and write in the same databases, so check status of the database with the commands:
+   mysql -u user -h host -e "show processlist";
+   mysql -u user -h host -e "show variables"  ;
+
+once the jobs have finished, we're ready for the next step:
+
+G. EST_GeneBuilder
+------------------
+
+If you're doing this stage, it is precisely the same as outlined in
+EST_analysis.txt so look there for the most up to date instructions.
+
+H. Combine_Genewises_and_E2Gs
+-----------------------------
+
+This module combines the est2genome predictions from cDNAs with
+genewise protein-based predictions from the Targetted and Similarity
+Genewise stages of the gene build. It is formally part of the main
+gene build and is described in assembly_based_genebuild.txt rather than here.
+
+I. Data delivery
+----------------
+
+cDNA features/genomewise predictions are delivered as described in EST_analysis.txt
+
+Genes created from genewises with UTRs from cDNAs are now dealt with in the main GeneBuild - so from here go back to the assembly_based_genebuild docs.
