@@ -359,17 +359,37 @@ The gene combiner will combine EST genes with similarity genes. This will add ES
 This is still under heavy developpment by Eduardo. Talk to him next time this process is ran. Many think may have changed. Looking at the release 3 data, it seems that some of the EST genes have not been added to the final set where no other similarity genes have been predicted or not added to a gene structure, where we would expect them to add a new splice variant. This issues have been sent to Eduardo who is looking into it.
 
 \section{Adding SNAP genes}
-SNAP is an \textit{ab initio} gene predictor written by Ian Korf (ik1@sanger.ac.uk). This program is trained with a specific set of Anopheles EST genes (see bellow) by Ian. This is so far the best open source gene predictor we have tested for anopheles. Snap genes will be added where neither similarity nor EST genes have been predicted. To add these genes we use the GeneBuilder over the set of genes coming from the GeneCombiner with a specific specific set of options. 
+SNAP is an \textit{ab initio} gene predictor written by Ian Korf (ik1@sanger.ac.uk). This program is trained with a specific set of Anopheles EST genes (see bellow) by Ian. This is so far the best open source gene predictor we have tested for anopheles. Snap genes will be added where neither similarity nor EST genes have been predicted. To add these genes we use the GeneBuilder over the set of genes coming from the GeneCombiner with a specific set of options. 
+
+%Describe the options here
 
 \section{Post Compute}
 \subsection{Gene build check}
+Many checks should be undertaken on the data before deciding if a gene build is ready to be released or not. Few utility scripts are available here: ensembl-pipeline/scripts/post_GeneBuild/. A set of SQL statements to checks the data are available here: ensembl-doc/post_genebuild_checks.txt.\\
+It is also useful to look at the data using Apollo, this allow to see the different steps in the gene build (looking at the intermediary genes) and then to see how the final genes have been build. The genome is actually small enough to allow somebody to have a look at all of the chromosomes with Apollo.\\
+Also check the number of submitted genes predicted. This is really important to get more than 95\% of them as these are the first genes that the users will look at. This would be pretty bad to release missing half of the TEP genes. I usually run a rough mapping using pmatch and try to spot what has been missed. For genes which have been missed, it is useful to retrieve the protein annotation from the previous release and see how important these genes are.
+
 \subsection{Protein Annotation}
+Protein annotation is similar to any other genome. Look in ensembl-doc/running_protein_annotation.txt. Don't forget to copy the interpro (in interpro) and the intepro description (in Xref).
+
 \subsection{ID mapping}
+ID mapping is usually ran by Craig (craig@ebi.ac.uk). Give them the old database and the new one. Have a look at the results, they give a pretty good idea at the quality of the gene build.
+
 \subsection{Known gene mapping}
+Running the known gene mapping, don't forget to specify that you are running it for anopheles (organism option). For the known gene mapping, will be use: SPTR file for \textit{Anopheles gambiae} in fasta and Swiss-Prot format. A dump of the translations of the gene name submited sequences (you can find the script to dump these translations in ensembl-genename/scripts/dump_translation.pl). NB: The mapping of the submitted genes is done at the transcript level, thus if a gene has been submitted with many spliced variants, we will map Ensembl genes to the sliced variants names (which is usually the gene name followed by incremental letters or numbers).
+We still need to map the celera accession numbers which have been used in the science paper.
+%Add more about it here.
+
+\subsection{Moving data around}
+Don't forget about the EST genes database. This is is useful from the user point of view. However we don't need a specific EST database, thus dna_align_features from the EST gene database should be copied to the core database (also don't forget to copy the protein_align_feature if needed). Finally make sure that the analysis table is fine and if you have new logic names, let the web team know.
+
 \subsection{Database integrity checks}
+Before the database is handed over to the web team, the java test suite should be ran on the database. This should spot obvious errors.
 
 \section{misc}
 \subsection{Produce a training dataset for SNAP}
+
+
 \subsection{Mapping BAC clones}
 \subsection{Mapping markers}
 \subsection{Transosons}
