@@ -16,3 +16,12 @@ dbEST mouse entries
 
 B. Problems with past builds:
 -----------------------------
+
+Protein mapping: check format of the MRK_* files;
+mapping scripts not working correctly due to one of these files
+having different columns than expected by script -> problem with
+MarkerSymbol's
+
+Missing tmmhmm data from protein annotation stage.
+? appeared to run successfully, but failed ?
+
