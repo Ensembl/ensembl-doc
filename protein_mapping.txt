@@ -22,8 +22,12 @@ IV-How to run the mapping
 	a-First fill in the mapping_conf file, this should be pretty
 	straightforward.
 	
-	b-Run prepare_proteome.pl (perl prepare_proteome.pl), this will
-	prepare the fasta file for pmatching
+	b-If you need to fetch the specific SP sequences for the given
+	organism run grep_sptr_entries.pl. It will also format the SP file
+	in fasta format.
+	Run prepare_proteome.pl (perl prepare_proteome.pl), this will
+	prepare the fasta file for pmatching.
+	
 
 	c-Run get_Xmappin.pl (perl get_Xmapping.pl), this will map the
 	curated databases to other databases
