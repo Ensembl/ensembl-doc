@@ -11,13 +11,6 @@ perl wget.data
 perl prepare_txt.pl
 mysqlimport -u root expression110 *.txt
 
-************************************
-there will be changes here!!! table library will be produced internally by adding any 
-new libs to a dump from a previous version
-this is to facilitate expression data-mining!!!!!!!!!!!
-************************************
-
-
 also download the BodyMap file
 
 and proceed to:
