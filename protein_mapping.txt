@@ -20,6 +20,8 @@ very much depends on what you have, which species you want to run on etc
 What to do
 ==========
 
+NB: In this mapping process the query are the known proteins (e.g. proteins from SWISSPROT) and target correspond to Ensembl transcript translation.
+
 first of all you need to set up your configuration
 
 all of the config lies in 
@@ -28,20 +30,15 @@ ensembl/misc-scripts/protein_match/mapping_conf.pl
 
 this first contains a set of general options
 
-query_idt
-target_idt
+known_min_idt (query idt)
+ensembl_min_idt (target idt)
 
-these are the minimum query and target percent identities which must
-be found in the pmatch script before a results is accepted
-the target identity is generally lower than the query as the mapping to 
-known genes is assymetrical. This is due to the fact that's our gene 
-prediction is quite fragmented compared to the manually curated genes
+This is the min of exact match (in %) allowed for the query sequence and the target sequence.
 
 statistic_file
 
 this is where the get_stats.pl script would write its statistics if run
-
-query, the loaction of the file containing the dumped peptides from the
+query, the location of the file containing the dumped peptides from the
 database
 
 total_sptr location of swall file in sp format which can be greped for
@@ -54,24 +51,24 @@ sptr_swiss this should contain the same entries as the fasta file but
 in sp format so information about links to embl_ids and other databases
 can be parsed out
 
-pmatch_input.fa, a fasta file of all the proteins you wich to pmatch 
+total_known_fa, a fasta file of all the proteins you wich to pmatch 
 against your genes, for human this would cotnain all human sptr and 
 refseq sequences
 
 x_map_out this should be a path to a location where the get_Xmapping.pl
 script writes its results to this shouldn't already exist if it does it will get written over
 
-pmatch_out this is where the output from the pmatch.pl script is written
+mapping_out this is where the output from the pmatch.pl script is written
 
 the maps2db.pl requires these two files as input too
 
-refseq_fa location of the refseq entries in fasta format
+Those are optionnal (only if refseq is available for the given organism)
 
+refseq_fa location of the refseq entries in fasta format
 refseq_gnp location of the refseq entries in genbank format
 
-
-there are then a series of species specific settings whic very much 
-depend on which species you are ding mapping for, if you are annotation 
+there are then a series of species specific settings which very much 
+depend on which species you are doing mapping for, if you are annotation 
 a species which we currently don't you may need to add new settings here
 for any questions about these settings please address then to 
 ensembl-dev 
@@ -86,7 +83,10 @@ port port the database is on
 
 Executable location
 
-pmatch location of pmatch executable
+pmatch location of pmatch executable (obsolet)
+
+exonerate executable location is currently hardcoded
+
 
 Organism related information
 
@@ -154,11 +154,11 @@ version fo pmatch which puts extra fields in the output, if you need a copy
 of this version mail mongin@ebi.ac.uk we should be change to use scanwisepep
 (from the wise2package soon (03/04/03))
 
-perl pmatch.pl
+pmatch.pl is now obsolete (if you still want to use this mapping procedure, you can as before but to load the data use old_maps2db.pl)
 
-Now run maps2db.pl which will use the xmapping output and the pmatch output
-to load information into the database this is the longest part of the
-process and can take several hours
+use instead the following command
+
+perl exonerate_wrapper.pl -d
 
 perl maps2db.pl
 
