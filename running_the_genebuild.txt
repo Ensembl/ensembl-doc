@@ -582,4 +582,61 @@ switched off
 Error checking the Targetted Run
 --------------------------------
 
+It is sensible to go through the stderr and stdout file from the 
+targetted run and check for errors as many processes inside this analyses
+won't necessarily kill the whole process but will need checking to make 
+sure things don't need rerunning or data doesn't need deleting
 
+this command should work on most *INX systems 
+
+find ./ -name "*.err" -exec grep -q EXCE {} \; -print
+
+These are a set of standards errors it is good to keep an eye on
+
+in the .err files
+
+presence of EXC, this mean an exception has been thrown and further 
+checking will be required 
+
+exon lies on a gap (prediction across a gap in the assembly)
+ 
+this happens if an exon lies across a gap in the assembly there is nothing
+which can be done about it and it should just be left
+
+Genewise run failed
+this can happen for a few reasons, if you don't have enough memory 
+genewise can fail. This will show an out of memory error. 
+
+If the protein sequence looks too much like a dna sequence ie is mainly
+ATGC genewise will produce this error
+
+Warning Error
+    Trying to make a protein sequence from a non protein base sequence
+[P24856]. 
+
+
+Errors which won't have an EXC
+
+Invalid sequence for $id - skipping or Problems fetching sequence, this 
+means for some reason the sequence wasn't retrived from the database. 
+This probably means the fasta file the index is based on is out of sync 
+with the protein set used to produce the seed alignments. If there are 
+only a couple of these you can probably ignore them but if they are in 
+significant  number you will need to resync the data and rerun the process
+
+look for the words Problem or Can't as this generally means there has been
+a uncaught perl error and the code is broken 
+
+
+also look for Exit codes in the .out files
+
+exit code 130 -> job was bkilled
+          139 -> weird memory error
+          2   -> sequence fetching prob? can indicate a dodgy node
+          1   -> out of memory 
+
+if there is any exit code present it means the LSF job didn't finish
+sucessfully so you will probably want to look to see if the job ran as 
+thought ie there is output if expected, an entry has been written to the
+input_id_analysis table, the job didn't use significant amounts of memory
+etc
