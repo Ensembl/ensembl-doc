@@ -14,9 +14,8 @@ database is handed over to the genebuild team:
 1. Check that all features (including repeat features) have
 sensible start and end coords:
 
-  select * from simple_feature where seq_start > seq_end
-  select * from simple_feature where hstart > hend
-
+  select * from simple_feature where contig_start > contig_end;
+  select * from dna_align_feature where hit_start > hit_end;	
 
 2. all features have an entry in analysisprocess with a
 unique and consistent (i.e. same as last release) logic_name.
