@@ -446,10 +446,7 @@ both the rule goals and the rule conditions
 
 this sql will also give you a summary
 
-select rule_goal.rule_id, analysis.logic_name as goal, 
-rule_conditions.condition from rule_goal, rule_conditions, analysis 
-where analysis.analysis_id = rule_goal.goal and 
-rule_goal.rule_id = rule_conditions.rule_id order by rule_id;
+select rule_goal.rule_id, analysis.logic_name as goal, rule_conditions.condition from rule_goal, rule_conditions, analysis where analysis.analysis_id = rule_goal.goal and rule_goal.rule_id = rule_conditions.rule_id order by rule_id;
 
 
 4. Filling in the input_id_analysis table

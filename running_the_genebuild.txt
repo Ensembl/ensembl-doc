@@ -169,6 +169,11 @@ which can be found in ensembl-pipeline/sql/table.sql and whose function
 are describe in using_the_ensembl_pipeline.txt
 
 
+If you have access to multiple mysql instances it is a good idea to
+put different database which will be accessed by the same analysis on 
+different instances otherwise the pipeline can produce database contention
+issues
+
 More info about the various databases:
 --------------------------------------
 
@@ -611,10 +616,6 @@ in the .err files
 presence of EXC, this mean an exception has been thrown and further 
 checking will be required 
 
-exon lies on a gap (prediction across a gap in the assembly)
- 
-this happens if an exon lies across a gap in the assembly there is nothing
-which can be done about it and it should just be left
 
 Genewise run failed
 this can happen for a few reasons, if you don't have enough memory 
@@ -640,11 +641,25 @@ significant  number you will need to resync the data and rerun the process
 look for the words Problem or Can't as this generally means there has been
 a uncaught perl error and the code is broken 
 
+Specifc errors which are thrown by the Genebuild process which are worth 
+looking for include
+
+'had no features to pass into BMG' (from FPC_BlastMiniGenewise.pm)
+means for what ever reason no features are being passed on to 
+BlastMiniGenewise this probably isn't a problem but if it happens a lot it may
+need investigating
+
+'Managed to get only' (from BlastMiniGenewise.pm) this should tell you
+the number of sequences which were actually sucessfully fetched by from
+the index, if a lot of sequences are being missed you probably want to 
+check the index
+
 
 also look for Exit codes in the .out files
 
 exit code 130 -> job was bkilled
-          139 -> weird memory error
+          139 -> attempt to access a virtual address which
+                 is not in your address space
           2   -> sequence fetching prob? can indicate a dodgy node
           1   -> out of memory 
 
