@@ -1,4 +1,4 @@
-Post genebuild checks (Last modified 18-November-2002)
+Post genebuild checks (Last modified 09-January-2003)
 ---------------------
 
 You can get most of the checks done by running 
@@ -20,6 +20,25 @@ should test for these things are included.
 
 These are the steps that currently need to be taken before a genebuild
 database is handed over to the post-compute team:
+
+######################
+# CHECK THE ASSEMBLY #
+######################
+
+check that your assembly type follows the convention:
+
+Rat:            RGSCx
+Fly:            DROMx
+Zebrafish:      ZFISHx
+Fugu:           FUGUx
+Mosquito:       MOZx
+C. elegans:     CELx
+C. briggsae:    CBRx
+Mouse:          MGSCx
+Human:          NCBIx
+
+where x is the assembly number
+
 
 ###################
 # checks on exons #
