@@ -104,8 +104,9 @@ been properly documented yet. But the first bits are:
    that none have been added. This is likely the result of using the wrong
    DBNAME. 
 
-   The table that is created does not automatically replace
-   the old one; this has to be done by hand, e.g. as follows:
+   The merged gene description table that is created in famDB does not
+   automatically replace the old one; this has to be done by hand, e.g. as
+   follows:
 
      delete from gene_description;
      insert into gene_description select * from famDB.gene_description;
