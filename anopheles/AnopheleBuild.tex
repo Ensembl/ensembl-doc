@@ -13,7 +13,7 @@
 \maketitle
 
 
-\bf{File last updated: E.Mongin Oct 2003; M.Hammond March 04}
+\bf{File last updated: E.Mongin Oct 2003; M.Hammond March 2004}
 The goal is to provide written help on how to run the the \textit{A. gambiae} automatic annotation. This should actually be usable for most of the 'virgin genomes'. This documentation for processes which are common with other genomes, references are given to files present in the ensembl CVS repository called ensembl-doc. These files should be updated as the processes and code change. All of this documentation is written for people working at EBI/Sanger. Please update this documentation if needed. In this file when a reference to release 3 is made (third anopheles annotation by Ensembl) this actually refer to the Ensembl release labeled 2a (still second assembly but third annotation). Removal of some proteins that probably represent bacterial contaminants from this set produced the annotation released as 2b.\\
 \bf{Please update this file when it is needed.}
 
@@ -407,23 +407,11 @@ The markers also have to be mapped to chromosome coordinates. The 2 previous mar
 Finally, up to now the karyotype table has been create by hand using BAC clone mapping data from Frank Collin's. This is kind of painfull and may take a whole afternoon...
 
 \section{Submitting a new annotation to GenBank}
-When the data are about to be released and are in their final state, it is time to submit them to GenBank.
-\begin{itemize}
-\item{First download the sequin software from ncbi:\\ 
-\texttt{http://www.ncbi.nlm.nih.gov/Sequin/download.html}. The best is to install it on acari (alpha machines). Use sequin to create a new submission master file, save it. This file will be saved with the .sqn extension. You can find documentation on sequin here: \\
-\texttt{http://www.ncbi.nlm.nih.gov/Sequin/sequin.hlp.html}}
-\item{You currently need four files with various kinds of information already prepared.  An 'annotation' file has the old Celera names of the scaffolds so you can generate the official sequence identifier for each scaffold.  A protein_annotation file has protein identifiers from the previous dump (parsed using the protein_annotation_from_embl.pl script, then revised to remove any multiple usage of the same id). A kill list (made with a location_check_for_dump.pl script) prevents using protein ids if an ensembl stable id has been assigned to something in a diferent location. A gene_name file has official gene names and descriptions from the Anopheles gene name database, linked to the seq_ref's that are used as xrefs. Edit by hand to make all the descriptions appropriate.}
-\item{Dump all of the data using\\ 
-\texttt{ensembl/misc-scripts/anopheles\_scripts/dump\_genebank.pl} script. You need to give to the scripts the database to connect to, the output directory and some mapping files (currently hardcoded - see above). This file will dump a .fsa (fasta sequence of the scaffold) and a .tbl (annotation) for each scaffolds.}
-\item{Then create an asn file for each scaffold using tbl2asn2 (you can find documentation there:\\ 
-\texttt{http://www.ncbi.nlm.nih.gov/Sequin/tbl2asn2.html}. This script will read the master file, .fsa and .tbl file and create .sqn files (in asn format) in the same directory than where .fsa and .tbl files are located. Here is an example of command line: \texttt{/tbl2asn -t master.sqn -p output/}. The directory can then be tared and gziped to be sent to genbank (after data checks obviously)}
-\item{Data checks. .snp file produced by tbl2asn2 can be red by sequin. Submission can then be visualized graphically or in various formats as Genbank, EMBL. Finally you also can use the program asn2gb to produce genbank or embl flat files and do checks these data with what is stored in the database over the whole genome.}
-\item{Submit your data to NCBI. Contact email:\\ Karen Clark (kclark@ncbi.nlm.nih.gov)}
-\end{itemize}
+Please see separate documentation: GenBank_submission.txt
 
-\section{Future developpements}
+\section{Future developments}
 \subsection{Transposons}
-Transposons are currently in developpment. Ensembl should be able to handle transposon submission and storage soon in a database similar to the gene name submission database.
+Transposons are currently in developpment. Ensembl can handle transposon submission and storage in a database similar to the gene name submission database.
 But still few things need to be done:
 \begin{itemize}
 \item{Create a transposon database or table linked to Ensembl core}

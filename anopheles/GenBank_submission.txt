@@ -1,0 +1,247 @@
+###################
+Anopheles gambiae
+Submitting new annotation to GenBank.
+###################
+(yes, it must go to GenBank not EMBL, because the original submission went to them)
+
+
+This doc last revised:
+11 November, 2004
+
+Author:
+Martin Hammond (mhammond@ebi.ac.uk)
+Expanded from notes of Emmanuel Mongin.
+
+
+
+###################
+Contacts:
+###################
+
+NCBI genome submissions:  Karen Clarke (genomes@ncbi.nlm.nih.gov)
+NCBI Genome group (re MapViewer etc):  Tatiana Tatusova (tatiana@ncbi.nlm.nih.gov)
+Anopheles gambiae Sequence Committee:  Frank Collins (Frank.H.Collins.75@nd.edu)
+Anopheles gambiae assembly revisions:  Frank Collins (Frank.H.Collins.75@nd.edu)
+Ensembl:  Martin Hammond (mhammond@ebi.ac.uk) (Sanger username: mh4); Ewan Birney (birney@ebi.ac.uk)
+EBI Sequence databases:  Maria Martin (martin@ebi.ac.uk); Claire O'Donovan (claire.odonovan@ebi.ac.uk)
+
+Scripts are in cvs ensembl/misc-scripts/anopheles_scripts unless otherwise stated
+
+
+
+###################
+Assembly background
+###################
+
+The WGS scaffolds that constitute the Anopheles gambiae assembly were originally submitted to GenBank by Celera (Robert Holt), but are officially 'owned' by the Anopheles gambiae Sequence Committee. The main contact for this committee is Frank Collins at Notre Dame.  At the moment, this committee has delegated responsibility for annotation of the scaffolds to Ensembl.
+
+The GenBank id for the Ag sequencing project is AAAB00000000.  The first and so far only version of the project (01) has the accession number AAAB01000000, and consists of sequences AAAB01000001-AAAB01069724.  If a new assembly were run on the raw reads, making new contigs and scaffolds, they would presumably be deposited under AAAB02000000.  GenBank now prefers to have contigs as the basic unit of an assembly, not scaffolds.  But the current Ag predates that policy and the basic units are scaffolds, made up of contigs joined together using mate pair information.  Hence many scaffolds contain strings of NNNs representing gaps of approximately known size but unknown sequence.  The contigs do not exist as separate GenBank entries.
+
+Scaffolds with accessions AAAB01000001-AAAB01008987 constitute the genome assembly.  Accessions AAB01008988-AAAB01069724 are additional short contigs that Holt et al were 'unwilling to designate as unique in the genome and unable to place within a larger  scaffold in the assembly process'.  Nothing has been, or is likely to be, done with these.
+
+The assignment of scaffolds to chromosomes may be recorded in the definition line of a scaffold entry.  The only way NCBI records scaffold *positions* on chromosomes is by making a NT_ (for 2L, 2R, 3L and 3R arms) or NC_ (for X) RefSeq entry that references the scaffolds.  Just to make it more complicated, the scaffolds are referenced as NW_ RefSeq entries.  As far as I have been able to determine, they make a NW_ for a scaffold if it has been mapped to a chromosome, or if it has gene annotation on it.  (Having only mapped SNPs does not qualify, which makes the dbSNP genomic SNP mapping a bit wonky, but that's another story).
+
+No scaffolds have been yet assigned to the Y chromosome.
+
+
+
+
+###################
+Submitting new chromosome assemblies
+###################
+
+I have not yet had to this, but will need to in 2005.  It would make sense to do it at the same time as we submit a new set of annotation, or everyone will all get very confused.  I assume this was done when 'MOZ2' first appeared along with Ensembl 10.2.
+
+We would need to update the relevant AAAB0100nnnn entries by adding (or removing) chromosome information in the definition line as appropriate, and also provide someone at NCBI with a 'golden path' file.
+
+If some of the scaffolds (or parts of scaffolds) are to be designated as 'alternative haplotypes', then should they get the appropriate chromosome information too (+/- explanation)?  If some are to be designated as probable bacterial contaminants, should this go in the definition line or where?  Need to discuss with NCBI.
+
+After we give them the information, they will presumably go through their own processes to create the RefSeqs that they need to support MapViewer, genomic SNP mapping etc - see contacts above.
+
+
+
+###################
+Annotation introduction
+###################
+
+We only submit annotation on the genomic scaffolds (AAAB01000001-AAAB01008987).  Note that if some of these are going to be designated as alternative haplotypes or bacterial contaminants, they would still need to be submitted, presumably with no annotation.  If you need to amend the Comments, this is best done by communicating directly with NCBI genome submissions.  The 'reference' is made when you use sequin to create a .sbt file (see next section).
+
+The sequences of the scaffolds should not change unless someone does a brand new WGS assembly (see Assembly background section above).
+
+The annotation of the gaps is done automatically by NCBI.  Apparently this depends on them converting the files to 'delta sequences'.  They forgot to do this initially with the latest submission (02 Nov, 2004 release) but will do this subsequently.
+
+As far as I am aware, any variation (SNP) annotation is also being automatically generated by NCBI.
+
+So updating the annotation essentially consists of submitting a new set of gene-mRNA-CDS features, that will replace the existing set. The rest of this doc describes how this is done.
+
+*Updates so far*
+
+Current entries (Nov 2004) only have 2 references, the original and the latest:
+Submitted (14-MAR-2002) Celera Genomics
+Submitted (09-APR-2003) Ensembl
+but it looks like this corresponds to the following revision history:
+
+1. Submitted by Celera
+First GenBank release March 21, 2002; no gene annotation?
+Some entries have multiple March updates.
+
+2. Submitted by Ensembl
+GenBank release May 31, 2002; presumably gene annotation first appears here; prepared by Emmanuel Mongin - has Celera or ebi identifiers; based on Ensembl 5.1 database released May 2002.
+Some, but not all, entries also have June 2002 updates - no idea what happened around here.
+
+3. Submitted by Ensembl
+GenBank release April 29, 2003; date in reference 09-APR-2003; presumably assembly and annotation update; prepared by Emmanuel Mongin; based on Ensembl 10.2 database released February 2003.
+
+4. Submitted by Ensembl
+GenBank release November 02, 2004; date in reference 08-APR-2004; annotation update only; prepared by Martin Hammond; based on an Ensembl 19.2b database released as 20.2b; original gene build released as Ensembl 17.2a October 2003.
+[as first released, lacks gaps - ncbi omission - added automatically by them to give release date November 09, 2004]
+
+
+
+###################
+NCBI Software
+###################
+
+Get the Sequin software from NCBI:
+http://www.ncbi.nlm.nih.gov/Sequin/index.html
+The documentation here for sequin itself (you don't need to read most of it!) and for tbl2asn is quite good.
+
+There should be an alpha version of the Sequin package that you can install on the Sanger machines.  You may need to check with them to get the latest executables - for some reason the alpha versions aren't always showing on the download web page.
+
+Current version at time of writing is 5.26, but what I used was 5.18 (28 March, 2004).  This is in:
+/nfs/acari/mh4/src/Sequin
+
+As well as sequin itself, the package should include tbl2asn, which you will be using - see:
+http://www.ncbi.nlm.nih.gov/Genbank/tbl2asn2.html
+This takes a 'template' file (.sbt) about the submission, and a pair of files for each scaffold - one file with annotation in a special feature table format (.tbl) and the other with the scaffold sequence in fasta format (.fsa).  How to make these files is described in the next section.  From these, it makes a .sqn file - this is in asn format, GenBank's standard format.  For checking, the .sqn files can be read and visualised in a variety of formats (including GenBank or EMBL flat files) by sequin.
+
+There should also be a copy of asn2gb, which reads .asn files and produces GenBank-style flat files as output.  You may use this as part of checking.
+
+
+
+###################
+Data sets needed
+###################
+
+Before you can run the main dumping script, you need to prepare some files with additional information.
+
+
+1.
+Old (Celera) scaffold names (SCAFMAP filehandle in the dumping script).
+Example: /ecs2/work6/mh4/gbdump_19_2b/input/accessions
+This is a simple table that will not change between releases.  You could reconstitute it from the GenBank Definition line if you needed to.
+
+
+2.
+Old protein annotation from release currently in GenBank (OLD_PROT_ANN filehandle in the dumping script).
+Example: /ecs2/work6/mh4/gbdump_19_2b/input/protein_annotation_rev
+Has:
+scaffold ac
+ensembl protein id (ENSANGPn)
+NCBI protein id (EAAn)
+old celera /ebi id from first submission (if exists)
+NCBI long-form protein id (gnl|WGS:AAAB|xxx|gb|EAAn (where xxx is either an old celera/ebi id or an ENSANGPn id)
+Note that these things are attached to an Ensembl protein id during dumping - i.e. the mapping of them between releases depends on the Ensembl stable id mapping.  This is easier and safer than using Ensembl xref mapping to get old annotation.
+I generated this by parsing the existing EMBL files with a script protein_annotation_from_embl.
+
+Using the EMBL (instead of GenBank) files as source created some problems because EMBL does not have  separate CDS where the protein is identical (GenBank can have this where they derive from distinct mRNAs).  Any extra attached GenBank EAAn ids are discarded, as are the notes, and only a max of 2 ENSANGPn are shown in EMBL.  Any extra are discarded.  In these circumstances, the script generates 2 lines with different ENSANGPn ids but the same EAAn id - one of which will not match the old ENSANGPn/EAAn pair.  Fix this time was to delete by hand problematic 'duplicate' lines, leaving one of the proteins to appear as if had no previous annotation.  In addition, NCBI's checks will report a problem when EMBL has discarded ENSANGPn's but these show up in old and new annotation.  It will automatically assign the old EAA even though you haven't. This is actually helpful!  Next time, avoid these issues by getting old annotation from GenBank files, not from EMBL files.
+
+
+3.
+Kill list of proteins that have 'moved' within a scaffold (KILL filehandle in the dumping script).
+Example: /ecs2/work6/mh4/gbdump_19_2b/input/jump_within_scaff_2v2a
+Used to kill annotation, rather than wipe out protein altogether.  The idea is to avoid problems when NCBI finds the same EAA in different locations.
+Script location_check_for_dump looks for non-overlapping locations - needs modifying before it will automatically single out those that are within a single scaffold.
+
+However, some of these still fire errors at NCBI (when it finds ENSANGPn's in old and new annotation and automatically assigns the old EAA even though you don't want it to).  Suggested solution next time is to use kill list to actually delete these proteins from the dump.  Better Ensembl id mapping now, so may in any case be few or none such in future.
+
+Note that ENSANGP ids that actually move between scaffolds are dealt with within the main dumping script, but may still cause problems (see below). Again, may be better to delete while dumping next time.
+
+
+4.
+File dumped from Genename database linking sequence_ref  to official gene name and description (and gene_id) (GENE_NAME filehandle in the dumping script).
+Example: /ecs2/work6/mh4/gbdump_19_2b/input/gene_names_rev.txt
+Note that this all depends on having the sequence refs correctly mapped as xrefs to ENSANGP's in the core, as the dumping script relies on this mapping to use the info in this file.
+
+No script to make this file - just a simple mysql query against the Genename db - caution - heavy use of the webteam-owned ecs3 may be dangerous to your health.  Query like:
+mysql -h ecs3 -P 3305 -u ensro -B -e 'select distinct s.sequence_ref, g.gene_id, g.symbol, g.description from gene g, sequence s where g.gene_id=s.gene_id and g.version =0 and s.version =0'
+
+The descriptions in the Genename db are free text, and often contain unwanted stuff (carriage returns, locations, xrefs, redundancies, anopheles).  Only solution is to edit these by hand to make a revised file.
+
+Using this file in the dumping script is slightly complicated by having to cope with lack of any systematic relationship between gene symbol and seq ref.  Most often they are identical (and the dumping script does not bother to print a separate CDS note for the seq ref).  Important for alternative transcripts, however.
+
+
+
+###################
+Dumping the Ensembl gene annotation
+###################
+
+Open communications with GenBank (see NCBI genome submissions contact at top of this file).  Ask about any changes we need to know about.
+
+The main dumping script is:
+/ensembl/misc-scripts/anopheles_scripts/dump_genebank.pl
+(yes, that's genebank not genbank - don't blame me.)
+You point this to your Ensembl core database, to a matching Ensembl mart database, and to the extra files detailed above.  It will make a pair of files for each scaffold.
+
+.fsa file is the scaffold sequence in fasta format, with an appropriate header line
+.tbl file has the gene annotation in the table format needed by tbl2asn
+
+tbl2asn also requires a 'master' or template file of type .sbt with information about the submission.  This is created using sequin, following the instructions on the tbl2asn information page:
+http://www.ncbi.nlm.nih.gov/Genbank/tbl2asn2.html
+
+You then point tbl2asn at your files and it generates a .sqn for each scaffold (plus, if you asked it to, a .val file for those with annotation.
+The web page above is  very clear about the command line options for tbl2asn (you will be using only -t -p -v and maybe -r).
+
+
+Hints for understanding the dumping script, and for changes that may be needed next time ....
+
+The dump_genebank script works with a version 19 Ensembl core and mart databases.  It will doubtless need a fair amount of tweaking to bring it into the brave new world of 20+.  It has a fair amount of comment in it, which should make this easier.  The checks subroutine is the scariest bit - pray that this still works!  Mart is used only to get Drosophila orthologues (one could use compara API instead, if it has stopped changing!).
+
+Near the beginning, note that genes (and their products) are simply thrown away if they cross scaffold boundaries (no way to put into GenBank, and probably artefactual anyway).  A future gene build may already have removed them.
+
+If an Ensembl id has moved to a non-overlapping location within a scaffold, then this stored early on and used later in sub print_translation_coordinates ('moved' protein identifiers create havoc in GenBank).  Ones that move to a different scaffold also cause problems - this is checked later.  In the latest submission, some of these were 'saved' and others were deleted at the last minute, all after extensive discussion with GenBank.  Next time, may be best to modify script to throw them all away instead.  However, the Ensembl id mapping code has recently been improved, and there may now be very few of these 'moved' genes anyway.  Note that when an official long-form GenBank protein_id is assigned (in the sub print_translation_coordinates), old ids are deliberately not re-adopted if the protein has moved.  However, this will not stop GenBank complaining, if the id that you do generate has an Ensembl id that was also used in the preceding release.
+
+In addition, genes with type 'bacterial contaminant' are printed as misc feature only.  Depending on how the gene build is done, there may not be any with this type next time.
+
+If there are any pseudogenes or ncRNA genes in a future gene build, you would need to add stuff to handle them.
+
+Also note the retrieval of official gene names (as recorded in the Genename database) via Ensembl xrefs.  Currently, xrefs of type 'Anopheles symbol' are actually sequence names, not symbols, from the Genename database.  This may have been changed in the next gene build.  In fact, the whole Ensembl xref system may have changed by the time you run the script - if so, modification will be needed.
+
+In the coordinate printing bits, note that probably incomplete genes/transcripts/proteins are shown with < or > on the end coordinates.  Hence stuff depends on +/- UTR, +/- met, +/- stop as appropriate.
+
+The part of sub print_translation_coordinate where names and descriptions are printed is important.  At the moment:
+* the Ensembl protein stable id is the first /product
+* the 'old' name (agP Celera or ebiP) from the very first annotation set, if any, is the first /note
+* the /protein_id is constructed depending on the case
+* a protein-specific name (eg alternative splice product name) is another /note 
+* any description is a 2nd /product tag (NOT  prot_desc which is invisible to TrEMBL folk)
+* don't forget the /evidence not_experimental
+These tags get funny things done to them when NCBI creates its protein records (you should be able to see this if you use asn2gp 'p' option - see checking section below).  The current set-up is the best compromise between seeing important things in the best order in the main GenBank record & in the  NCBI protein record; and allowing SwissProt to parse out what they want from EMBL.  If you are thinking of changing these, you should first discuss with the EBI Sequence databases group (see contacts above).
+
+The script should take about 2h to run and will print you out some numbers at the end to compare with what you expected.  You should have one .tbl and one .fsa file per scaffold.
+
+
+
+###################
+Checking, and submitting to GenBank
+###################
+
+Check the numbers printed out by the dumping script - are they what you expected?  You can also inspect a few .tbl files and grep them to count numbers of features.
+
+After using tbl2asn you have a set of .sqn files, and (if you used the -v flag on tbl2asn) also a set of .val files.
+
+Open up sequin, and take a look at some of the .sqn files as GenBank format.  Do they look generally ok?  You can look at a few examples of gene/transcript/CDS and compare to the existing GenBank file, and to what you'd get from, say, EnsMart.
+
+You can also look at the .val files.  They will complain many times about 2 things - non-consensus splice sites (I think these are coming from Genomewise) and partial allocation (incomplete sequences).  Well, that's just the way the Ensembl data are, so ignore.  Anything else might be worth investigating.  Sequin will display the equivalent of a .val directly from the .tbl, if you ask it nicely.
+
+Maybe the most important check is to dump out all the protein sequences from the final .sqn files, and compare with what you get from the Ensembl database.  Entries present in both should be identical.  You can dump out the protein sequences for the .sqn files using asn2gp.  This takes only one file at a time, so you need to script it.  The command lines should be something like:
+asn2gb -i [filename.sqn] -f p >> all_pep.gp
+This gives you GenBank flat-file style for each protein, which you can turn into Fasta and compare id and sequence with what the relevant Ensembl core db gives (e.g. using a script like /nfs/acari/mh4/mozzy/scripts/genbank_dump_scripts/compare_pep_sets.pl).
+
+When you are happy, tar and gzip and send to GenBank via ftp.  The .sqn files are the main event, but they may like to see the .tbl and .fsa sets as well for checking purposes.
+ftp-private.ncbi.nih.gov
+login: ebianoph
+pw: ******** (required - ask NCBI for the pw if previous holder has left or been fired for sending insufficiently delicate emails).
+
+When it finally appears in GenBank, it is a good idea to let the appropriate EBI EMBL/SwissProt people know.  They currently create UniProt entries from the Ag WGS project, and will want to update.
+
