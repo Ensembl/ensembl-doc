@@ -7,3 +7,6 @@ and TrEMBL description lines of the SWISS-PROT and TrEMBL members of each
 cluster. These consensus descriptions are also transferred to the EnsEMBL
 gene descriptions in case there isn't one.
 
+(The above is the description for users; their is a howto which will be
+rewritten during the next release. This is partly in the hands of Anton, who
+so far has been running the scripts)
