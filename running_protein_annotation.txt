@@ -1,7 +1,7 @@
 This document should describe what you need to do in order to run the
 protein annotation pipeline.
 
-if you have any questions contact lec@sanger.ac.uk (Laura Clarke) or ensembl-dev@ebi.ac.uk
+if you have any questions contact ensembl-dev@ebi.ac.uk
 
 What you need
 +++++++++++++
@@ -19,6 +19,9 @@ translate.
 
 What to do
 ==========
+
+It is a good idea to have read the document using_the_ensembl_pipeline
+document before this one
 
 First you need to fill out the appropriate config files
 
@@ -44,15 +47,25 @@ PA_ANALYSIS_TYPE this is an array of hashes which contain specific
 
 {
   logic_name   => '', # logic name of analysis type 
-  module       => 'Protein/Prints', # runnabledb for analysis, if the analysis uses a runnabledb which is found in the Protein directory Protein/RunnableDB name
-			            # will be needed as the runner script used to run the analysese assumes all modules which don't start with a / should be 
-			            # prepended with Bio/EnsEMBL/Pipeline/RunnableDB	
-  program_file => '', # this should be the full path to the program file which should be run 
-  db_file      => '', # this should be the path the db file which should be used 
-  db           => 'prints', # this is more of a human readble name for the database
-  chunk_size   => '', # this should be the logic name for either the single the chunk or the proteome dummy entries
+  module       => 'Protein/Prints', # runnabledb for analysis, if the 
+                   #analysis uses a runnabledb which is found in the 
+                   #Protein directory Protein/RunnableDB name
+		   # will be needed as the runner script used to run the 
+                   #analysese assumes all modules which don't start with 
+		   #a / should be prepended with Bio/EnsEMBL/Pipeline/
+		   #RunnableDB	
+  program_file => '', # this should be the full path to the program file 
+                      # which should be run 
+  db_file      => '', # this should be the path the db file which should 
+                      #be used 
+  db           => 'prints', # this is more of a human readble name for 
+			    # the database
+  chunk_size   => '', # this should be the logic name for either the 
+                      #single the chunk or the proteome dummy entries
   gff_source   => 'Prints', # program name
   gff_feature  => 'domain', # domain or annotation
+  input_id_type => '', #the type of input id
+  parameters => '', #any parameters the program needs
 },
 
 PA_SINGLE_DUMMY   the name of the dummy analysis object for analysis
@@ -125,13 +138,16 @@ What to run
 -----------
 
 Once you have the config filled in you need to run a few things. All
-the scripts mentioned here live in ensembl-pipeline/scripts/protein_pipeline.
+the scripts mentioned here live in ensembl-pipeline/scripts/
+protein_pipeline.
 
-First you need to dump the peptides. The script is called dump_translations.pl
+First you need to dump the peptides. The script is called 
+dump_translations.pl
 
 An example command line is:
 
-./dump_translations.pl -dbname gene_db -dbhost localhost -dbuser ensro -db_id 1 > peptide.fa
+./dump_translations.pl -dbname gene_db -dbhost localhost -dbuser ensro 
+-db_id 1 > peptide.fa
 
 This would print the peptides to stdout and they would be caught in the
 file and any translation which contain internal stops would be skipped
@@ -144,9 +160,9 @@ the first thing after the > should be the translation internal_id
 >1
 
 this script also puts other information into the header but this isn't 
-required by the protein annotation pipeline but if the translation id isn't the 
-first thing after the pipeline the translation_ids won't be stored properly in the
-database
+required by the protein annotation pipeline but if the translation id 
+isn't the  first thing after the pipeline the translation_ids won't be 
+stored properly in the database
 
 
 Once this is done you need to run
@@ -161,7 +177,8 @@ completely split.
 This doesn't damage the file it is pointed at 
 
 
-Now this is done you need to run the script generate_analysis_and_rules.pl
+Now this is done you need to run the script 
+generate_analysis_and_rules.pl
 
 In order for this to work the database you are dealing with must
 contain the tables in ensembl-pipeline/sql/table.sql
@@ -175,12 +192,13 @@ An example command line looks like this
 The input_id_analysis, rules and analysis flags tell the script which
 tables to fill:
 
- -analysis          - fill the analysis table. This must be done before the 
-                      other steps can be done
- -rules             - fill the rule tables the dependancies are worked out 
-                      based on the chunk option set for each analysis
- -input_id_analysis - fill the input_id_analysis table so the rulemanager 
-                      script will know what it can run
+ -analysis          - fill the analysis an the input_id_type_analysis 
+                      table. This must be done before the other steps 
+		      can be done
+ -rules             - fill the rule tables the dependancies are worked 
+		      out based on the chunk option set for each analysis
+ -input_id_analysis - fill the input_id_analysis table so the 
+                      rulemanager script will know what it can run
 
 
 Now all these set up steps have been carried out it is time to run the
@@ -191,7 +209,8 @@ found in Bio/EnsEMBL/Pipeline/
 
 The commandline should look something like:
 
-perl RuleManager3.pl -dbname elegans_95 -dbhost ecs1b -dbuser ***REMOVED*** -dbpass **** -start_from 204 -once
+perl RuleManager3.pl -dbname elegans_95 -dbhost ecs1b -dbuser ***REMOVED*** 
+-dbpass **** -shuffle 
 
 
 The db options are to tell the script which database to use.
@@ -203,140 +222,128 @@ my $dbname    = $ENV{'ENS_DBNAME'};
 my $dbuser    = $ENV{'ENS_DBUSER'};
 my $dbpass    = $ENV{'ENS_DBPASS'};
 
-The two other options
-
--starts_from the analysis id of the analysis the script is to start
-             from.  This analysis id isn't actually carried out. The analysis ids
-	     to put in would be one of the analysis ids for the dummy analyses. 
-	     Then the script will submit all the jobs which depend on that 
-	     particular dummy analysis.
-
-This flag can appear multiple times on the commandline each time for a
-different analysis id and the script then puts them into an array and
-will check for each analysis id in the array
-
-It is probably advisible to only use one at once in order not to flood
-your system with too many jobs at once especially for the analyses
-which run on single transcripts at once.
-
--once flag tells the script only loop over the input_ids in the
-      analysis table once. This means it won't start any jobs which depend on
-      other jobs already having been run and it won't retry failed jobs
-
-This flag is probably a good idea to use as well because once all the jobs
-dependent on a particular dummy analysis have been submitted you can
-wait and make sure if those jobs are running fine and if they are you
-can set of the ruleManager script for the next dummy analysis.
-
-There can't be two rulemanager scripts running on the same database at
-the same time. There is locking in place to prevent this.
+The other options which you can use are explaining in 
+using_the_ensembl_pipeline.txt or you can pass a -help option to the
+RuleManager script
 
 
-there are more options for the script and these are detailed in the
-script itself. Alternatively for any question you can ask
-ensembl-dev@ebi.ac.uk
+Loading the Interpro data 
 
+
+A link is needed between the signatures ids  (eg: Pfam, Prints, Prosite)
+and the interpro accessions. Two files are needed, interpro.txt goes 
+into the interpro table and  interpro_desc.txt goes into the xref table.
+A simple load data infile should be enough to load the data into a core 
+database
+
+An updated version of these 2 files should be found in the 
+following directory: /acari/analysis/iprscan/interpro_update/
+
+mysql to use: 
+
+load data infile '/acari/analysis/iprscan/interpro_update/interpro.txt' 
+into table interpro;
+load data infile '/acari/analysis/iprscan/interpro_update/interpro_desc.txt' into table xref;
 
 
 Here is an example of the %Analysis entry in Analysis.pm  
 
 %Analysis = (
-  PA_SINGLE_DUMMY   => 'SubmitTranscript', # this is the logic name for the dummy analysis type required in order to start those analyses
-  PA_CHUNK_DUMMY    => 'SubmitTranscriptChunk', # as above but for chunk of peptides
-  PA_PROTEOME_DUMMY => 'SubmitProteome',
-  PA_ANALYSIS_TYPE  => [
-    {
-      logic_name   => 'Prints',  # logic name in analysis table
-      module       => 'Protein/Prints', # module path, the runner script prefixes this with Bio/EnsEMBL/Pipeline/RunnableDB
-      program_file => '/acari/analysis/iprscan/bin/OSF1/FingerPRINTScan', #location of binary
-      db_file      => '/acari/analysis/iprscan/data/prints.pval', # locations of any db files needed
-      db           => 'prints', # more human name for db
-      chunk_size   => 'SubmitTranscriptChunk', # Can be either single (run on a single transcript), chunk (run on a chunk file) or genome (run on all transcripts in genome)
-      gff_source   => 'Prints', # program name
-      gff_feature  => 'domain', # domain or annotation
-    },
-    {
-      logic_name   => 'pfscan',
-      module       => 'Protein/Profile',
-      program_file => '/acari/analysis/iprscan/bin/OSF1/pfscan',
-      db_file      => '/acari/analysis/iprscan/data/prosite_prerelease.prf',
-      db           => 'pfscan',
-      chunk_size   => 'SubmitTranscriptChunk',
-      gff_source   => 'Profile',
-      gff_feature  => 'Domain',
-    },
-    {
-      logic_name   => 'scanprosite',
-      module       => 'Protein/ScanProsite',
-      program_file => '/acari/analysis/iprscan/bin/scanregexpf.pl',
-      db_file      => '/acari/analysis/iprscan/data/prosite.patterns',
-      db           => 'prosite',
-      chunk_size   => 'SubmitProteome',
-      gff_source   => 'Prosite',
-      gff_feature  => 'domain',
-      parameters   => '-confirm /acari/analysis/iprscan/data/confirm.patterns'
-    },
-    {
-      logic_name   => 'Signalp',
-      module       => 'Protein/Signalp',
-      program_file => 'signalp',
-      db_file      => '',
-      db           => 'signal_peptide',
-      chunk_size   => 'SubmitTranscriptChunk',
-      gff_source   => 'Signalp',
-      gff_feature  => 'annotation',
-    },
-    {
-      logic_name   => 'Seg',
-      module       => 'Protein/Seg',
-      program_file => 'seg',
-      db_file      => '',
-      db           => '',
-      chunk_size   => 'SubmitProteome',
-      gff_source   => 'Seg',
-      gff_feature  => 'annotation',
-    },
-    {
-      logic_name   => 'ncoils',
-      module       => 'Protein/Coil',
-      program_file => '/usr/local/ensembl/bin/ncoils',
-      db_file      => '',
-      db           => '',
-      chunk_size   => 'SubmitTranscriptChunk',
-      gff_source   => 'ncoils',
-      gff_feature  => 'annotation',
-    },
-    {
-      logic_name   => 'tmhmm',
-      module       => 'Protein/Tmhmm',
-      program_file => '/acari/work5a/lec/code/run_tmhmm',
-      db_file      => '',
-      db           => '',
-      chunk_size   => 'SubmitTranscriptChunk',
-      gff_source   => 'Tmhmm',
-      gff_feature  => 'annotation',
-    },
-    {
-      logic_name   => 'Pfam',
-      module       => 'Protein/Hmmpfam',
-      program_file => '/usr/local/ensembl/bin/hmmpfam',
-      db_file      => '/data/blastdb/Ensembl/Pfam_ls;/data/blastdb/Ensembl/Pfam_fs',
-      db           => 'Pfam',
-      chunk_size   => 'SubmitTranscript',
-      gff_source   => 'Pfam',
-      gff_feature  => 'domain',
-    },
-  ],
-);
+	     PA_SINGLE_DUMMY => 'SubmitTranscript', # this is the logic name for the dummy analysis type required in order to start those analyses
+	     PA_CHUNK_DUMMY => 'SubmitTranscriptChunk', # as above but for chunk of peptides
+	     PA_PROTEOME_DUMMY => 'SubmitProteome',
 
-Loading the Interpro data
-A link is needed between the signatures ids (eg: Pfam, Prints, Prosite, ...) and the interpro accessions.
-Two files are needed, interpro.txt goes into the interpro table and interpro_desc.txt goes into the xref table.
-A simple load data infile .... should be enough
-An updated version of these 2 files should be found in the following directory:
-/acari/analysis/iprscan/interpro_update/
-
-mysql to use:
-load data infile '/acari/analysis/iprscan/interpro_update/interpro.txt' into table interpro;
-load data infile '/acari/analysis/iprscan/interpro_update/interpro_desc.txt' into table xref;
-
+	     PA_ANALYSIS_TYPE => [
+				  {
+				   logic_name   => 'Prints',  # logic name in analysis table
+				   module       => 'Protein/Prints', # module path, the runner script prefixes this with Bio/EnsEMBL/Pipeline/RunnableDB
+				   program_file => '/acari/analysis/iprscan/bin/OSF1/FingerPRINTScan', #location of binary
+				   db_file      => '/acari/analysis/iprscan/data/prints.pval', # locations of any db files needed
+				   db           => 'prints', # more human name for db
+				   chunk_size   => 'SubmitTranscriptChunk', # Can be either single (run on a single transcript), chunk (run on a chunk file) or genome (run on all transcripts in genome)
+				   gff_source   => 'Prints', # program name
+				   gff_feature  => 'domain', # domain or 
+				   #annotation 
+				   input_id_type => 'FILENAME',
+				  },
+				  {
+				   logic_name   => 'pfscan',
+				   module       => 'Protein/Profile',
+				   program_file => '/acari/analysis/iprscan/bin/OSF1/pfscan',
+				   db_file      => '/acari/analysis/iprscan/data/prosite_prerelease.prf',
+				   db           => 'pfscan',
+				   chunk_size   => 'SubmitTranscriptChunk',
+				   gff_source   => 'Profile',
+				   gff_feature  => 'Domain',
+				   input_id_type => 'FILENAME',
+				  },
+				  {
+				   logic_name   => 'scanprosite',
+				   module       => 'Protein/ScanProsite',
+				   program_file => '/acari/analysis/iprscan/bin/scanregexpf.pl',
+				   db_file      => '/acari/analysis/iprscan/data/prosite.patterns',
+				   db           => 'prosite',
+				   chunk_size   => 'SubmitProteome',
+				   gff_source   => 'Prosite',
+				   gff_feature  => 'domain',
+				   parameters   => '-confirm /acari/analysis/iprscan/data/confirm.patterns',
+				   input_id_type => 'PROTEOME',
+				   
+				  },
+				  {
+				   logic_name   => 'Signalp',
+				   module       => 'Protein/Signalp',
+				   program_file => 'signalp',
+				   db_file      => '',
+				   db           => 'signal_peptide',
+				   chunk_size   => 'SubmitTranscriptChunk',
+				   gff_source   => 'Signalp',
+				   gff_feature  => 'annotation',
+				   input_id_type => 'FILENAME',
+				  },
+				  {
+				   logic_name   => 'Seg',
+				   module       => 'Protein/Seg',
+				   program_file => 'seg',
+				   db_file      => '',
+				   db           => '',
+				   chunk_size   => 'SubmitProteome',
+				   gff_source   => 'Seg',
+				   gff_feature  => 'annotation',
+				   input_id_type => 'PROTEOME',
+				  },
+				  {
+				   logic_name   => 'ncoils',
+				   module       => 'Protein/Coil',
+				   program_file => '/usr/local/ensembl/bin/ncoils',
+				   db_file      => '',
+				   db           => '',
+				   chunk_size   => 'SubmitTranscriptChunk',
+				   gff_source   => 'ncoils',
+				   gff_feature  => 'annotation',
+				   input_id_type => 'FILENAME',
+				  },
+				  {
+				   logic_name   => 'tmhmm',
+				   module       => 'Protein/Tmhmm',
+				   program_file => '/acari/work5a/lec/code/run_tmhmm',
+				   db_file      => '',
+				   db           => '',
+				   chunk_size   => 'SubmitTranscriptChunk',
+				   gff_source   => 'Tmhmm',
+				   gff_feature  => 'annotation',
+				   input_id_type => 'FILENAME',
+				  },
+				  {
+				   logic_name   => 'Pfam',
+				   module       => 'Protein/Hmmpfam',
+				   program_file => '/usr/local/ensembl/bin/hmmpfam',
+				   db_file      => '/data/blastdb/Ensembl/Pfam_ls;/data/blastdb/Ensembl/Pfam_fs',
+				   db           => 'Pfam',
+				   chunk_size   => 'SubmitTranscript',
+				   gff_source   => 'Pfam',
+				   gff_feature  => 'domain',
+				   input_id_type => 'TRANSLATIONID',
+				  },
+				 ]
+	   );
