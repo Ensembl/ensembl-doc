@@ -110,6 +110,8 @@ this file can be loaded into the database using sql like this
 
 load data infile 'path/to/external_db.txt' into table external_db
 
+NB: If you are dealing with a new organism, you should integrate it in the organism_list option
+
 What you need to run
 ====================
 
@@ -129,7 +131,7 @@ ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/fasta_files/proteomes/ for
 the fasta files
 
 the files are named by taxonomy id so 9606 files are human and 10090 are
-mouse
+mouse. This taxonomy id is only used  if you want to grep SPTR entry from a file containing all organisms. If you have already the SPTR file specific to the organism, you don't need tp fill it in
 
 alternatively you can the seq files by greping though a complete file of
 swall in sp format using the grep_sptr_entries.pl script
@@ -181,4 +183,5 @@ this means the only script you should need to run is
 
 load_elegans_CE.pl
 
+For more information where to get the file needed, links or email contacts are provided in mapping.conf
 
