@@ -23,3 +23,50 @@ File for listing all those jobs we want to do but haven't got round to yet.
    analysis table entries based on config files. (vac 13.01.2003) (populate_analysis.pl 
    written 16.01.2003 vac)
   
+8. Pipeline tests revisited (vac 12.-2.2003) - we need a set of tests
+that we know thoroughly test relevant parts of code especially
+genebuild; one idea is to have a 50M region of eg chr22 that we run
+through the entire build process and then use GeneComparison code to
+compare with a reference set of genes - either annotated or (better?)
+a previous ensembl set (we're not testing the quality of the build,
+we're testing the code)
+
+9. Tagging/branching pipeline code
+
+Two current ideas (12.02.2003):
+
+    Both involve nominating as "main genome" each release cycle
+
+	a. Tag pipeline code immediately before build and immediately
+	build is finished so we know we have code that works before
+	any more development is done. Run pipeline tests to make sure
+	that any changes that have been committed during the build by
+	other people have not broken it. Two weeks later (ie release
+	time) run the test build again (point 8 above - could use the
+	gene set produced by the build as the reference set) and check
+	the code again (this is to tkae care of both pipeline changes
+	and api changes ). Branch at the same time as the API/web branches
+
+	b. (Val's preference today) 
+
+	Nominate a main genome/genebuilder per release cycle. At the
+	start of the build, make a building branch. The main
+	genebuilder is the only one who is allowed to commit to this
+	branch during the build, and only bug fixes should be
+	committed; bug fixes *must* go both on branch and on main
+	trunk. If more than one person is running a build and spotting
+	bugs then we need them to coordinate their fixes and keep
+	their checkouts up to date with each other or it will
+	degenerate again. New development happens *only* on main
+	trunk. Build with the branch. At release time branch from the
+	building branch - will still need to run the genebuild tests
+	with any API updates that have happened in the intervening 2
+	weeks but the released branch ought to still work. Branching
+	from branches is an ugly thing but may be the best solution
+	here?
+
+	We may need to be able to switch main genebuilders during a
+	release cycle but the rule that only ONE person at a time can
+	commit on the building branch should keep things under control
+	and get rid of people being frightened to update their code
+	during a build. Main trunk can be a free for all.
