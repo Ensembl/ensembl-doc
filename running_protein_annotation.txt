@@ -133,7 +133,33 @@ into table interpro;
 load data infile '/acari/analysis/iprscan/interpro_update/interpro_desc.txt' into table xref;
 
 
+Checklist
+=========
 
+When running the protein annotation it is worth checking these things out
+before you hit go
+
+1. Do you have all the executables, and data files for the
+analysis you want to run? are they push out across you compute 
+farm where appropriate
+
+2. Have you dumped your peptide file and chunked it up into pieces
+
+3. Have you filled out all the config files in 
+Bio::EnsEMBL::Pipeline::Config::Protein_Annotation
+
+4. Does BatchQueue.pm contain entries for all the analyses you wish to run
+
+5. Have you filled in the analysis table
+
+6. Have you filled in the rule tables
+
+7. Are the appropriate dummy entries in the input_id_analysis table
+
+8. Have you tested jobs for your different analyses
+
+If the answers to all these questions are yes you are probably read
+to set the RuleManager going
 
 This system generally has three dummy analyses and three types of input ids
 
