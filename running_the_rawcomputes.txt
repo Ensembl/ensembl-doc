@@ -37,7 +37,6 @@ dust for low complexity masking
 
 some of these are freely availible on the web, other need licenses
 
-
 An ensembl core database with the pipeline tables added
 (ensembl-pipeline/sql/table.sql)
 
@@ -314,8 +313,8 @@ Here is an example of the dependancies which will exist in a standard
 raw compute pipeline
 
 
-   SubmitContig	          SubmitSlice		SubmitChromosome 
-      CONTIG                 SLICE		   CHROMOSOME
+   SubmitContig	          SubmitSlice		          SubmitChromosome 
+      CONTIG                 SLICE		               CHROMOSOME
      /  |  \                  /  \                    /     \    
     /   |   \                /    \                  /       \
    /    |    \              /      \                /         \
@@ -342,3 +341,24 @@ BlastGenscanPep/DNA. All the other analyses produce either simple or
 repeat features and don't depend on any other analysis
 
 
+Checklist
+=========
+
+When running the raw computes it is worth checking these things out
+before you hit go
+
+1. Do you have all the executables, blast databases, matrix/data files the
+analysis you want to run will need? are they push out across you compute 
+farm
+
+2. Have you filled out all the config files, General.pm, Blast.pm, 
+BatchQueue.pm plus any analysis specific files like Fathom.pm
+
+3. Have you filled in the analysis table
+
+4. Have you filled in the rule tables
+
+5. Are the appropriate dummy entries in the input_id_analysis table
+
+If the answers to all these questions are yes you are probably read
+to set the RuleManager going

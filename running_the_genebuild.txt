@@ -20,6 +20,13 @@ these should all be availble on the web and from cvs
 
 Access to at least one mysql instance
 
+the genewise and rd-utils binaries installed
+these can be found in the Wise2 and rd-utils cvs packages on the 
+sanger cvs respository
+
+access to some batch submission system and an appropriate
+Bio::EnsEMBL::Pipeline::BatchSubmission module written for it
+
 B. Overview
 -----------
 
@@ -45,6 +52,7 @@ predictions which should also come from the raw computes
 
 
 The main genebuild has 5 main stages
+
 
 1. The Targetted Build. 
 
@@ -170,8 +178,11 @@ Here we descibe the various databases and the configuration options
 relevant to each. These configuration options can be found in 
 Bio::EnsEMBL::Pipeline::Config::Database
 
+all these databases should contain contig, clone, dna, chromosome, 
+assembly, meta and analysis tables filled in
+
 * reference db ( or sometimes called dna db )
-Contain the dnas, the features from the pre-compute pipeline and the 
+Contain the dna, the features from the pre-compute pipeline and the 
 pmatch_features (included in the extra tables pmatch_feature and 
 protein). All the other databases will use it as dna_db to get 
 sequence when necessary. This database should also contain the pipeline
@@ -273,21 +284,6 @@ GB_PROTEOME_FILES, this is used in the new_prepare_proteome.pl script
 There are more options in this file but they are involved with the 
 old way of running the genebuild and shouldn't be needed
 
-
-Sequences.pm, this contains the location of sequence indexes
-
-GB_PROTEIN_INDEX, this is the path to the directory/file used by 
-		  the sequence index you are using. We generally use
-		  ODBAIndexSeqFetcher
-
-GB_PROTEIN_SEQFETCHER, this should be the perl path to the
-		       seqfetcher you are using, all the Seqfetchers   
-		       we have code for can be found in here
-		       Bio::EnsEMBL::Pipeline::SeqFetcher
- 
-
-
-
 Genewise.pm, these contains various setting used by the genewise 
 	     program
 
@@ -306,6 +302,41 @@ than humans
 
 Now there are a series of specific config files for the various 
 processes 
+
+Pmatch.pm, this contains pmatch specific settings all of which need to
+be set to somethings
+
+GB_PFASTA this is the location of the complete proteome fasta file
+
+GB_PMATCH this is the location of the pmatch binary
+
+GB_PMATCH_MAX_INTRON this is a value used by the pmatch parsing code
+when merging hits
+
+GB_PMATCH_MASKING this is where you put the logic_names of any repeats
+you want masked out in the genomic sequence
+that will be passed to pmatch
+
+GB_PMATCH_SOFTMASK if you want the repeats masked to be softmasked
+
+GB_INITIAL_PMATCH_LOGICNAME this is the logicname of the first pmatch
+analysis
+
+GB_FINAL_PMATCH_LOGICNAME this is the logic name of the final analysis
+which sorts out the best in genome hits from the pmatch results
+
+
+Sequences.pm, this contains the location of sequence indexes
+
+GB_PROTEIN_INDEX, this is the path to the directory/file used by 
+		  the sequence index you are using. We generally use
+		  ODBAIndexSeqFetcher
+
+GB_PROTEIN_SEQFETCHER, this should be the perl path to the
+		       seqfetcher you are using, all the Seqfetchers   
+		       we have code for can be found in here
+		       Bio::EnsEMBL::Pipeline::SeqFetcher
+ 
 
 Targetted.pm, these are settings required for the Targetted stage
 most of the variables should be fairly self explaintory, the .example
@@ -368,6 +399,187 @@ GeneBuilder.pm, this is used in the Genebuild stage
 again most of this variables should be relatively self explainatory
 but here a a few which are important
 
-GB_USE_ABINITIO, this is a flag to switch on the use of 
-		 ab inition predictions in the genebuild run. Ab initio
-		 predictions are generally only now used in 
+GB_USE_ABINITIO, this is a flag to switch on the use of ab initio 
+predictions in the genebuild run. Ab initio predictions are generally only 
+now used on genomes which have not much species specific data
+
+
+GB_MIN_GENSCAN_EXONS the minimun number of exons a ab initio predictor has
+to have before it can be used to build a prediction from
+
+GB_GENSCAN_MAX_INTRON the maximun length of a ab initio predictions intron
+if it is to be accepted as a real prediction     
+
+
+Once all Configuration is filled in and the databases have been setup
+you can start running the process. The system is run using a script
+called RuleManager3.pl whose function is explained in the 
+using_the_ensembl_pipeline.txt document. This script requires the 
+presence of a set of pipeline tables which are also explained in this
+document. Two of these tables describe the order in which different 
+analyses should be run as part of the pipeline. The diagram found
+in genebuild_control_flow.jpg should describe the standard
+path which is take through the analyses
+
+
+The follow text describes the major analyses which are run in the process
+
+=====================
+=A. The Pmatch Stage=
+=====================
+
+This stage involves usin pmatch a fast alignment program to find exact
+matches between protein sequences and the genomic dna.
+
+First you need to ensure you have pmatch installed. The you need to 
+fetch the protein data which will be used. We generally use species 
+specific proteins where they exist otherwise we use the closest existing 
+set availible. For example for Human we use the human proteome, for
+briggsae though we use wormpep the elegans proteome
+
+Data prep
+---------
+
+Many species proteome sets can be found at swissprot and refseq on these
+two ftp sites
+
+ftp://ftp.ncbi.nih.gov/refseq/
+
+ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/
+(note here the names of the files are the taxonomy ids 
+which can be found in the ncbi taxonomy database)
+
+at this point the genbank format or embl format files respectively are 
+also collected as they are used later to add xrefs to the predicted
+gene sequences and having out of sync files can cause problems
+
+A complete proteome fasta file should be generated with the headers 
+formatted so only the name you want to use for the protein is found
+on the header line like this
+
+>PROTEIN_ID
+MSITHSBTREI
+
+this complete proteome file can be produced using the new_prepare_proteome
+script which can be found here
+
+ensembl-pipeline/scripts/GeneBuild/new_prepare_proteome.pl
+
+this should take all the files specified in GB_PROTEOME_FILES in
+Scripts.pm and parse them to produce a fasta file
+which will be written to GB_PFASTA as specified in Pmatch.pm
+
+The complete proteome file should then be searched for proteins which 
+contain long stretches of X's (ie more than 5) as these tend to make 
+pmatch run out of memory as they can be matched to any sequence
+
+Once you have your proteome file cleaned up it is a good idea to have it
+pushed out to you compute farm as acessing it over the network will
+tend to cause problems. It is also a good idea at this time index your
+fasta file as the sequences will need to be fetched in later stages. 
+Programs you can use to index the file include James Cuffs getseqs, Steve
+Searles indicate or both blast types, NCBI and WU will allow indexing and
+retrival of sequences from fasta files. This index should also be pushed
+out across your compute farm.
+
+Database setup
+--------------
+
+Aswell as having a core database with pipeline tables added and filled in
+you will also need the pmatch tables. These can be found here:
+
+ensembl-pipeline/sql/pmatch.sql
+
+For an example of how the rules might run for the pmatches look at the
+genebuild_control_flow.jpg. 
+
+
+Running the Pmatches
+--------------------
+
+The pmatches are run with the RuleManager like all parts of the pipeline.
+It is a good idea to test the system first by running a single job.
+The easiet way to do this is to run the RuleManager with the -id_listfile
+flag and pass in a file in the format input_id   input_id_type
+
+Once you test job has run sucessfully you should beable to start
+the pipeline running.
+
+Once all the pmatch and the best in genome pmatch job is finished before 
+starting the next stage it is a good idea to look at the results and make
+sure there aren't any proteins which have hit too the genome to many times
+after the best in genome filter
+
+This is a piece of sql which will help do that
+
+
+SELECT protein.protein_id, count(pmatch_feature.feature_internal_id) 
+       as count 
+FROM protein, pmatch_feature, analysis 
+WHERE protein.protein_internal_id = pmatch_feature.protein_internal_id 
+AND pmatch_feature.analysis_id = analysis.analysis_id 
+AND analysis.logic_name = 'BestPmatch' 
+GROUP by protein.protein_internal_id ORDER by count having count >= 6;
+
+
+Once you have a list of the ids which hit 6 or more times you need to 
+check the annotations of those proteins to establish if they are rubish 
+or not. Proteins labelled with names like histone or ubquitin need to be
+kept as they are real highly repeated gene families but proteins whose
+descriptions contain works like 'hypothetical', 'similar to' 'retroviral',
+ 'ORF', 'line repeat' or 'ENV should probably be deleted from the results 
+set'. Any proteins which you delete from the results set should also have 
+their ids added to the kill_list which can be found here
+
+ensembl-pipeline/script/GeneBuild/kill_list.txt
+
+adding the ids to the list means the proteins won't subsequently be used
+in further stages of the genebuild 
+
+
+
+========================
+=B The Targetted Stage=
+========================
+
+This is where the best in genome exact mapping of proteins to the 
+genome sequence produced in the pmatch stage are used to seed genewise
+alignments to produce gene structures.
+
+Before Starting
+---------------
+
+You need to ensure you have you genewise database setup including all 
+the tables mentioned in the Database configuration section. You need
+to make sure you have all the generic config filled out as well as the
+Targgetted.pm file
+
+You also need to make sure you can access an index file of the proteome
+file which was used to run the pmatches as genewise requires the protein
+sequences. This should of been both generated and pushed across the farm
+already when preparing the data for the pmatches
+
+As a note it is a good idea to keep the output from these genebuild jobs
+and this can be done by setting the cleanup option in the appropriate
+BatchQueue hash to 'no' or at least ensuring it isn't yes
+
+Running the Targetted Stage
+---------------------------
+
+Again it is a good idea to test one or a couple of jobs before setting
+the pipeline off wholesale. This can be done as describe above or if you 
+want to test outside of the batch submission system you can using this 
+script:
+
+ensembl-pipeline/scripts/test_RunnableDB
+
+this takes the standard database arguments as well as a logic_name and an
+input_id, This script as standard writes the results into the database and
+an entry into the input_id_analysis table but both these behaviours can be
+switched off
+
+
+Error checking the Targetted Run
+--------------------------------
+
+
