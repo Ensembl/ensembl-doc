@@ -1,6 +1,6 @@
 Information about the rat_build for Rnor3.2
 
- contacts
+contacts
 ----------
 
 In doing the rat build the two contacts which are useful for this
@@ -170,3 +170,10 @@ table
 this is done using the script
 
 ensembl-analysis/scripts/markers/load_marker_map_location.pl
+
+
+Miscellaneous
+----------------
+
+Make sure there is an entry in the meta table for genebuild.version of the form YYMMOrganisation
+eg 0311Ensembl
