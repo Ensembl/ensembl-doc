@@ -1,0 +1,105 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage{a4}
+\usepackage{epsfig}
+\parindent=0pt
+\parskip=10pt
+%\renewcommand{\baselinestretch}{2}
+
+\title{Running the Ensembl Anopheles automatic annotation} 
+\author{Emmanuel Mongin (mongin@ebi.ac.uk)}
+
+\begin{document}
+
+\maketitle
+
+
+The goal is to provide a written help on how to run the the \textit{A. gambiae} automatic annotation. This should actually be usable for most of the 'virgin genomes'. This documentation for processes which are common with other genomes, references are given to files present in the ensembl CVS repository called ensembl-doc. These files should be updated as the processes and code change. All of this documentation is written for people working at EBI/Sanger.
+
+\section{Raw computes}
+Running raw computes for \textit{A. gambiae} is pretty similar than for other genomes only few details change.
+The document available is called using\_the\_ensembl\_pipeline. This is a pretty extensive and detailed document.
+
+Here are the raw computes which have been run for the release 3:
+\begin{itemize}
+\item RepeatMask
+\item TRF
+\item tRNAscan
+\item CPG island
+\item DUST
+\item Dros pep blastX hits
+\item Swall blastX hits
+\item Snap genes
+\item Genscan (using the arabidopsis matrix)
+\end{itemize}
+
+\textbf{Particularities}\\
+\textbf{RepeatMasker} is ran with a customed library (which need to be placed on the following directory: XXXX). The parameter used should be the following: \--lib anopheles.\\
+\textbf{Genscan} is not worth to be reran. This gave pretty bad gene structure. Does not bring any useful information.\\
+\textbf{Snap} (another \textit{ab initio} gene predictor) trained with anopheles specific ESTs (see section on how to train SNAP) gives much better result. In many regions it seems to get the right exon prediction, it does not tend to overpredict too much. However the transcript structure is not always right. Snap is used in the last part of the gene build and some SNAP genes (about 2000) will be elevated to the status of ***REMOVED*** gene.\\
+\textbf{BlastX} is ran with two different datasets. The first one (and maybe the most important one) is the protein dataset containing all of the sequences from flybase. The second one is Swall.\\
+
+NB: Make sure that the logic names in the analysis table. Please check with the web team.\\
+The whole pipeline process (setting up the database and running it) should take about 3 days. On of the thing to do to get the analysis and rule tables right is to copy the ones from the previous release and have a critical look at them.
+
+\section{Gene Build}
+Gene build is perhaps the most tricky part of the process. Here are some of the reasons:
+\begin{itemize}
+\item No close annotated organism
+\item Really few genes annotated (Immunity, odorant receptors, ...)
+\item Few ESTs/cDNAs available (190 000 at 08/03)
+\end{itemize}
+One of the main change made to the process is to use much lower score blast hits. But this has many effects:
+
+Here are the main issues, genebuilding on \textit{An. gambiae}:
+\begin{itemize}
+\item Extremely high number of potential parent proteins to be used fo the similarity process. This has for consequence an increase of the compute time and more noise brought to the exon structure
+\item Genewise may built incomplete exons on low score blast hits. Transcritpts build with incomplete exons may not be merged with the correct exon structure and then produce wrong splice variants.
+\item Problems in merging splice variant from a same gene. This is due to partial exon structure build through the similarity process (mainly due to the use of low score blast hits). As EST genes are being merged to the final gene build. These genes in some case are not merged properly with similarity genes
+\item Incomplete Repeat dataset
+\item False negative. Still a certain number (about 10\% for the last release) may be missed
+\end{itemize}
+
+\subsection{Gene build by similarity}
+The score of the blast hits used to build similarity gene is much lower than for other organisms. We used a score down to 125 (lower than that seems to only bring noise, higer should obviously reduce the noise but some edges exons may be missed).
+\\
+NB: Blast hit filter has absolutely to be turned on whereas the similarity jobs would take too long or never finish.
+
+\subsubsection{Targetted}
+Taregetted process is undertaken with 3 dataset:
+\begin{enumerate}
+\item \textit{An. gambiae} genes in Swiss-Prot and SPTrEMBL.
+\item Submitted genes to the gene name submission database. (a script exists in the script section of the anopheles-genename cvs repository). If a cDNA has been submitted, the script will dump the longuest open reading frame.
+%get the name of the script
+\item Protein available for the latest \textit{D. melanogaster} genome. (usually dump them from the Ensembl version of Drosophila. This will allow to predict the drosophila orthologs.
+\end{enumerate}
+
+Here is an example of the conf file used for the last release (release 3).%add conf file here
+\\
+\\
+\textbf{potential problems}:
+\begin{itemize}
+\item Check for XXXs in the protein sequence. If a sequence has too many XXXs, pmatch may never end. Generally check that pmatch properly finished, it would fail if there is bad characters.
+\item After running pmatch(see ensembl-doc documentation) check at this step if most of the proteins have been mapped to the genome. 
+\end{itemize}
+
+\subsubsection{Similarity}
+The similarity process uses both blast hits from Swall and Drosophila blastX hits. With the blast filtering code on (see example of the conf file) all of the jobs should be finished after 24h (on the farm if not too loaded).
+\\
+\\
+\textbf{potential problems}: The score used for this run are low (125 for the blast hits) in some locus many spliced variants (or what will become spliced variants) with incomplete exons. Some of the transcripts may also span on two transcripts locus.
+
+
+\subsubsection{Merging data}
+
+\subsection{EST Gene build}
+\subsubsection{Exonerate and GeneCombiner}
+\subsubsection{Merging the EST build with the Similarity build}
+
+\section{Issues}
+
+\section{Post Compute}
+\subsection{Protein Annotation}
+\subsection{Known gene mapping}
+\subsection{Data checks}
+
+\end{document}
