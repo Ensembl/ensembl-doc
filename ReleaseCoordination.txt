@@ -1,6 +1,7 @@
+Ensembl Release Coordination
+============================
 
-This document is mainly for internal production purpose, I do not know
-whether or not to commit it somewhere...
+This document is mainly for internal production purposes.
 
 Deadlines Summary
 =================
@@ -12,9 +13,9 @@ the expception and is always on the 1st of the month.
 DECLARATION OF INTENTIONS
 1st - declaration of intentions
 
-3 Days before GeneBuild handover  (pseudo-deadline)
-  By this time core dbs should be somewaht ready for id-mapping and
-  peptide dumps
+3 Days before GeneBuild handover (pseudo-deadline) 
+By this time core dbs should be ready for stable ID mapping and
+peptide dumps
 
 GENEBUILD HANDOVER to Core/Compara
 10 Working days before Core handover  
@@ -23,19 +24,28 @@ GENEBUILD HANDOVER to Core/Compara
   stable_id and id-mapping done
   protein annotation and mapping done
 
-
 CORE/COMPARA HANDOVER to Mart/Webteam
 5 Working days before Mart handover,
 
 MART HANDOVER to Webteam
 2 Working days before release 
 
-RELEASE - 
+RELEASE 
 1st of the next month or the following Monday if the 1st is on a Friday, 
 Saturday, or Sunday (webteam do not release on Fridays).
     
-Note that there is a script at which will generate the dates for you, given the
-release date. It should take account of weekends and Bank Holidays.
+Note that there is a script at ensembl-doc/calc_release_deadlines.pl which
+will generate the dates for you, given the release date (--release
+argument). It should take account of weekends and Bank Holidays.
+
+Database naming convention
+==========================
+
+The schema version number changes if there are any core or compara
+schema changes.  
+The assembly version number changes if there is a new
+assembly (or has a letter appended if there is a patch or some other
+change).
 
 Main steps in release coordination
 ==================================
@@ -43,16 +53,21 @@ Main steps in release coordination
 * A - on the 1st of the month previous to release send a mail with
   subject like "July release: declaration of intention", asking people
   to declare what are the new databases and schema changes expected.
+  Give people a couple of days to declare, send a reminder then a summary
+  of what has been declared. Also announce new version number if it's
+  changed.
 
-* B - Ask the martians to copy from ecs2d over to ecs2f the old dbs. When
-  they acknoledge that is done, you can drop from ecs2d all the old dbs
+* B - Ask the martians to copy from ecs2d over to ecs2f the old dbs. 
+  Send an email to ensembl-admin saying which databases you're going 
+  to drop, in case there are any objections.
+  Drop from ecs2d all the old databases when allowed.
   (use drop database command in a MySQL client, never do a rm -rf as
-  mysqlens user). Do not delete database like ensembl_% and with
+  mysqlens user). Do not delete databases like ensembl_% and with
   %_expression_% in their name.
 
 * C - Based on the synthesis of what is new coming, you can decide what are
   the databases that will not change, and can copy their latest version
-  from ecs3d using ensembl/scritps/CopyDBoverServer.pl scripts, -h gives
+  from ecs3d using ensembl/scripts/CopyDBoverServer.pl scripts, -h gives
   you an idea how to use it.
   You have to run it as mysqlens user.
 
