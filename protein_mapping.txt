@@ -1,187 +1,237 @@
-this document descibes what you need in order to map genes in an ensembl
-database to other data sets e.g refseq or swissprot
+// $Id$
+
+This document descibes what you need in order to map genes in an
+Ensembl database to other data sets e.g. refseq or swissprot.
+
+All references to pmatch are obsolete.  We're using exonerate
+now.
+
 
 What you need
 =============
 
-a mysql_instance
+    * a mysql_instance
 
-bioperl-072 
-ensembl core 
-rd-utils for the pmatch binary
+    * Bioperl-072
+    * Ensembl core
+    * ( rd-utils for the pmatch binary )   [pmatch isn't used anymore]
 
-these are all availible from cvs on the web
+    Those are all availible from cvs on the web
 
-an ensembl database containg genes
+    * An Ensembl database containg genes
 
-you will also need the data files to do the mapping what you need here
-very much depends on what you have, which species you want to run on etc
+You will also need the data files to do the mapping what you
+need here very much depends on what you have, which species you
+want to run on etc.
+
 
 What to do
 ==========
 
-NB: In this mapping process the query are the known proteins (e.g. proteins from SWISSPROT) and target correspond to Ensembl transcript translation.
+NB: In this mapping process the query are the known proteins
+(e.g. proteins from SWISSPROT) and target correspond to Ensembl
+transcript translation.
 
-first of all you need to set up your configuration
+First of all you need to set up your configuration
 
-all of the config lies in 
+All of the config lies in
 
-ensembl/misc-scripts/protein_match/mapping_conf.pl
+    ensembl/misc-scripts/protein_match/mapping_conf.pl
 
-this first contains a set of general options
+This first contains a set of general options.
 
-known_min_idt (query idt)
-ensembl_min_idt (target idt)
+    * known_min_idt (query idt)
+    * ensembl_min_idt (target idt)
+        This is the min of exact match (in %) allowed for the
+        query sequence and the target sequence.
 
-This is the min of exact match (in %) allowed for the query sequence and the target sequence.
+    * statistic_file
+        This is where the get_stats.pl script would write its
+        statistics if run query, the location of the file
+        containing the dumped peptides from the database.
 
-statistic_file
+    * total_sptr
+        Location of swall file in sp format which can be greped
+        for entries specific to your organism.
 
-this is where the get_stats.pl script would write its statistics if run
-query, the location of the file containing the dumped peptides from the
-database
+    * sptr_fa
+        This should be a path to a fasta file which contains
+        entries for all the sptr protein you wish to map.
 
-total_sptr location of swall file in sp format which can be greped for
-entries specific to your organism 
+    * sptr_swiss
+        This should contain the same entries as the fasta file
+        but in sp format so information about links to embl_ids
+        and other databases can be parsed out.
 
-sptr_fa this should be a path to a fasta file which contains entries 
-for all the sptr protein you wish to map
+    * total_known_fa
+        A fasta file of all the proteins you wich to pmatch
+        against your genes, for human this would contain all
+        human sptr and refseq sequences.
 
-sptr_swiss this should contain the same entries as the fasta file but 
-in sp format so information about links to embl_ids and other databases
-can be parsed out
+    * x_map_out
+        This should be a path to a location where the
+        get_Xmapping.pl script writes its results to.  This
+        shouldn't already exist if it does it will get written
+        over.
 
-total_known_fa, a fasta file of all the proteins you wich to pmatch 
-against your genes, for human this would cotnain all human sptr and 
-refseq sequences
+    * mapping_out
+        This is where the output from the pmatch.pl script is
+        written.
 
-x_map_out this should be a path to a location where the get_Xmapping.pl
-script writes its results to this shouldn't already exist if it does it will get written over
+    * refseq_fa
+        Location of the refseq entries in fasta format.
 
-mapping_out this is where the output from the pmatch.pl script is written
+    * refseq_gnp
+        Location of the refseq entries in genbank format.
 
-the maps2db.pl requires these two files as input too
+        These (refseq_fa and refseq_gnp) are optional (only if
+        refseq is available for the given organism).
 
-Those are optionnal (only if refseq is available for the given organism)
 
-refseq_fa location of the refseq entries in fasta format
-refseq_gnp location of the refseq entries in genbank format
+There are then a series of species specific settings which very
+much depend on which species you are doing mapping for.  If you
+are annotating a species which we currently don't you may need
+to add new settings here for any questions about these settings
+please address then to ensembl-dev.
 
-there are then a series of species specific settings which very much 
-depend on which species you are doing mapping for, if you are annotation 
-a species which we currently don't you may need to add new settings here
-for any questions about these settings please address then to 
-ensembl-dev 
 
 Database settings
+-----------------
 
-db name of database
-host host the database was on
-dbuser user name
-password password
-port port the database is on
+    * db
+        Name of database.
+
+    * host
+        The host that hosts the database.
+
+    * port
+        The port to use to access the database on the host.
+
+    * dbuser
+        Database username.
+
+    * password
+        The password for the database user on the specified
+        host.
+
 
 Executable location
+-------------------
 
-pmatch location of pmatch executable (obsolet)
+    * pmatch
+        Location of pmatch executable (obsolete).
 
-exonerate executable location is currently hardcoded
+    * exonerate
+        Location of exonerate executable (optional).  If
+        unspecified, the latest stable version will be used.
 
 
 Organism related information
+----------------------------
 
-organism a for your organism which the scripts can then use to if it 
-needs to do organism specific stuff
+    * organism
+        A name for your organism which the scripts can then use
+        to if it needs to do organism specific stuff.
 
-ox this should be the taxonomy_id for your organism
+    * ox
+        This should be the taxonomy_id for your organism.
 
 
-You then need to load the external db table
+And then...
+-----------
 
-the information about this can be found here
+You then need to load the external db table.  The information
+about this can be found here:
 
-ensembl/misc-scripts/external_db
+    ensembl/misc-scripts/external_db
 
-the external_db.txt contains all of the current entries
+The external_db.txt contains all of the current entries.  If you
+have new xrefs to add you need to add them to this file.  The
+file can be loaded into the database using sql like this:
 
-if you have new xrefs to add you need to add them to this file
+    load data infile 'path/to/external_db.txt' into table external_db
 
-this file can be loaded into the database using sql like this
+NB: If you are dealing with a new organism, you should integrate
+it in the organism_list option.
 
-load data infile 'path/to/external_db.txt' into table external_db
-
-NB: If you are dealing with a new organism, you should integrate it in the organism_list option
 
 What you need to run
 ====================
 
-all these scripts are present in ensembl/misc-scripts/protein_match
+All these scripts are present in the
+ensembl/misc-scripts/protein_match directory.
 
-you first need to get the specific files for your organism
+You first need to get the specific files for your organism.  The
+files which are needed for all mappping are the swissprot files.
+These can be got from here:
 
-the files which are needed for all mappping are the swissprot files
+    ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/swissprot_files/proteomes/
 
-these can be got from here
+... for the sp format files and
 
+    ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/fasta_files/proteomes/
 
-ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/swissprot_files/proteomes/
-for the sp format files and
+... for the fasta files.
 
-ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/fasta_files/proteomes/ for
-the fasta files
+The files are named by taxonomy id so 9606 files are human and
+10090 are mouse.  This taxonomy id is only used if you want to
+grep SPTR entry from a file containing all organisms.  If you
+have already the SPTR file specific to the organism, you don't
+need tp fill it in.
 
-the files are named by taxonomy id so 9606 files are human and 10090 are
-mouse. This taxonomy id is only used  if you want to grep SPTR entry from a file containing all organisms. If you have already the SPTR file specific to the organism, you don't need tp fill it in
+Alternatively you can the seq files by greping though a complete
+file of swall in sp format using the grep_sptr_entries.pl script.
 
-alternatively you can the seq files by greping though a complete file of
-swall in sp format using the grep_sptr_entries.pl script
+Some organisms also have refseq files these can be retrived from
+the ncbi ftp site.
 
-some organisms also have refseq files these can be retrived from the 
-ncbi ftp site
+Once the config has been filled in and all the prequiste files
+are present you first need to run the get_Xmapping.pl script.
 
+    perl get_Xmapping.pl
 
-Once the config has been filled in and all the prequiste files are
-present you first need to run the get_Xmapping.pl script
+Theis paragraph is obsolete since we moved from pmatch to
+exonerate:
+    { The you run pmatch.pl this will pmatch the transcript    }
+    { peptides against the created peptide set form sptr and   }
+    { any other sequences you want the sequences to be mapped  }
+    { to (ie every main id you have en try for in the output   }
+    { from get_Xmapping.pl) the output will be written to      }
+    { whatever location you have in mapping_conf.pl (this      }
+    { currently requires a specific version fo pmatch which    }
+    { puts extra fields in the output, if you need a copy      }
+    { of this version mail mongin@ebi.ac.uk we should be       }
+    { change to use scanwisepep (from the wise2package soon    }
+    { (03/04/03)))                                             }
 
-perl get_Xmapping.pl
+pmatch.pl is now obsolete (if you still want to use this
+mapping procedure, you can as before but to load the data use
+old_maps2db.pl).
 
-The you run pmatch.pl this will pmatch the transcript peptides against the 
-created peptide set form sptr and any other sequences you want the 
-sequences to be mapped to (ie every main id you have en try for in the
-output from get_Xmapping.pl) the output will be written to whatever
-location you have in mapping_conf.pl ( this currently requires a specific
-version fo pmatch which puts extra fields in the output, if you need a copy
-of this version mail mongin@ebi.ac.uk we should be change to use scanwisepep
-(from the wise2package soon (03/04/03))
+Instead, use the following command:
 
-pmatch.pl is now obsolete (if you still want to use this mapping procedure, you can as before but to load the data use old_maps2db.pl)
+    perl exonerate_wrapper.pl -d
 
-use instead the following command
+    perl maps2db.pl
 
-perl exonerate_wrapper.pl -d
+Finally you run load_transcript_display_id.pl this puts entries
+in the display_xref_id of the gene and transcript columns which
+id they use for a particular gene is specified by the priorities
+defined at the top of the script. If you have created a new
+external_db table entry (is from using a new data source) you
+will need to decide whether those ids should be used before or
+after any other existing ids and set their priority accordingly.
 
-perl maps2db.pl
+    perl load_transcript_display_id.pl
 
-Finally you run load_transcript_display_id.pl this puts entries in the
-display_xref_id of the gene and transcript columns which id they use for 
-a particular gene is specified by the priorities defined at the top of 
-the script. If you have created a new external_db table entry (is from
-using a new data source) you will need to decide whether those ids should
-be used before or after any other existing ids and set their priority
-accordingly
+As a note for elegans you don't need to do all this as wormbase
+provide a file containing all this mapping already.
 
-perl load_transcript_display_id.pl
+    ftp://ftp.sanger.ac.uk/pub/databases/wormpep/wormpep.table
 
- 
-as a note for elegans you don't need to do all this as wormbase
-provide a file containing all this mapping already
+This means the only script you should need to run is
 
+    load_elegans_CE.pl
 
-ftp://ftp.sanger.ac.uk/pub/databases/wormpep/wormpep.table
-
-this means the only script you should need to run is 
-
-load_elegans_CE.pl
-
-For more information where to get the file needed, links or email contacts are provided in mapping.conf
-
+For more information where to get the file needed, links or
+email contacts are provided in the mapping.conf file.
