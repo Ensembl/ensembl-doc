@@ -225,15 +225,14 @@ RepeatMask flags
 You need to populate the analysis table for each database (except the
 db with features which will be populated by the raw computes).
 
-First, copy the analysis table from the raw compute
-database you are using as these analysis ids will be required in order
-to fetch the repeat masking and the blast hits properly.
+You can do this by running ensembl-pipeline/scripts/GeneBuild/populate_analysis.pl
 
-Then load the analysis entries needed for the genebuild.
+This script reads entries from the analysis table of GB_DB, and from
+the various config files and generates a series of sql statements. You
+can either then load these yourself into the various databases you've
+set up, or run the script with the -insert option and it will load
+them into GB_GW_DB, GB_COMB_DB and GB_FINALDB for you.
 
-mysql -uuser -ppassword -hhost databasename < /path/to/ensembl-pipeline/sql/GeneBuild_analysis.sql
-
-The db with features will contain other entries in the analysis table derived from the pre-compute pipeline
 
 13. Make sure each of these databases has an entry in the meta table to
 tell it the default assembly name - should look something like this:
