@@ -11,7 +11,9 @@ perl wget.data
 perl prepare_txt.pl
 mysqlimport -u root expression110 *.txt
 
-also download the BodyMap file
+also download the BodyMap file HS2GS.txt (http://bodymap.ims.u-tokyo.ac.jp/datasets/HS2GS.txt)
+and the SAGEmap_ug_tag-rel-Nla3-Hs file (
+ftp://ncbi.nlm.nih.gov/pub/sage/map/Hs/Nla3/SAGEmap_ug_tag-rel-Nla3-Hs.zip)
 
 and proceed to:
 
@@ -24,8 +26,12 @@ conversion step at the end)
 Mapping scripts live in:
 ensembl-external/modules/Bio/EnsEMBL/ExternalData/Expression/scripts/mapping_scripts
 
-a) perl unigene_locuslink_extractor.pl > unigene_locuslink.dat
-b) join that with ensp_locuslink.dat mapping (a table from Ensembl
+a) UniGene to LocusLink mapping
+wget ftp://ncbi.nlm.nih.gov/repository/UniGene/Hs.data.gz
+gunzip Hs.data.gz
+perl unigene_locuslink_extractor.pl Hs.data > unigene_locuslink.dat
+
+b) join that with enst_locuslink.dat mapping (a table from Ensembl
 dumped by Arek or Manu) using ELUSmapper.pl to produce ELUSmapper.dat
 
 c) Use perl ENSUmapper.pl for direct mapping
@@ -39,9 +45,9 @@ e) ELUS_ENSUjoiner.pl       join ELUS and ENSU mapping - use ENSU mapping
 f) perform script first.pl
 g) perform second.pl (one more file from Manu with enst ensg ensp mapping)
 h) perform third.pl to prepare seqtag_alias_before_sorting.txt (one more file here called seqtag_id.txt wh
-ich is derived from a dump from the expression table seqtag (select * from seqtag into outfile 'name_with_
-full_path';); only 1 and 3rd column from this are needed so do cat seqtag.txt | cut -f 1,3 > seqtag_id.txt
- before proceeding to third.pl)
+ich is derived from a dump from the expression table seqtag (select seqtag_id, name from seqtag
+into outfile 'name_with_full_path';); BodyMap file HS2GS.txt needed here. 
+The SAGEmap_ug_tag-rel-Nla3-Hs file needed here as well. 
 i) sort -u seqtag_alias_before_sort.txt > seqtag_alias.txt
 j) ~michele/mysql/bin/mysqlimport -h ecs1d -u ***REMOVED*** -p
 homo_sapiens_expression_120 seqtag_alias.txt
