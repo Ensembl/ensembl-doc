@@ -701,5 +701,13 @@ analysisId = 2 will be for the supporting features that we are going store as fe
 
 For this database you should do the same checks as in the genebuild, as described in post_genebuild checks.txt
 
-
 the data is then ready for delivery.
+
+Note: The features can be seen in TransView as supporting evidence. 
+The ESTs present are those that have been merged into the genomewise genes. 
+However, some ESTs may appear as incomplete, lacking one exon, for instance. 
+There is no problem with that. It is simply that the supporting evidence is 
+passed from est-exons to genomewise-exons so if one est-exon is not used in 
+the creation of the final exon, maybe because it was overlapping two exons 
+or it was an edge exon contributing to an internal position, it won't appear
+as supporting feature.
