@@ -1,20 +1,172 @@
-A. Data sources:
-----------------
+Information about the rat_build for Rnor3.2
 
-Protein: 
+ contacts
+----------
+
+In doing the rat build the two contacts which are useful for this
+build were
+
+Kim Worley from Baylor who was responsible for the assembly
+kworley@bcm.tmc.edu
+
+and Susan Bromberg from RGD who I spoke to about markers etc
+sbromberg@mail.brc.mcw.edu
+
+Note this was build on branch_25 code for the pipeline and the core but 
+head code as of 01/10/04 for ensembl-analysis
+
+Assembly and Sequence
+---------------------
+
+The initial agp file was sent by Kim Worley to Ewan. This file though
+went through several iterations as problems were found and fixed
+
+The contig sequences so were WGS contigs which could be retrived
+from the old rat database. Some were new RNOR identifiers which we
+fetched from SRS by searching the description lines of EMBLWGS, lasty there
+were some finished clones which could just be pfetched
+
+The chromosome dumps were also fetched from here
+
+ftp://ftp.hgsc.bcm.tmc.edu/pub/analysis/rat/
 
 
-cDNA:
+I took the standard ensembl-pipeline/scripts/load_agp.pl and 
+load_seq_region.pl scripts and modified them slightly to load rat
+the modified versions can be found in ensembl-personal/lec/rat_scripts
+
+Configuration
+-------------
+
+my configuration files you should beable to find under
+
+ensembl-config/rat/rnor_3_2/
+
+there should be a rat_rules.conf and a rat_analysis.conf the 
+mapping_conf.pl for xrefs and is you descen the Bio/EnsEMBL tree you
+should find any ensembl-pipeline and ensembl-analysis config modules
+
+Analyses
+--------
+
+The Following analyses were run as standard and required
+no special data or anything other than standard configuration and 
+commandline args etc
+
+RepeatMasker (ie was run with -m)
+Dust
+TRF
+Eponine
+CPG
+tRNAscan
+Genscan
+Blastgenscans against Uniprot, Unigene and embl_vertrna
+
+Other Raw Computes
+------------------
+
+The following raw computes needed data fetching and manipulation
+as described below or in specified docs
 
 
-EST:
+
+affy mapping
+------------
+
+The affy probe sequence were fetched from here
+
+http://www.affymetrix.com/support/technical/byproduct.affx?cat=arrays
+
+I fetched 4 sets of rat probes RG-U34 A-C and  Rat230_2 probes
+
+This site needs registration but it just wants an email address and 
+password you don't need to give any other info really
+
+This files were chunked using steves fastasplit program which can be found
+~seale/progs/fastasplit/fastasplit. I split them so their would be 
+approximately 1000 entries in each file
+
+The code that I used also required the dusted and softmasked sequence 
+pushed across the farm so it wasn't executed till all the repeatmasking was
+complete
+
+more information about how this runs and the input ids etc needed can be
+foundin the doc ensembl-doc/affy_mapping.txt
+
+markers
+-------
+url for rgd marker ids
+http://rgd.mcw.edu/objectSearch/sslpReport.jsp?rgd_id=10075
 
 
-B. Problems with past builds:
------------------------------
+The process for running markers is desribed in full detail in the document
+running_the_markers.txt in ensembl-doc (note at 07/10/04 this didn't
+exist yet)
 
-C. Miscellaneous
-----------------
+Here is a quick overview of what was required for rat
 
-Make sure there is an entry in the meta table for genebuild.version of the form YYMMOrganisation
-eg 0311Ensembl
+The UniSTS marker set was got from
+
+ftp://ftp.ncbi.nih.gov/repository/UniSTS/UniSTS.sts
+
+The file contains all the markers for every species UniSTS contains 
+so you have to grep out your particular species
+
+grep 'Rattus' UniSTS.sts > rat.unists
+
+The unists markers were loaded easily using this script
+
+ensembl-analysis/scripts/markers/load_markers.pl 
+
+the source given was UniSTS and the numeric ids got the source UniSTS_NUM
+
+the RGD markers were slightly more complex. The markers were got from here
+
+ftp://rgd.mcw.edu/pub/data_release/SSLPS
+
+these also had to be grepped for species
+
+grep 'rat' SSLPS.txt > rgd_rat_markers.txt
+
+Then the markers needed to be parsed out into a format which matched  the 
+one wanted by the load_markers script
+
+Several of the markers either didn't have primer sequences or didn't
+have expected distances and those were skipped. Also some
+markers had two primer sequences which given they were all only a base pair
+or so different we took the first of each pair as our marker process should
+still place them
+
+the script which did this is called
+
+ensembl-personal/lec/rat_scripts/rgd_marker_parse.pl and it outputs a
+file called rgd.unists
+
+this can then also be loaded using the load_markers script
+
+the loaded markers are then dumped using the dump_markers.pl script which
+can be found in the same location as load_markers.pl
+
+
+The maps then also need to be loaded
+
+The reports can be downloaded from here
+
+ftp://ftp.ncbi.nih.gov/repository/UniSTS/UniSTS_MapReports/Rattus_norvegicus/
+
+then name for each of the map files needs to be loaded into the map
+table
+
+insert into map (map_name) values('FHH_X_ACI');
+insert into map (map_name) values('FHH_x_ACI.7');
+insert into map (map_name) values('RH');
+insert into map (map_name) values('RH_map.2.2');
+insert into map (map_name) values('SHRSP_X_BN');
+insert into map (map_name) values('SHRSP_x_BN.7');
+
+The files then need to be parsed and loaded into the marker_map_location 
+table
+
+this is done using the script
+
+ensembl-analysis/scripts/markers/load_marker_map_location.pl
