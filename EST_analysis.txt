@@ -3,6 +3,10 @@ Running EST analysis in Ensembl
 
 Val Curwen 02.10.2001
 
+18.12.2001 this is all very much work in progress. Many scripts still
+in development so not yet checked in. If you need them urgently,
+contact me.
+
 Overview
 --------
 
@@ -74,10 +78,27 @@ it is here.
 11. cd to the place where you ahve specified output files to go, then use load_exonerates.pl to load 
 up the data::
 
+
+28.11.2001 - load_exonerate.pl is far too slow - can take days to load results. Make insert statements instead.
+
+(/work2/vac/ensembl-scripts/)exonerate2mysqltab.pl converts o/p files into tab delimited files for loading
+
+
+need to dump out golden contig ids first
+
 ecs1g[vac] % foreach i ( exest* )
 foreach? gunzip $i
-foreach? /work2/vac/ensembl-pipeline/scripts/EST/load_exonerates.pl -estfile $i:r
+foreach? exonerate2mysqltab.pl $i:r >> estfeatures
+foreach? gzip $i:r
 foreach? end
+
+strips out features with id <90:
+
+11a. make est table in est database - 
+
+mysql estdb < enembl-pipeline/sql/est.sql
+(/work2/vac/ensembl-scripts/)get_estlengths > estlengths
+load data infile 'estlengths' into table est
 
 
 12. submit.pl filter_ests.jobs.dat
@@ -88,10 +109,26 @@ Genomewise
 
 make sure there's a sgp in the est database
 
-/work2/vac/ensembl-pipeline/scripts/run_EST_RunnableDB -runnable Bio::EnsEMBL::Pipeline::RunnableDB::EST_GeneBuilder -dbname est_to_main_trunk -dbhost ecs1f -dbuser ***REMOVED*** -dbpass ensembl -input_id chr6.181727278-181767874 -write
+run_EST_RunnableDB -runnable Bio::EnsEMBL::Pipeline::RunnableDB::EST_GeneBuilder -dbname est_to_main_trunk -dbhost ecs1f -dbuser ***REMOVED*** -dbpass ensembl -input_id chr6.181727278-181767874 -write
 
 
 
+Dusting
+-------
+
+Need to have a (masked) dusted fasta file of golden contigs.
+Dump using /work2/vac/ensembl-scripts/dump_golden_contigs.pl
+Split into 4000 files into /work6a/vac.tmp/dust
+dust them using the scripts in /work2/vac/dust:
+
+copy files to /work6a/vac.tmp/fam where there is more space
+fill in config.txt - restrict jobs to ecsnodes either with ecslong or -qacari -mecsnodes
+ls /work6a/vac.tmp/dust* > job_ids.txt
+
+fam.sh /work6a/vac.tmp/fam init to set up directories
+fam.sh /work6a/vac.tmp/fam submit to create bsub lines
+to_submit.sh to submit jobs
+fam.sh /work6a/vac.tmp/fam collate > outfile to collate results
 
 
 
