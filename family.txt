@@ -51,62 +51,87 @@ $  fetch.pl swissprot sptrembl
 thedate=`date`
 $ cat ensembl.pep vertebrate.pep > $thedate.pep
 
-$ rm ensembl.pep vertebrate.pep # but keep seq_types)
+$ rm ensembl.pep vertebrate.pep # keep seq_types
 
 # ------------------------------------------------------------------------
-# prepare blast database:
-$ mkdir ~/blast
-$ mkdir ~/blast/results
-$ cd ~/blast
-$ formatdb_2.0.11 -p T  -i ~/srs/$thedate.pep
-# results in $thedate.{pep,phr,pin,pesq}: the blast db to be run against
+# set the location of a scratch area, and create a directory for it:
+release=fam112  #or whatever
+work=/work1/$USER/$release # or whaterver
+mkdir $work
+cd $work
+$ mkdir $work/blast
+$ mkdir $work/blast/seq
+$ mkdir $work/blast/results
+$ cd $work/blast
+$ formatdb_2.0.11 -p T  -i $work/srs/$thedate.pep
+
+# results in $work/srs/$thedate.{pep,phr,pin,pesq}: the blast db to be run
+# against
 
 # ------------------------------------------------------------------------
 # distribute the data:
 
 $ cd /data/sync
-$ mkdir families
-$ cd families
-$ cp ~/blast/$thedata.* ./
+$ mkdir  $release
+$ cd $release
+$ cp $work/blast/$thedat.* ./
 $ sync-data
-# this will copy everything locally to the farm machines; takes an hour,
-# maybe two
+
+# this will copy everything locally to the farm machines; takes an hour
+# or so. 
 
 # ------------------------------------------------------------------------
 # split data into chunks:
 
 # when done:
-$ cd ~/blast
-chopper ~/srs/$thedate.pep 400 -dir
-# splits data 
+
+$ cd $work/blast
+chopper $work/srs/$thedate.pep -n 400  # see also -h
+# splits data into $work/blast/seq/
 
 # ------------------------------------------------------------------------
 # submit to blast: 
 
-# Have a look what would be done:
+$ cd $work/blast
+$ run-blasts.pl  /data/sync/$thedate.pep  # see also -h !
 
-$ cd ~/blast
-$ run.pl
 # This will show what would be done, but not do it
 # If all seems well, do:
-$ run.pl go
+
+$ run-blasts.pl  -g /data/sync/$thedate.pep
+
 
 # ------------------------------------------------------------------------
 # when blast finished (10 hours or so)
+
 # check results:
-consistency.pl 
-#  and resubmit ones that failed:
-consistency.pl  go
 
-# results will be in ~/blast/results/*.out.gz
-# (this is already partially parsed by parse1.pl)
-# ------------------------------------------------------------------------
-# concatenate results, and remove non-hits and stuff:
-$ build.sh
-$ remove.pl result.parsed > results.parsed2
+# you can already check results during the running:
+
+run-blasts.pl -C /data/sync/$thedate.pep
+
+# and already re-submit the failed ones (still during running):
+
+run-blasts.pl -C -g  /data/sync/$thedate.pep
+
+# If you're sure that missing results are not due to jobs that haven't
+# completed (e.g., if no lsf jobs are outstanding), then resubmit all those
+# whose counts don't add up:
+
+run-blasts.pl -C -f -g /data/sync/$thedate.pep
+
+# For e.g. testing, you can restrict the jobs to be checked/submitted using
+# the -n option
 
 # ------------------------------------------------------------------------
-# convert blast hits to a markov matrix
+
+# concatenate results and compress things
+$ concat-blasts.sh results/*.out.gz > results.parsed
+# this will tell you how many peptides it found (on stderr), and this should
+# match the number of peptides in $thedate.pep
+
+# ------------------------------------------------------------------------
+# convert blast hits to a markov matrix:
 
 $ markov results.parsed2 
 
@@ -131,7 +156,7 @@ $ parse_mcl.pl out.mcl protein.index > ensembl.clusters
 
 #  add the sp/trembl annotation lines (to each sp/trembl seq):
 
-$ annotate.pl ~/srs/$thedate.pep ~/srs/seq_types ensembl.clusters
+$ annotate.pl $work/srs/$thedate.pep $work/srs/seq_types ensembl.clusters
 
 # this produces annotate.out, which is the input for the consensus script
 
@@ -170,7 +195,7 @@ $ $scripts/pep-id-remap.pl mapping.dat  < final.family > families.out
 
 # load the families into the database:
 
-$ tablesql=~/head/ensembl-external/sql/family.sql
+$ tablesql=$work/head/ensembl-external/sql/family.sql
 $ ensdb='database=homo_sapiens_core_110;host=ensrv3;user=ensro'
 $ famdb='database=family110;host=ensrv3;user=***REMOVED***'
 $ perl $scripts/family-input.pl -r 3 -C $tablesql \
