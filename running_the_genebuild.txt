@@ -535,7 +535,7 @@ FROM protein, pmatch_feature, analysis
 WHERE protein.protein_internal_id = pmatch_feature.protein_internal_id 
 AND pmatch_feature.analysis_id = analysis.analysis_id 
 AND analysis.logic_name = 'BestPmatch' 
-GROUP by protein.protein_internal_id ORDER by count having count >= 6;
+GROUP by protein.protein_internal_id having count >= 6 ORDER BY count ;
 
 
 Once you have a list of the ids which hit 6 or more times you need to 
