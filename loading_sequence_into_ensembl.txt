@@ -198,3 +198,12 @@ assembled sequences the coordinate system which is top level isn't always
 consistent. The sequences which are marked as being top level in the
 seq_region_attrib table can then be all fetched by the coordinate
 system alias toplevel
+
+
+These scripts are all generic scripts based on the standard way
+sequence files and agp files look and what information needs to be stored.
+These scripts will probably not work straight out of the box as most 
+genomes have their sequence and agp provided in subtly different forms
+which means the scripts code will probably need fiddling with before they
+will do what you want them too. If you have any questions 
+ensembl-dev@ebi.ac.uk is a good place to ask them. 
