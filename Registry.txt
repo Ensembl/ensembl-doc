@@ -1,0 +1,177 @@
+Registry Goals
+
+1) DBConnection to only be used to do database interaction methods and should
+no longer serve adaptors.
+
+2) Allow for easy configuration and entry/retrieval of adaptors. 
+
+3) All existing code should be "seen" to run exactly the same so it will not 
+break any existing code. (although some change maybe allowed if needed)
+
+DBAdaptors (changes)
+
+1) No longer inherits from the DBConnection class as the class will now 
+only serve adaptors.
+
+2) Serve adaptors via the registry (via auto loading of the methods).
+
+3) Will now have a species and group to enable the use of the registry.
+
+4) list of adaptors given via get_available_adaptors method.
+
+
+DBConnection (changes)
+
+The following methods have been removed as the DBAdaptor now deals with these.
+
+_get_adaptor
+add_db_adaptor
+remove_db_adaptor
+get_db_adaptor
+get_all_db_adaptors
+
+
+
+Registry.pm (new module)
+
+A static hash holds all the information about the adaptors and is stored
+using the keys of species, group and type. The type is the type of adaptor.
+Examples of types are Gene, Slice, CoordSystem, Exon etc.
+
+So Adaptors are created from the load methods (see ConfigRegistry.pm).
+
+The DBAdaptor can now be completely by passed if so desired as the DBAdaptor
+now merely calls the Registry for all its methods.
+
+The Registry stores four type of adaptors:-
+
+DBAdaptors  - for serving DBAdaptors
+DNAdaptors  - for getting DNA data from another database (dnadb)
+db adaptors - for linking databases ( used by add_db_adaptor etc) 
+adaptors    - normal adaptors e.g GeneAdaptor, SliceAdaptor etc.
+
+
+
+method load_all.
+
+This can be used to load adaptors from a configuration file. If a 
+file name is passed then this is used else if the enviroment variable
+ENSEMBL_REGISTRY is set and is a valid file then this is used.
+If this does not exist then .ensembl_init is checked in the users home 
+directory and ran if found. If none of these exists no adaptors are 
+preloaded.
+
+An example file would contain :-
+
+my @a = ('H_Sapiens', 'homo sapiens', 'Homo_Sapiens', 'Human');
+Bio::EnsEMBL::Utils::ConfigRegistry->add_alias( -species => "Homo Sapiens",
+                                                -alias => \@a);
+ 
+Bio::EnsEMBL::DBSQL::DBAdaptor->new( 	-species => "Homo Sapiens",
+			       		-group => "core",
+                                	-host => 'name.host.ac.uk',
+                                	-user => 'anonymous',
+                                	-dbname => 'homo_sapiens_core_20_34c',
+                                	-port => '4444' );
+
+Bio::EnsEMBL::DBSQL::DBAdaptor->new( 	-species => "Homo Sapiens",
+				  	-group => "estgene",
+                                        -host => 'name.host.ac.uk',
+                                        -user => 'anonymous',
+                                        -dbname => 'homo_sapiens_estgene_20_34c',
+                                        -port => '4444' );
+ 
+
+Example calls to the Registry are:-
+
+To get the Exon adaptor for human in the core database
+
+ $exon_adaptor = Bio::EnsEMBL::Registry->get_adaptor("Human","core","Exon")
+
+
+although users will probably feel happier using the DBAdaptor type calls :-
+
+  $dba = Bio::EnsEMBL::Registry->get_DBAdaptor("Human", "core");
+  $exon_adaptor = $dba->get_ExonAdaptor();
+
+
+method load_registy_with_web_adaptors
+
+Will load the registry with all the Adaptors that are in the web server. This should
+make it possible to quickly write scripts for testing the data or for easy use
+as no port usename db name etc will need to be known and typed in.
+
+e.g.
+use Bio::EnsEMBL::Registry;
+my $reg = "Bio::EnsEMBL::Registry";
+ 
+$reg->load_registy_with_web_adaptors();
+ 
+my $gadap = $reg->get_adaptor("Homo_sapiens","estgene","Gene");
+my $gene = $gadap->fetch_by_stable_id("ENSESTG00000015126");
+print $gene->seq();
+
+
+Utils/Config_Registry.pm
+
+This contains the default configuration routines for loading the registry with
+the adaptors and configuring them. So there are various load methods for loading
+core, vega, lite, snp, estgene etc as well as routines for setting them up i.e.
+setting the dnadb for estgenes ( dnadb_add()) setting up the alias for the species
+names (add_alias) etc.
+
+At the end if a local user file exists then it will make these methods available too.
+This will be used for adding your own data. It is done in this way so the the file is 
+external to our cvs system and hence external users should have alot less hassle updating
+there code from our system as other methods might have overwritten these.
+
+
+
+Testing.
+
+All the test suites still successfully complete and a Webserver has been
+created using the new Registry code and works fine. 
+
+
+
+Adding your own data to your Ensembl Webserver.
+
+Edit SiteDefs.pm and set ENSEMBL_REGISTRY to your configuration file.
+The configuration file should be a perl script which sets up the aliases
+and creates the DBAdaptor with a new group name and optionally to set this
+data to use another to get the sequence related data.
+
+e.g.
+#--------------------------------------------------------------------------------------
+use Bio::EnsEMBL::MY_GENE::DBAdaptor;
+use Bio::EnsEMBL::Utils::ConfigRegistry;
+my $reg = "Bio::EnsEMBL::Registry";
+
+my @a = ('H_Sapiens', 'homo sapiens', 'Homo_Sapiens',"Homo sapiens");
+Bio::EnsEMBL::Utils::ConfigRegistry->add_alias( -species => "Homo_sapiens",
+                                                -alias => \@a);
+  
+  
+# create a dba adptor and add it to the regitry with the 
+# species Homo_sapiens and group my_own_gene
+my $db = new Bio::EnsEMBL::MY_GENE::DBAdaptor( -species => "Homo_sapiens",
+					       -group => "my_own_gene",
+                                               -host => 'host',
+                                               -user => 'anonymous',
+                                               -dbname => 'homo_sapiens_my_own_24_34e',
+                                               -port => '3306' );
+ 
+
+#get all sequence data from the core database (i.e. here the human core database)
+$reg->add_DNAAdaptor($db->species, $db->group, "human", "core");
+
+#--------------------------------------------------------------------------------------
+
+Bio::EnsEMBL::MY_GENE::DBAdaptor will use the default adaptor set up if the module 
+does not have a get_available_adaptors method. 
+
+
+A new track called "my_own_gene" should now appear on the ContigView page in the 
+Detailed view box. At the moment these transcripts will appear black. These will act
+in the same way as the other transcipt tracks.
+
