@@ -30,11 +30,14 @@ The modules that control the EST run are:
    the results out to file.
 
 2. FilterESTs_and_E2G - for a given genomic region ( usually a 1Mb long virtual contig) this retrieves 
-   exonerate features from an ensembl database and filters them by score ( > 500 ) and percentage 
-   identity ( >= 97% ). The filtering is done using the FeatureFilter (so we don't stack up 100s of 
-   identical hits). For those succesful features, the corresponding ESTs are then blast-ed against the 
-   genomic region. ESTs with Blast features with coverage < 90% are rejected. I then makes a minigenomic, 
-   and runs est_genome with the selected features and writes out a gene prediction for each EST.
+   exonerate features from an ensembl database resulting from ExonerateESTs and filters them 
+   by score ( > 500 ) and percentage identity ( >= 97% ). The filtering is done using the 
+   FeatureFilter (so we don't stack up 100s of identical hits). For those successful features, a blast db 
+   is created for the corresponding ESTs and the genomic region is blast-ed against it. 
+   Resulting EST-Blast features with coverage < 90% are rejected. With the accepted blast features
+   it then makes a minigenomic, and runs est_genome with the selected ESTs. The results are written
+   as single-transcript genes, one per EST; exons are as given by est_genome and the ungapped alignments 
+   per exon are stored as supporting evidence.
 
 3. EST_GeneBuilder - clusters the est_genome predictions ( i.e. exonerate_e2g genes ), and merge 
    them according to consecutive exon overlap. This generates alternative transcripts.
