@@ -33,9 +33,11 @@ some of these are freely availible on the web, other need licenses
 
 An ensembl core database with the pipeline tables added (ensembl-pipeline/sql/table.sql)
 
-you also need access to some sort of batch submission system in order to submit you analysis to your compute. At ensembl we use LSF and there is also code with in the pipeline for using Suns Gridengine 
+you also need access to some sort of batch submission system in order to submit you analysis to your compute. At ensembl we use LSF and there is 
+also code with in the pipeline for using Suns Gridengine 
 
-The rest of this document will also assume you have a database which contains sequence and if desired an assembly (see loading_sequence_into_ensembl.txt) and will describe how to configure and run the pipeline
+The rest of this document will also assume you have a database which contains sequence and if desired an assembly (see loading_sequence_into_ensembl.txt)
+and will describe how to configure and run the pipeline
 
 
 Configuration
@@ -140,7 +142,9 @@ header this is the regex to be used to parse the correct id out of the fasta hea
 
 flavour this can be ncbi or wu as these require slightly different command line construction
 
-ungapped if this is defined you will get the ungapped pieces or each hit as feature pairs if the data is to be stored in a standard ensembl database this should be set to 0 as the blast features are stored as align features with cigar strings which describe how the coordinates can be split to produce the individual features which make up the alignment
+ungapped if this is defined you will get the ungapped pieces or each hit as feature pairs if the data is to be stored in a standard ensembl 
+database this should be set to 0 as the blast features are stored as align features with cigar strings which describe how the coordinates can 
+be split to produce the individual features which make up the alignment
 
 refilter is this is set then the an internal filtering method will be used rather than the FeatureFilter runnable 
 
@@ -155,7 +159,8 @@ Analysis table
 
 the analysis table need to contain entries for all the different analysis you want to run and dummy entries for the pipeline to work
 
-the dummy entries just need a logic name, these are used when butting intial entires in the input_id_analysis table and as the condition for rules which don't rely on other analyses
+the dummy entries just need a logic name, these are used when butting intial entires in the input_id_analysis table and as the condition for 
+rules which don't rely on other analyses
 
 the lines which specify analyses you want to carry out mostly need more information
 
@@ -163,16 +168,23 @@ logic name this is a name for your analysis, we try and make them informative
 
 db this is a name for the database your database, 
 db_version the version of your database
-db_file a path to a database file or matrix file needed by the program for blast the path needs to be from what ever you set to be the environment variable BLASTDB for example if you BLASTDB is /data/blastdb and you want to use the database in /data/blastdb/Ensembl/swall Ensembl/swall would be what to put in the db_file column
+db_file a path to a database file or matrix file needed by the program for blast the path needs to be from what ever you set to be the 
+environment variable BLASTDB for example if you BLASTDB is /data/blastdb and you want to use the database in /data/blastdb/Ensembl/swall 
+Ensembl/swall would be what to put in the db_file column
 
 program this is the name for the program
 program_version version of program
-program_file this is the file for the program if the program is located in the directory specified in BIN_DIR in General.pm you only need give the program name otherwise it is best to specify the full path
+program_file this is the file for the program if the program is located in the directory specified in BIN_DIR in General.pm you only need 
+give the program name otherwise it is best to specify the full path
 
-parameters this is any commandline parameters your program might need, the format should be a comma delimited list, if the option is just a commandline flag e.g -gi or -low that is what should appear but if it is a flag and a value the entry should look like this '-lib => /path/to/library_file' for example the parameters string '-low, -lib => /ecs2/work1/lec/briggsae.lib' would be parsed to produce a command line like this /usr/local/ensembl/bin/RepeatMasker  -low -lib /ecs2/work1/lec/briggsae.lib AC091216.24470.32005.2980374.seq
+parameters this is any commandline parameters your program might need, the format should be a comma delimited list, if the option is just a commandline 
+flag e.g -gi or -low that is what should appear but if it is a flag and a value the entry should look like this '-lib => /path/to/library_file' 
+for example the parameters string '-low, -lib => /ecs2/work1/lec/briggsae.lib' would be parsed to produce a command line like this 
+/usr/local/ensembl/bin/RepeatMasker  -low -lib /ecs2/work1/lec/briggsae.lib AC091216.24470.32005.2980374.seq
 
 
-module this should either be the name of the module which is located in Bio::EnsEMBL::Pipeline::RunnableDB or if the module isn't located there it should be the full name of the module
+module this should either be the name of the module which is located in Bio::EnsEMBL::Pipeline::RunnableDB or if the module isn't located there 
+it should be the full name of the module
 module_version version of module
 
 gff_source the source or program which produces these results
@@ -186,9 +198,11 @@ there are two rule tables
 
 rule_goal and rule_condition
 
-rule_goal contains a numeric rule_id and a goal which is the numeric analysis id of a particular analysis object which you would want completed when this rule was carried out 
+rule_goal contains a numeric rule_id and a goal which is the numeric analysis id of a particular analysis object which you would want completed 
+when this rule was carried out 
 
-rule_condition this contains a numeric rule_id and a condition which is the logic_name of a analysis which must be complete before an analysis/rule can be carried out
+rule_condition this contains a numeric rule_id and a condition which is the logic_name of a analysis which must be complete before an analysis/rule 
+can be carried out
 
 examples
 
@@ -476,18 +490,24 @@ these are all used as part of the standard ensembl pipeline
 Ab Intitio gene prediction
 ==========================
 
-Genscan GENSCAN is freely available for academic use. Executables are currently available for the following Unix platforms: Sun/Solaris, SGI/Irix, DEC/Tru64 and Intel/Linux. Platforms not listed are not currently available.
+Genscan GENSCAN is freely available for academic use. Executables are currently available for the following Unix platforms: Sun/Solaris, SGI/Irix, 
+DEC/Tru64 and Intel/Linux. Platforms not listed are not currently available.
 
 to get genscan for academic use go here http://genes.mit.edu/license.html
 Save the license agreement web page as a text file called 'license.txt' (e.g., if running Netscape use File > Save As... > Text).
-Edit the file license.txt to include your name and complete mailing address (not email) using a simple text editor such as SimpleText, emacs, vi, jot, etc. (if you must use Word or WordPerfect, please save the resulting file as ASCII text).
-Send the edited license.txt file by email to Chris Burge (cburge@mit.edu). In your email please specify which platform you intend to run Genscan on (Sun, SGI, DEC or Intel/Linux) - I cannot process requests without this information.
-Wait for a couple of days to receive the Genscan distribution by email. You should receive a response within one week except during holidays - if you do not, please resend the license.txt file.
+Edit the file license.txt to include your name and complete mailing address (not email) using a simple text editor such as SimpleText, emacs, vi, 
+jot, etc. (if you must use Word or WordPerfect, please save the resulting file as ASCII text).
+Send the edited license.txt file by email to Chris Burge (cburge@mit.edu). In your email please specify which platform you intend to run Genscan on 
+(Sun, SGI, DEC or Intel/Linux) - I cannot process requests without this information.
+Wait for a couple of days to receive the Genscan distribution by email. You should receive a response within one week except during holidays - 
+if you do not, please resend the license.txt file.
 
 Fgenesh is now product of softberry contact details softberry@softberry.com
 
-Genefinder is a species specific gene prediction tool. It uses maximum likelihood estimation to predict gene structure. It can be configured for a variety of species.
-Genefinder is an unpublished work of Colin Wilson, LaDeana Hilyer, and Phil Green. The source code is freely available for research and educational purposes. ftp://ftp.genome.washington.edu/src (Please contact Colin Wilson if you are unable to access the ftp site colin@u.washington.edu).
+Genefinder is a species specific gene prediction tool. It uses maximum likelihood estimation to predict gene structure. It can be configured 
+for a variety of species. Genefinder is an unpublished work of Colin Wilson, LaDeana Hilyer, and Phil Green. The source code is freely available for 
+research and educational purposes. ftp://ftp.genome.washington.edu/src (Please contact Colin Wilson if you are unable to access the ftp site 
+colin@u.washington.edu).
 
 Genscan is the only program run as standard in the ensembl-pipeline
 
@@ -513,7 +533,9 @@ NCBI Blast can also be used and it freely availble from NCBI ftp://ftp.ncbi.nih.
 BlastGenscanPep
 BlastGenscanDNA 
 
-These both take sequences of ab initio predicted genes then use those to blast against the databases, this is done for two reasons, one for speed as to blast the whole of a human sized genome(~3GB)  against a blast database such as swall or dbest would take to long. The other is to allow use to find protein and dna evidence which supports these genes so potentially they can be used further down the line to contribute to our genebuild
+These both take sequences of ab initio predicted genes then use those to blast against the databases, this is done for two reasons, one for speed 
+as to blast the whole of a human sized genome(~3GB)  against a blast database such as swall or dbest would take to long. The other is to allow 
+use to find protein and dna evidence which supports these genes so potentially they can be used further down the line to contribute to our genebuild
 
 Normally we run BlastGenscanPep and BlastGenscanDna but for small genomes such as anopheles and briggsae we blast against raw sequence
 
