@@ -47,7 +47,7 @@ Setting up a Lightweight DAS server
 .LI "Date:"
 \*[DT]
 .LI "Author:"
-Andreas K\(:ah\(:ari,  European Bioinformatics Institute (EBI)
+Andreas K\(:ah\(:ari,  EBI-EMBL
 .br
 \fCandreas.kahari@ebi.ac.uk\fP
 .LE
@@ -70,14 +70,14 @@ guide on how to set up a Lightweight DAS (LDAS) server on a
 whatever purpose one might want to set up a DAS service).
 .P
 The LDAS server was written by Lincoln Stein at the Cold
-Spring Harbor Laboratory, and is based on Perl and the BioPerl
+Spring Harbor Laboratory, and is based on Perl and the Bioperl
 framework.  This is by no means the only easy to use DAS server
 available, and the site at
 .DS I
 \fChttp://www.biodas.org/\fP
 .DE
 also lists the Dazzle server which is based on Java and the
-BioJava toolkit.  If you want to set up a Dazzle server to use
+Biojava toolkit.  If you want to set up a Dazzle server to use
 with Ensembl, wander off to the Ensembl documentation page at
 .DS I
 \fChttp://www.ensembl.org/Docs/\fP
@@ -88,16 +88,16 @@ as a complement this document.
 .P
 After reading and carrying out the instructions in this text,
 you should have a LDAS server running on your \*[UNIX] machine,
-and an extremly simple sample DAS feature track displayed in the
-Ensembl browser.
+and an extremely simple sample DAS feature track displayed in
+the Ensembl browser.
 .P
 The LDAS home web site is located at
 .DS I
 \fChttp://www.biodas.org/servers/\fP
 .DE
 and contains, apart from the server itself, additional
-(authoritive) documentation.  At one point or another, you will
-need to read that documentation as well.
+(authoritative) documentation.  At one point or another, you
+will need to read that documentation as well.
 .SP
 .H 2 "What we will be doing"
 .P
@@ -151,7 +151,7 @@ make your sysadmin have a look.
 I'm assuming that you do not have root access, so you will not
 be able to write into e.g. \fC/usr/local\fP on your \*[UNIX]
 machine.  You will need access to a directory that you have
-permission to write to.  You will use this firectory as an
+permission to write to.  You will use this directory as an
 \(lqalternative root directory\(rq.  Replace any mentioning
 of \fC$ALTROOT\fP with your chosen directory (there's nothing
 stopping you from using \fC/\fP as the \fC$ALTROOT\fP if you
@@ -185,7 +185,7 @@ using GNU Stow, install all programs into
 straight into \fC$ALTROOT\fP, then stow the package as described
 in the GNU Stow documentation.  Executable binaries and scripts
 will be symbolically linked from \fC$ALTROOT/bin\fP, so the
-inital \fC$PATH\fP won't need to be changed from what I said
+initial \fC$PATH\fP won't need to be changed from what I said
 above.
 .
 .SP
@@ -242,7 +242,7 @@ fetched from
 .P
 The important question during the configuration is
 \(lqInstallation prefix to use?\(rq.  Answer with your
-choise of \fC$ALTROOT\fP.  Also, you probably want to answer
+choice of \fC$ALTROOT\fP.  Also, you probably want to answer
 \fCn\fP to the question \(lqDo you want to install perl as
 /usr/bin/perl\(rq.
 .P
@@ -281,7 +281,7 @@ the document root of the server is set to
 \fC$ALTROOT/share/htdocs\fP, the CGI scripts should be
 located in \fC$ALTROOT/share/cgi-bin\fP, the server error
 and access logs goes into \fC$ALTROOT/var/log\fP, and the
-configutration files goes into \fC$ALTROOT/etc\fP. Edit
+configuration files goes into \fC$ALTROOT/etc\fP. Edit
 \fC$ALTROOT/etc/httpd.conf\fP to suit your setup.  The default
 port that the server will listen to will be set to 8080.
 .P
@@ -304,8 +304,8 @@ Pointing a web browser to
 .DS I
 \fPhttp://localhost:8080/\fP
 .DE
-should show the standard Apache boiler plate page (a
-page entitled \(lqSeeing this instead of the website you
+should show the standard Apache boiler plate page (a page
+entitled \(lqSeeing this instead of the web-site you
 expected?\(rq).  This means that the web server is functional.
 .SP
 .H 2 "Install MySQL"
@@ -324,7 +324,7 @@ if you're installing a binary distribution of MySQL.
 .P
 When done, add \fC$ALTROOT/mysql/bin\fP to your \fC$PATH\fP
 environment variable (if you haven't done so already) and start
-a MySQL deamon:
+a MySQL daemon:
 .DS I
 .ft C
 $ \f(CBPATH=$ALTROOT/mysql/bin:$PATH; export PATH\fP
@@ -389,8 +389,8 @@ cpan> \f(CBinstall Bundle::BioPerl\fP
 .ft R
 .DE
 Of course, you may choose to only install the \fCBio::DB::GFF\fP
-module instead of installing the whole BioPerl bundle (wich also
-requires the Expat XML parser and the GD graphics library).
+module instead of installing the whole BioPerl bundle (which
+also requires the Expat XML parser and the GD graphics library).
 .P
 The only additional step that needs to be taken is to ensure
 that the scripts in the \fCscripts/Bio-DB-GFF\fP directory of
@@ -419,7 +419,7 @@ $ \f(CBmake install\fP
 .DE
 .P
 Edit the LDAS CGI script and specify the location of the
-\fCdas.conf\fP dicretory.  In my case, I had to change the line
+\fCdas.conf\fP directory.  In my case, I had to change the line
 .DS I
 \fC$CONF_DIR = '/usr/local/apache/conf/das.conf';\fP
 .DE
@@ -460,7 +460,7 @@ servers.  We're not setting up a reference DAS server so we
 won't need any assembly information.  We still need to fetch
 reference and annotation data though.
 .P
-Using the Ensembl MartView datamining tool at
+Using the Ensembl MartView data-mining tool at
 .DS I
 \fChttp://www.ensembl.org/Homo_sapiens/martview\fP
 .DE
@@ -532,7 +532,7 @@ comes before the \fC[annotations]\fP section.
 .H 2 "Prepare the database"
 .P
 We need to set up a MySQL database that will hold the data.
-Make sure there is a MySQL deamon alive on your machine and
+Make sure there is a MySQL daemon alive on your machine and
 then...
 .DS I
 .ft C
@@ -609,7 +609,7 @@ could be called \fChuman.conf\fP and look like this:
 .DS I
 .ft C
 [DATA SOURCE]
-description = Human Chomosome 7 (test)
+description = Human Chromosome 7 (test)
 adaptor     = dbi::mysqlopt
 database    = dbi:mysql:database=human;host=localhost
 mapmaster   = http://your.host.name.here:8080/cgi-bin/das/human
@@ -643,7 +643,7 @@ reply, you should be able to find the lines
 <DSN>
   <SOURCE id="human">human</SOURCE>
   <MAPMASTER>http://your.host.name.here:8080/cgi-bin/das/human</MAPMASTER>
-  <DESCRIPTION>Human Chomosome 7 (test)</DESCRIPTION>
+  <DESCRIPTION>Human Chromosome 7 (test)</DESCRIPTION>
 </DSN>
 .ft R
 .DE
