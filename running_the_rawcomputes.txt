@@ -15,7 +15,8 @@ these are all availible from cvs on the web
 
 
 You also need access to the binarys which you want to use to analysis
-run your sequence
+run your sequence, where you can get these files is describe later
+in this document
 
 we have Runnables which will run
 
@@ -41,8 +42,9 @@ to submit you analysis to your compute. At ensembl we use LSF and there
 is also code with in the pipeline for using Suns Gridengine
 
 The rest of this document will also assume you have a database which
-contains sequence and if desired an assembly (seeloading_sequence_into_ensembl.txt) 
-and will describe how to configure and run the pipeline
+contains sequence and if desired an assembly 
+(see loading_sequence_into_ensembl.txt)  and will describe how 
+to configure and run the pipeline
 
 
 Configuration 

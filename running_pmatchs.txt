@@ -185,7 +185,7 @@ this can be done with the RuleManager3.pl script which is found in ensembl-pipel
 
 the commandline would look like this
 
-perl RuleManager3.pl -dbname pipeline_genebuild_test -dbhost ecs1c -dbuser ***REMOVED*** -dbpass ***** -start_from 75 -once > & rule.txt &
+perl RuleManager3.pl -dbname mouse_pmatch_test -dbhost ecs2e -dbuser ***REMOVED*** -dbpass ensembl -start_from 54 -once > & rule.txt &
 
 
 the db settings are relatively obvious
@@ -217,7 +217,7 @@ new_pm_bestmatch.pl script again which is found in ensembl-pipeline/scripts/Gene
 
 this just needs a word to use as the input_id for the BestPmatch module generally the commandline format looks like this
 
-./new_pm_bestmatch.pl genome
+./new_pm_bestmatch.pl -dbname mouse_pmatch_test -dbhost ecs2e -dbuser ***REMOVED*** -dbpass ***** -input_id genome -analysis BestPmatch -write
 
 where genome is the word being used as the input_id, this word could be anything as it is never actually used by the runnableDB
 

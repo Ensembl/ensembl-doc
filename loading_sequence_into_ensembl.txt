@@ -1,0 +1,204 @@
+This documents describes what you need and how to load sequence and 
+assemblies into an ensembl database
+
+for ay questions please contact ensembl-dev(ensembl-dev@ebi.ac.uk)
+
+What you need
+=============
+
+a mysql_instance
+
+bioperl-072 
+ensembl core 
+ensembl pipeline
+
+these are all availible from cvs on the web
+
+What to do
+==========
+
+you need to create a database on your mysql instance
+
+then you need to create the tables
+
+the sql to create the tables is found in
+
+ensembl/sql/table.sql
+
+the can be added to the database like this
+
+mysql -h localhost -u ensdamin -p *****  my_ensembl_db < path/to/ensembl/sql/table.sql 
+
+
+the database has 5 tables which contain information about the sequence 
+and the assembly
+
+clone, contig and dna contain information about sequence and assembly and
+chromosome contain information about the assembly
+
+clone and contig contains information like accession, version and length 
+of sequence, both tables have numeric ids and names. Clone names are just
+the name of the sequence and contig names tend to be 
+accession.version.start.end
+
+dna contains the actual sequence
+
+there can exist a one to many relationship between the clone and contig 
+table but for shotgun genomes it can be an one to one relationship
+
+Loading Sequence
+----------------
+
+the sequence can be loaded into your database using this script
+
+
+ensembl-pipeline/scripts/load_scaffolds.pl
+
+this script assumes a one to one relationship between your clones 
+and contigs
+
+this takes several command line options
+
+-dbname name of database
+
+-host database host
+
+-dbuser user of database
+
+-dbpass password of database
+
+-verbose makes the script report more of what it is doing
+
+-pipe makes the script put entries in the input_id_analysis table (part 
+of ensembl-pipeline/sql/table/sql)
+
+-write actually write the entries to the database
+
+its also requires a fasta file of all the sequence you want loaded
+
+this script uses bioperl SeqIO code which parses the fasta header lines 
+in a certain way, you may want to check exactly what the id it is 
+giving your sequence before you allow them to be stored in the database
+
+you will need to edit this script to is uses the correct information from
+the fasta header to produce the names and other information you need
+htg_phase on clone is the stage of sequencing that clone is at 4 being 
+finshed, embl_offset is where a contig sequence starts in a clone file
+for this script it is assumed to be one as each sequence is given its
+own contig
+
+an example commandline for this script would be
+
+./load_scaffolds.pl -dbname my_ensembl_db -dbhost localhost -dbuser ***REMOVED*** -dbpass ***** -write  sequences_to_load.fa
+
+this commandline would actually load the sequences as the write flag is
+specified
+
+
+Loading assemblies
+------------------
+
+an assembly is the instructions on how the contigs are pieces together
+to form the chromosomes of an organism
+
+the assembly table contains three sets of coordinates
+
+chromsome start and end, where a piece lies in the chromosome
+superctg start and end where a piece lies in the superctg 
+contig start and end where a piece lies in the raw contig
+
+superctgs and contigs also have ori which can be 1 or -1 and show how the
+sequence lies for contigs on superctgs and for superctgs on chromosomes
+
+
+superctgs are the largest pieces of dna which have been assembly together
+from the contigs then mapped on to chromosomes 
+
+some assemblys either don't have chromosomes as the maps haven't been 
+produced e.g fugu or don't have superctgs because the sequence is 
+completely finished e.g elegans in these cases it is okay to treat 
+superctgs as chromosomes are chromosomes as superctgs
+
+ 
+there isn't a standard script in ensembl for loading agps as the script 
+needed very much depends on the information in your agp files
+
+this is the information needed in the assembly table
+
+chromosome_id dbID of chromosome from chromosome table
+
+chr_start 
+
+chr_end
+
+superctg_name name of the superctg
+
+superctg_start
+
+superctg_end
+
+superctg_ori the direction  superctg sequence lies in the chromosome
+
+contig_id the dbID of the contig
+
+contig_start
+
+contig_end
+
+contig_ori the direction the contig sequence lies in the chromosome
+
+type a name for the assembly
+
+the standard agp format is described here
+
+
+http://www.sanger.ac.uk/Projects/C_elegans/DOCS/agp_files.shtml
+
+it should contain information the chromosomal coords of  the dna pieces 
+and the gaps and which accessioned clones those pieces come from
+
+
+you need a script that will produce a tab delimited file that can be 
+loaded into the assembly table
+
+the tab delimited file will need the information required for the columns
+in the assembly table in the order the columns appear in the table
+
+the type also needs to be added to another table, th meta table
+
+an entry for the assembly type in the meta table should look like this
+
+
+
+  meta_id | meta_key               | meta_value         |
++---------+------------------------+--------------------+
+|       1 | schema_version         | $Revision$ |
+|       2 | assembly.default       | NCBI31 
+
+assembly.default is then the value used by the dbadaptor if no golden 
+path type is set inorder to get entries out of the assembly table 
+
+for an example of agp parsing code you can look here
+
+ensembl-pipeline/scripts/DataConversion/wormbase/WormBase.pm
+
+this contains a method called agp_parse to see how this method is used 
+look at the sequence_store.pl script in the same directory
+
+the assembly table has no way of storing gaps, gaps are just left out and
+then the code whic generates the chromosome sequences fills gaps in 
+contig coords with N's when building a slice or chromosome sequence
+most agp files mark a gap with a N in the type column these lines can
+just be skipped
+
+note if your sequence does have both chromosomes and superctgs you will 
+probably have two agp files one which maps chromosome to superctg and one
+which mapes superctg to contig, then you will need a script which will 
+pull the appropriate information about of both files
+
+if you only have superctgs or only have chromosomes you don't need to
+worry just use the coords you do have for both columns
+
+before you can load an assembly you need to have loaded both the 
+chromosome table and the contig table as the dbIDs of entries in these 
+tables are required for the assembly table

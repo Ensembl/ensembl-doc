@@ -88,11 +88,6 @@ files must be in these directories
 
 
 
-PIPELINE_RUNNER_SCRIPT this is the script you want to use to run the
-                       pipeline jobs. There is a script called runner.pl 
-                       which can be found in Bio::EnsEMBL::Pipeline and 
-                       this is the script normally used.
-
 Bio::EnsEMBL::Pipeline::Config::BatchQueue
 
 QUEUE_MANAGER this is the module you are using to control your batch
@@ -121,7 +116,8 @@ QUEUE_CONFIG this is another array of hashes, each element contains
 
 
 There are also default settings for Batch_size, retries output_dir and
-queue that Job will use if an analysis doesn't have an entry here
+queue and runner script that Job will use if an analysis doesn't have an 
+entry here
 
 *****************************************************************
 
@@ -199,10 +195,10 @@ my $dbpass    = $ENV{'ENS_DBPASS'};
 The two other options
 
 -starts_from the analysis id of the analysis the script is to start
-             from.  This analysis id isn't actually carried out. The analysis ids to
-             put in would be one of the analysis ids for the dummy analyses. Then
-             the script will submit all the jobs which depend on that particular
-             dummy analysis.
+             from.  This analysis id isn't actually carried out. The analysis ids
+	     to put in would be one of the analysis ids for the dummy analyses. 
+	     Then the script will submit all the jobs which depend on that 
+	     particular dummy analysis.
 
 This flag can appear multiple times on the commandline each time for a
 different analysis id and the script then puts them into an array and
