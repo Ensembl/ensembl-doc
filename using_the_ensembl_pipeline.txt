@@ -849,6 +849,24 @@ the output saved if you want it saved
 
 delete_output, this method deletes the output from the temporary place
 the submission system was storing it
+
+
+Pipeline Sanity
+--------------
+
+Before running any pipeline you may want to run this script which runs
+a series of sanity checks on the config files and pipeline tables before 
+you run
+
+This script lives in ensembl-pipeline/scripts
+
+pipeline_sanity.pl
+
+It needs the standard database options -dbhost -dbuser -dbpass -dbname 
+-dbport. As standard it will run the sanity checks and report any problems
+but if you pass in the -info flag it will also print out some other summary
+information about your setup
+
 -----------------------------------------------------------------------
 
 As previouly mentioned these are generic intructions about running the
@@ -880,3 +898,4 @@ The protein annotation, these is where the peptide sequences produced
 by the genebuild are analysed using algorithms and data such as pfam
 prints, tmhmm and signalp. A description of this process can be found
 in running_the_protein_annotation.txt 
+

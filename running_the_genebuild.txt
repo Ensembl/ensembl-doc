@@ -56,7 +56,12 @@ The main genebuild has 6 main stages
 A. The Pmatch run
 
 Pmatch is used to find exact matchs of species specific proteins to the 
-genome then find the best in genome matches for each protein 
+genome then find the best in genome matches for each protein. This stage
+consists of 2 separate analysis. Pmatch, which runs separately on each
+chromosome against the protein set and BestPmatch which runs the best in
+genome filter on the whole results set. These, as they use different input
+ids, must be separated by an accumulator analysis 
+(see using_the_ensembl_pipeline.txt for more information on accumlators)
 
 B. The Targetted Build. 
 
@@ -65,7 +70,11 @@ genewise alignments. The base RunnableDB used is FPC_Targetted_GeneWise.
 During the process the pmatch features are fetched. The protein
 sequences of the pmatch features is fetched and then those are reblasted
 against the genome. The results from the reblast are used to seed 
-genewise alignments which in turn produces gene structures
+genewise alignments which in turn produces gene structures. The targetted 
+build is generally run on slices of the chromosomes, normally 1MB sized 
+pieces. It depends on the best in genome pmatch filter being complete
+so is required to depend an accumulator aswell as the dummy analysis which
+is the source of its input_ids.
 
 
 C. The Similarity Build
@@ -77,6 +86,12 @@ the same as for the targetted build but those regions which contain
 genes which are predicted in the targetted stage are filtered out
 as it is generally assumed that the targetted genes from exon matches to
 proteins will be better than any genes build on the basis of similarity.
+The Similarity build is also generally run on 1MB sized pieces. This
+means it can use the same input_id_type as the Targetted analysis. It
+will always need to depend on the Targetted analysis but if you are running
+the raw computes and the genebuild as part of the same pipeline you 
+may also need an accumulator which indicates all the blasts your
+similarity analysis will use as its data source is complete
 
 
 D. Adding UTRS
@@ -85,40 +100,43 @@ The cDNA based predictions (described in est_cdna_genebuild.txt) and the
 protein based predictions are combined using the runnabledb 
 Combine_Genewises_and_E2G. Here if the cdna based predictions overlap 
 with the protein based predictions the algorithym decides whether extra 
-information can be added to the protein based preidction
+information can be added to the protein based prediction. This analysis
+tends to be run on 1MB slice pieces. It should depend on the similarity
+build being complete. It also depends on the exonerate cdna alignments
+being complete. If these are being run as part of the same pipeline an
+accumulator will be needed to mark the end of the exonerate cdna alignments
+as the input_ids for this analysis are filenames
 
 E. GeneBuilder
 
 here all the predictions mare are collapsed down into a not redundant 
 set of transcripts. Ab initio predictions which are well supported by
 blast results can also be added into the prediction set, all this
-is done from the RunnableDB Gene_Builder
+is done from the RunnableDB Gene_Builder. This is best to run on whole
+chromosomes if possible. If you are going to use the PredictionGenebuilder
+which also consideres abinitio predictions the largest piece you should
+probably use is 50 MB but try and uses pieces this size if your chromosomes
+are bigger. AS you will be using bigger pieces that were used for UTR 
+addition you will need an accumulator to mark its finish. If you do run
+on pieces smaller than whole chromosomes you may need to run the 
+GeneBuilder a second time without the PredictionGenebuilder switched on
+on whole chromosomes to make sure the clustering is done correctly.
 
 F. GeneCombiner
 
 Here the cdna predictions are used to add either new predictions where 
 they don't overlap with protein based predictions or they can also add
-new alternative transcripts to existing genes.
+new alternative transcripts to existing genes. This is again generally
+run on 1MB sized pieces. Again you will need an accumulator between
+GeneBuilder and GeneCombiner as the input_ids will be different
 
 
 The size of the pieces of chromosomes you should run these various analyses
 on does some what depend on your genome, how much information you already
 have about your genome and how much memory you compute systems have 
 availible. It is best to run them on as large as pieces as possible that 
-will run in a reasonable time (generally less than 24 hrs) and a reasonable
-amount of memory
+will run in a reasonable time and a reasonable amount of memory
 
-Stage A the pmatches are run on whole chromosomes, then the complete
-results set . The subsequent stages B, C and D are generally run intiailly
-on either 5MB or 1MB pieces or the largest size which can be managed if 
-your scaffolds are smaller than that. These are the processes which are
-particular time and memory intensive. The similarity stage is generally 
-the worse and methods to deal with that are discussed later on. Stages
-E and F are good to run on whole chromosomes if possible. E, the 
-genebuilder stage may need to be run on smaller pieces if you are including
-ab intio transcripts in thoses which can be added to the final gene set
-as including those can significanly increase the runtime of the
-genebuilder stage.
 
 
 

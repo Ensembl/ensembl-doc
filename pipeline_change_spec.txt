@@ -25,6 +25,8 @@ General Objectives
    Genebuilder
    Ab Initio modules
    Protein Annotation modules 
+   ESTTranscriptFilter
+   EST genebuilding code
   Configuration
   SeqFetchers
   Error string passing
@@ -120,7 +122,10 @@ General Objectives
    it would be a a good idea to make sure most generic options are 
    overridable using the command line.
  
+   Dna database
+   ************
 
+   Give the runner script the possiblity of using a dna database
 
   Analysis API changes
   ####################
@@ -192,6 +197,29 @@ General Objectives
      and it can be moved in to Runnable/RunnableDB from Protein as there
      is no need for a separate directory for it.
 
+
+     ESTTrancriptFilter
+     ------------------
+
+     This code currently uses Bio::EnsEMBL::SeqFeatures, we need to move
+     it to using something else   
+
+     EST Genebuilding code
+     ---------------------
+
+     The config for this needs reworking to make is easy to run with 
+     multiple different sets of data without needing multiple different
+     sets of configuration. WE will probably move to a system like 
+     BatchQueue.pm with hashes containg values keyed on logic_name or
+     database name
+
+
+     Prediction Genebuilder
+     ----------------------
+       
+     Make prediction genebuilder run as a standalone module rather than
+     being tied in with Genebuilder
+     
 
    Configuration
    *************

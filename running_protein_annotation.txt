@@ -90,6 +90,25 @@ represent this process and input_ids associated with the appropiate
 dummy analysis in the input_id_analysis table. There are scripts for
 doing all this and they are described in using_the_ensembl_pipeline.txt
 
+For this analysis you are likely to need 3 input_id types and as such
+3 dummy analyses. The three input_id_types are translation_ids, filenames
+and the proteome. You can name these types what you like but we generally
+find it useful to name them something meaningful. Once you have your
+three dummy analyses all the protein annotation you want to run will need
+rules which depend on them. Generally we have the pfam analyses depend on
+the translation ids. Signal Peptide detection, transmembrane domain
+detection, prints and profile domain detection and ncoils analyses are
+running with the protein chunk files and scanprosite and seg are run
+with the whole proteome.
+
+These three types of input_ids can all be generated with and stored in the
+input_id_analysis table with the make_input_ids script described in 
+using_the_ensembl_pipeline.txt. An important note is the input_id for the
+jobs which run on the whole proteome must be 'proteome' this can be
+achieved by using the -single_name option in the make_input_ids script
+
+
+
 Now all these set up steps have been carried out it is time to run the
 RuleManager script.
 

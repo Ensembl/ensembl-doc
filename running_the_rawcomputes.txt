@@ -242,6 +242,10 @@ Other options
     maximum defaults to 60s
    -max_pending_jobs defaults ot what is set in MAX_PENDING_JOBs in 
     BatchQueue.pm
+   -wakeup this marks how frequently the pipeline should check if it has
+    to many pending jobs in the system by default it is off. If it is 
+    to be switched on it is a good idea to set it to at least 5 minutes
+    ie 300secs
 
 The progress of the pipeline can be watched by using the monitor script.
 This script lives in ensembl-pipeline/scripts. It is also documented
@@ -288,6 +292,22 @@ Count Name            Id
 
 this script gets all its information from the job tables.
 
+
+Most the the analyses in the raw computes are run on contigs or
+what ever sequence level coordinate system you are using is. Some of the
+very fast running analyses like dust, cpg island detection it is best to
+run on larger pieces such as 1MB slices or whole chromosomes.
+
+Many of these analyses have no dependancies and instead just depend on
+what ever dummy analysis provides their input_ids. Some analyses simply
+depend on RepeatMasker being run. This is as they use repeatmasked sequence
+an as such repeatmasker needs to be run before they can run. If you
+runnableDB needs a datasource which is also created in the pipeline you 
+will need to make sure that analysis depends on the previous analysis being
+complete. If they use the same input_ids ie both run on contigs you can 
+have a simple direct dependancy. If they run on different input ids things
+become more complicated and you will need an accumulator which are 
+described in using_the_ensembl_pipeline.txt
 
 Now follows a description of some of the analyses which we run as part
 of our pipeline or can be run as part of the pipeline. 
