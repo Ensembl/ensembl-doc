@@ -35,7 +35,7 @@ User description (should this go elsewhere?):
     cvs -d somewhere checkout ensembl-external # or cvs update, of course
 
 # set/adjust some environment variables (FAMPATH and PATH).
-# Look at ensembl-external/family/setenv.{shl,csh}.example; copy it and change
+# Look at ensembl-external/family/setenv.{sh,csh}.example; copy it and change
 # to needs, then source it
 
     source setenv.sh
