@@ -14,7 +14,8 @@
 
 
 \bf{File last updated: August 2003}
-The goal is to provide a written help on how to run the the \textit{A. gambiae} automatic annotation. This should actually be usable for most of the 'virgin genomes'. This documentation for processes which are common with other genomes, references are given to files present in the ensembl CVS repository called ensembl-doc. These files should be updated as the processes and code change. All of this documentation is written for people working at EBI/Sanger. Please update this documentation if needed. In this file when a reference to release 3 is made (third anopheles annotation by Ensembl) this actually refer to the Ensembl release labbeled 2a (still second assembly but third annotation).
+The goal is to provide a written help on how to run the the \textit{A. gambiae} automatic annotation. This should actually be usable for most of the 'virgin genomes'. This documentation for processes which are common with other genomes, references are given to files present in the ensembl CVS repository called ensembl-doc. These files should be updated as the processes and code change. All of this documentation is written for people working at EBI/Sanger. Please update this documentation if needed. In this file when a reference to release 3 is made (third anopheles annotation by Ensembl) this actually refer to the Ensembl release labbeled 2a (still second assembly but third annotation).\\
+\bf{Please update this file when it is needed.}
 
 \section{Raw computes}
 Running raw computes for \textit{A. gambiae} is pretty similar than for other genomes only few details change.
@@ -68,7 +69,7 @@ NB: In the Blast conf file, there is an option to filter the blast hits. This ha
 Targetted process is undertaken with 3 dataset:
 \begin{enumerate}
 \item \textit{An. gambiae} genes in Swiss-Prot and SPTrEMBL.
-\item Submitted genes to the gene name submission database. (a script exists in the script section of the ensembl-genename cvs repository). use the script (/script in the ensembl-genename CVS repository) dump_translation.pl to get protein sequence out of the genename submission database. Don't forget to use the latest version of the databae. Ask the web team.
+\item Submitted genes to the gene name submission database. (a script exists in the script section of the texttt{ensembl\-genename} cvs repository). use the script (/script in the ensembl-genename CVS repository) dump\_translation.pl to get protein sequence out of the genename submission database. Don't forget to use the latest version of the databae. Ask the web team.
 %get the name of the script
 \item Protein available for the latest \textit{D. melanogaster} genome. (usually dump them from the Ensembl version of Drosophila.) This will allow to predict the drosophila orthologs. This has not been done already but since Drosophila is used this may be worth trying with all dipteran genes available, but check it it does not creat to much noise.
 \end{enumerate}
@@ -110,7 +111,7 @@ Here is an example of the conf file used for the last release (release 3).%add c
 \end{itemize}
 
 \subsubsection{Similarity}
-The similarity process uses both blast hits from Swall and Drosophila blastX hits. With the blast filtering code on (see example of the conf file, GB_SIMILARITY_BLAST_FILTER) all of the jobs should be finished after 24h (on the farm if not too loaded). This Blast filtering code is different than the one used at the Blast step. This option with filter only useful blast hits before running genewise cutting down the processing time by 10 folds.
+The similarity process uses both blast hits from Swall and Drosophila blastX hits. With the blast filtering code on (see example of the conf file, texttt{GB\_SIMILARITY\_BLAST\_FILTER)} all of the jobs should be finished after 24h (on the farm if not too loaded). This Blast filtering code is different than the one used at the Blast step. This option with filter only useful blast hits before running genewise cutting down the processing time by 10 folds.
 \\
 Here si an example of hte configuration file used for the last anopheles release for the similarity process:
 
@@ -377,7 +378,7 @@ ID mapping is usually ran by Craig (craig@ebi.ac.uk). Give them the old database
 \subsection{Known gene mapping}
 Running the known gene mapping, don't forget to specify that you are running it for anopheles (organism option). For the known gene mapping, will be use: SPTR file for \textit{Anopheles gambiae} in fasta and Swiss-Prot format. A dump of the translations of the gene name submited sequences (you can find the script to dump these translations in \texttt{ensembl-genename/scripts/dump\_translation.pl}). NB: The mapping of the submitted genes is done at the transcript level, thus if a gene has been submitted with many spliced variants, we will map Ensembl genes to the sliced variants names (which is usually the gene name followed by incremental letters or numbers).
 The celera accession numbers (the ones used in the science issue) are automatically mapped (see the mapping configuration file). 
-NB: Genes submitted by Ensembl to Genbank end up in SPTREMBL, these are predictions. These genes are labelled in the mapping process as prediction_SPTREMBL and are not considered as known genes.
+NB: Genes submitted by Ensembl to Genbank end up in SPTREMBL, these are predictions. These genes are labelled in the mapping process as prediction\_SPTREMBL and are not considered as known genes.
 
 \subsection{Moving data around}
 Don't forget about the EST genes database. This is is useful from the user point of view. However we don't need a specific EST database, thus dna\_align\_features from the EST gene database should be copied to the core database (also don't forget to copy the protein\_align\_feature if needed). Finally make sure that the analysis table is fine and if you have new logic names, let the web team know.
@@ -398,6 +399,19 @@ The markers also have to be mapped to chromosome coordinates. The 2 previous mar
 \texttt{ensembl/misc-scripts/anopheles\_scripts/format\_blat.pl}. But try to find out at the time you rerun the mapping (at the occasion of an assembly update) if no other procedure in place.\\
 Finally, up to now the karyotype table has been create by hand using BAC clone mapping data from Frank Collin's. This is kind of painfull and may take a whole afternoon...
 
+\section{Submitting a new annotation to GenBank}
+When the data are about to be released and are in their final state, it is time to submit them to GenBank.
+\begin{itemize}
+\item{First download the sequin software from ncbi:\\ 
+\texttt{http://www.ncbi.nlm.nih.gov/Sequin/download.html}. The best is to install it on acari (alpha machines). Use sequin to create a new submission master file, save it. This file will be saved with the .sqn extension. You can find documentation on sequin there: \\
+\texttt{http://www.ncbi.nlm.nih.gov/Sequin/sequin.hlp.html}}
+\item{Dump all of the data using\\ 
+\texttt{ensembl/misc-scripts/anopheles\_scripts/dump\_genebank.pl} script. You need to give to the scripts the database to connect to, the output directory and tree different mapping files (currently hardcoded). This file will dump a .fsa (fasta sequence of the scaffold) and a .tbl (annotation) for each scaffolds.}
+\item{Then create an asn file for each scaffold using tbl2asn2 (you can find documentation there:\\ 
+\texttt{http://www.ncbi.nlm.nih.gov/Sequin/tbl2asn2.html}. This script will read the master file, .fsa and .tbl file and create .sqn files (in asn format) in the same directory than where .fsa and .tbl files are located. Here is an example of command line: \texttt{/tbl2asn -t master.sqn -f output/}. The directory can then be tared and gziped to be sent to genbank (after data checks obviously)}
+\item{Data checks. .snp file produced by tbl2asn2 can be red by sequin. Submission can then be visualized graphically or in various formats as Genbank, EMBL. Finally you also can use the program asn2gb to produce genbank or embl flat files and do checks these data with what is stored in the database over the whole genome.}
+\item{Submit your data to NCBI. Contact email:\\ Karen Clark (kclark@ncbi.nlm.nih.gov)}
+\end{itemize}
 
 \section{Future developpements}
 \subsection{Transposons}
@@ -411,6 +425,7 @@ But still few things need to be done:
 
 \subsection{ESTs}
 This is still in discussion
+
 
 \end{document}
 
