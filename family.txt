@@ -29,12 +29,11 @@ User description (should this go elsewhere?):
   for around 30% of the 'novel' genes. 
 
 ------------------------------------------------------------------------
-####
-# admin description:
-####
+#####################
+# admin description #
+#####################
 
 # this describes how to create family database from an ensembl.pep file.
-# 
 
 # First thing to do is to get the code
 
@@ -46,24 +45,48 @@ User description (should this go elsewhere?):
 # Look at ensembl-external/family/setenv.{sh,csh}.example; copy it and change
 # to needs, then source it
 
-    source setenv.sh
+  source setenv.sh
 # or
-    source setenv.csh
-
+  source setenv.csh
 
 # (If you're doing the source inside ensembl-external/family, you won't need 
 # any adjustment (because it uses the value of `pwd`). It might be better to
 # hardcode this though (so you can source it from elsewhere)).
 
-# Next, compile things
+# Next, compile markov (which generates from blast results the matrix input for mcl)
 
-    cd src
+  cd src/markov
+  make
+  make install
 
-    make # this requires be GNU Make; often called /usr/local/bin/make or
-         # gmake
+# If not already install in your machine, or if you want to install a
+# newer veriosn, get the mcl source code from http://topaz.mdcc.cx/~flux/pub/mcl/
+#
+# The actual version we use on our Alpha machines is 02_63, so you should get
+# http://topaz.mdcc.cx/~flux/pub/mcl/mcl-02-063.tar.gz 
+# It compiles well with the native DEC Alpha cc, just specifie 
 
-# that should be it
+  cd /usr/local/ensembl/src
+  gunzip -c mcl-02-063.tar.gz | tar xvf -
+  cd mcl-02-063
+  CC=cc ./configure --prefix=/usr/local/ensembl
+  make
 
+# In case of installing a new version test it before doing it the
+# default one. If it works correctly,
+
+  cd /usr/local/ensembl/src
+  ln -s mcl-02-063 mcl
+
+# then copy all executables to the bin path (/usr/local/ensembl/bin)
+# and documentation in the man path (/usr/local/ensembl/man)
+# main path defined by --prefix option in configure step
+# --prefix should be the path where bin/ and man/ directories exists
+#
+# To do that root access right could be needed
+
+  make install
+  
 # ------------------------------------------------------------------------
 
 # Getting the data.
