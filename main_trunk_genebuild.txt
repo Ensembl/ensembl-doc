@@ -498,7 +498,7 @@ Scripts::GB_PM_OUTPUT     Path to directory containing pmatch results
 
 8. make bsub lines for submitting jobs
 
-The *length* based runnable you need is called FPC_TargettedGeneE2G so enter this in Config::GeneBuild::Scripts (in length_runnables, NOT targetted_runnables!!) and run
+The runnable you need is called FPC_TargettedGeneE2G so enter this in Config::GeneBuild::Scripts (in length_runnables) and run
 
 make_bsubs.pl
 
@@ -527,7 +527,6 @@ Scripts:GB_QUEUE		LSF queue on which jobs should be run, plus any options
 
 Scripts::GB_TMPDIR		Path to scratch directory
 Scripts::GB_LENGTH_RUNNABLES	Names of length based runnables to be used
-Scripts::GB_TARGETTED_RUNNABLES	Unlikely to need this so leave it blank
 Scripts::GB_PM_OUTPUT		Path to directory containing pmatch results
 Scripts::GB_SIZE		size of chunk to use in build - typically 5000000 (5MB)
 
