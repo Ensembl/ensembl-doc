@@ -1,0 +1,43 @@
+Gene descriptions are intended to give rough idea of what the function of a
+gene might be; they are generated automatically as follows. EnsEMBL has a
+mapping from predicted peptides to a number of databases, SWISS-PROT and
+SP-TrEMBL among them. (For information on how this mapping is established,
+see protein.txt)
+
+For each EnsEMBL gene, the mapping to SWISS-PROT or SP-TrEMBL of the
+corresponding EnsEMBL peptides is followed, and the SWISS-PROT/SP-TrEMBL
+description line is taken as 'the gene description'. 
+
+Since one gene can have many peptides, and since one peptide can map to
+several different SWISS-PROT or SP-TrEMBL proteins, some precedence are in
+place. They are: 
+
+ - SWISS-PROT takes precedence over SP-TrEMBL. If there are more than one
+   different SWISS-PROT proteins for an EnsEMBL gene, the first one
+   taken. This may sound arbitrary, but in practice, these descriptions are
+   very similar
+
+ - If there are several SP-TrEMBL mappings, precedence is established on the
+   bases of the occurrence of regular expression patterns in the description
+   line. In order of increasing preference, these patterns currently are:
+
+      unknown hypothetical putative novel probable [0-9]{3} kDa fragment cdna
+      protein. 
+   
+   If the two SP-TrEMBL description lines contain none of these patterns, the
+   longest description is taken. This list is a bit arbitrary, and is bound
+   to be 'tweaked' to get 'better' descriptions (see
+   ensembl/scripts/gene-descriptions.pl for the most recent list)
+
+   We don't (yet) rank the descriptions using the similarity measure used in
+   establishing the mapping.
+
+At this stage, there are still many (perhaps half) of the genes without a
+description. For these, the consensus description of the family or 'Tribe' to
+which they belong are used to are transferred (see family.txt for a
+description of the Family database).
+
+Occasionally, peptides from one gene fall into different families. In these
+cases, the same ranking as described above for multiple SP-TrEMBL mappings is
+used to choose a description.
+
