@@ -1,15 +1,27 @@
 last update: eae - Dec 2003
 
-############################
-#
-# (processed) PseudoGene Labelling
-#
-############################
+############################################################
+############################################################
+#                                                          #
+# (processed) PseudoGene Labelling                         #
+#                                                          #
+############################################################
+############################################################
 
 This analysis takes the genes you have predicted and runs
 a list of analyses. These analyses then yield a list of attributes for
-each transcript, which can then be used to select for processed pseudogenes.
+each transcript, which can then be used to select for *processed* pseudogenes.
 More on this below.
+
+
+#######################################
+# background on processed pseudogenes #
+#######################################
+
+Processed pseudogenes are regarded as non-functional copies of related genes.
+The process by which they appear is known as 'retortransposition'
+...
+
 
 What you need to run this:
 
@@ -215,3 +227,9 @@ Next, we need to filter those results to single out the candidate processed pseu
 We do this basically by greping the lines for a certain combination of attribute values. We explain 
 the logic to follow next:
 
+
+
+
+
+
+RESULT gene_id:10011	transcript_id:ENSRNOT00000013828	real_introns:20	frameshift:0	polyA:0	Met:1	spliced_elsewhere:0	ss_correct:20	homology1:99.96	homology2:100.00	introns_with_repeats:0	evidence:Q9DBS9 R000009B13 AK004768.1 NM_027881.1	trans_count:1
