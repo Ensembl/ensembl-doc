@@ -263,6 +263,18 @@ gff_source the source or program which produces these results
 gff_feature the type of feature e.g repeat, homology or gene
 
 
+you can load the analysis table using the add_Analysis script in
+ensembl-pipeline/scripts
+
+here is an example command_line
+
+./add_Analysis -host ecs2a -port 3306 -user ***REMOVED*** -pass ***** 
+ -dbname pipeline_db -logic_name RepeatMask -database database_name
+-database_version 1 -database_file path/to/database -program RepeatMasker
+-program_version 1 -program_file path/to/RepeatMasker 
+-parameters '-low -lib /ecs2/work1/lec/briggsae.lib' -module RepeatMasker
+-module_version 1 -gff_source RepeatMasker -gff_feature Repeat
+
 Rule tables 
 ===========
 
@@ -304,6 +316,20 @@ rule_goal
 
 SubmitContig a dummy analysis used inorder to get the pipeline started
 
+you can add rules using the RuleHandler.pl script in 
+ensembl-pipeline/scripts
+
+an example commandline
+
+./RuleHandler.pl -host ecs2a -port 3306 -user ***REMOVED*** -pass ***** 
+ -dbname pipeline_db -insert -goal RepeatMask -condition SubmitContig
+
+you can also use this flag to delete Rules using the -delete flag and 
+specifying a -ruleID 
+
+the script can also show the rules and the analyses with the flags
+-analyses and -rules
+
 input_id_analysis table 
 =======================
 
@@ -330,13 +356,13 @@ loading_sequence_into_ensembl.txt
 
 alternatively you can use this script
 
-ensembl-pipeline/scripts/populate_input_id_analysis.pl
+ensembl-pipeline/scripts/make_input_ids
 
 this script takes several arguments
 
 the first four must always be present
 
--dbname -dbhost -dbuser -dbpass
+-dbname -host -user -pass
 
 as these provide information about which database to insert the
 input_ids into
@@ -345,7 +371,9 @@ input_ids into
 the other options are
 
 -contig which must be following by the logic name of the dummy analysis
-which is to represent contig input_ids -slice which must be following
+which is to represent contig input_ids 
+
+-slice which must be following
 by the logic name of the dummy analysis which is to represent slice
 input_ids
 
