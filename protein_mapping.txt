@@ -3,7 +3,13 @@ Mapping of Ensembl proteins to external databases
 I-Purpose
 Find the known genes and try to retrieve as much information as possible
 
-II-General strategy 2 different mapping are undertaken 
+II-Requirements
+ensembl
+bioperl-07
+rd-utils (you can check this out from the ensembl cvs repository, this
+contains pmatch binaries)
+
+III-General strategy 2 different mapping are undertaken 
 	   a-Direct mapping of Ensembl peptides against curated databases
 	   containing the curated protein for the studied organism. For
 	   human we use RefSeq proteins and Human SPTR.
@@ -12,7 +18,7 @@ II-General strategy 2 different mapping are undertaken
 	   mapping of the curated database(s) to other databases. For
 	   example for human this provides link to HUGO, LocusLink, ...
 
-III-How to run the mapping
+IV-How to run the mapping
 	a-First fill in the mapping_conf file, this should be pretty
 	straightforward.
 	
