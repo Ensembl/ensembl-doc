@@ -459,11 +459,23 @@ Genes created from genewises with UTRs from cDNAs are now dealt with in the main
 
 
 ###############
-RefSeq Database
+RefSeq DAS data
 ###############
 
+We convert the refseq cdnas mapped with exonerate_e2g into a tab delimited file to be used as a DAS track.
+This can be done in one (long) line:
 
-We have to build an extra database with all the exons from exonerate_e2g genes that have been built from
-RefSeq sequences, written as features (in the same way we prepare the EST database with features from the
-exons written by Filter_Exonerate_and_E2G...
+ecs1d> mysql -u ensro -h ecs1a -Be 'SELECT "Gene",s.hid,"Transcript","RefSeq", chr_name,IF(sgp.raw_ori=1,(e.seq_start+sgp.chr_start-sgp.raw_start), (sgp.chr_start+sgp.raw_end-e.seq_end)) AS exon_start,IF(sgp.raw_ori=1,(e.seq_end+sgp.chr_start-sgp.raw_start),(sgp.chr_start+sgp.raw_end-e.seq_start)) AS exon_end,sgp.raw_ori*e.strand AS strand FROM supporting_feature s,static_golden_path sgp, exon e where s.exon_id=e.exon_id AND e.contig_id=sgp.raw_id AND name="exonerate_e2g" AND s.hid like "NM_%" ' ens_NCBI_29_cdna > output &
 
+we still need to do sort -u on the output as some exons may appear twice the same feature.
+
+The final output will be something like
+
+Gene    NM_000474       Transcript      RefSeq  7       18972194        18972857        -1
+Gene    NM_000474       Transcript      RefSeq  7       18973397        18973657        -1
+Gene    NM_000475       Transcript      RefSeq  X       26366510        26366996        -1
+Gene    NM_000475       Transcript      RefSeq  X       26370369        26371536        -1
+Gene    NM_000477       Transcript      RefSeq  4       75643256        75643373        1
+Gene    NM_000477       Transcript      RefSeq  4       75644083        75644140        1
+
+This can be used directly for the DAS track of the refseqs
