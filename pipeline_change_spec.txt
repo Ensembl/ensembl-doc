@@ -1,0 +1,231 @@
+ENSEMBL-PIPELINE API Change Specification
+=========================================
+
+
+CONTENTS
+--------
+
+
+Introduction
+Goals
+Code Reorganisation
+General Objectives
+ Documentation
+ Test system
+ Core code conventions
+ Database connection and contention issues
+ Use strict and warnings
+ Infrastructure API Changes
+   RuleManager code
+   Configuration
+ Analysis API Changes
+  Runnable/RunnableDB's
+   Blast
+   Genewise modules
+   Genebuilder
+   Ab Initio modules
+   Protein Annotation modules 
+  Configuration
+  SeqFetchers
+  Error string passing
+Bioperl
+
+Introduction
+------------
+
+This document describes the changes that are being made to the EnsEMBL
+pipeline code.
+
+Goals
+-----
+A cleaner less redundant api.
+A greater level of flexibility in using the pipeline code both for job 
+submission and for running different analyses.
+
+Code Reorganisation
+-------------------
+
+The pipeline cvs module will be split into two. The pipeline infrastructure
+code which deals creating and submitting jobs, handling dependancies etc
+will remain in ensembl-pipeline but the Runnable/RunnableDB code and
+the modules they use to run the various different analysis will move into
+a new cvs module called ensembl-run like bioperl.
+
+
+
+General Objectives
+------------------
+
+ Documentation
+ #############
+
+ The perl docs in the modules need to be improved or even added to some 
+ modules to make it clearer how particular modules behave. We also need
+ more documentation of the whole process and of challenges particular
+ species introduce.   
+
+ Test System
+ ###########
+
+ The existing test system needs to be revamped to make is both usable and
+ maintainable and people need to be encouraged to both run the tests and
+ update the tests when new functionality is added to the pipeline.
+
+ Core Code conventions
+ #####################
+
+ Move the database adaptors to using the core code conventions such as 
+ returning listrefs etc. We also need to move over to using the 
+ Bio::EnsEMBL::Utils::Exceptions code for throws, warning etc and try
+ and use methods like info to introduce configurable levels of chattiness.
+
+
+ Database connection and contention issues
+ #########################################
+  
+ Steve has recently written some code which allows more sensible handling
+ of inactive database connections. This code is relatively easy to use
+ in the runner script and analyses which only utilize one database 
+ connection but this gets more complicated when multiple connections to
+ different databases are used as in the genebuild code. We need to find
+ a sensible way to use this new functionality.
+
+ 
+ Use strict and warnings
+ #######################
+
+ While most of the pipeline code does use strict not all of it seems
+ to use warnings. We need to make sure this is switched on everywhere
+ as this has let subtle bugs through in the past.
+  
+
+ Infrastructure API changes
+ ##########################
+
+   RuleManager code
+   ****************
+
+   The RuleManager script is quite monolithic and more than 1000 lines of
+   code. Most of the methods in RuleManager should be moved into a module
+   to allow easier reuse and improve maintainability. While doing this
+   we should also look to optimise the code as the central loop of the
+   RuleManager can take a long time to execute. The RuleManager and runner 
+   should also probably be moved into the scripts directory as they are 
+   scripts rather than modules
+
+   Configuration
+   ************* 
+ 
+   The Pipeline infrastructure configuration does work quite well but 
+   it would be a a good idea to make sure most generic options are 
+   overridable using the command line.
+ 
+
+
+  Analysis API changes
+  ####################
+
+
+   Runnable/RunnableDB's
+   *********************
+
+   The Runnable/RunnableDBs are now getting quite unmaintainable due to 
+   vast amounts of code duplication and poor documentation. Much of the 
+   code also needs to be optimised to run more efficiently with the vast 
+   amount of data we can now provide it. Most of the runnables can have 
+   methods reduced down to base classes to make them more maintainable but 
+   below specific things which we can do to certain sets of modules is 
+   described.
+
+     Blast
+     ----- 
+     
+     The Blast runnable is now huge, over a 1000 lines of code and it is
+     making it quite difficult to used flexibly. To improve this we can do
+     several things. The first is make all options set by configuration
+     also settable in the constructor which will allow people to either not
+     fill out the configuration (as long as it exists) but also run 
+     different blasts against the same database. 
+  
+     Another element we can change is the way parse results works. 
+     Currently the blast runnable is tied to BPlite. It be better if all 
+     the parsing code and feature generation code is moved out to another 
+     module which lives with BPlite in tools which takes the file or file 
+     handle and produces the desired feature type which should be either 
+     feature pairs or align features depending on what you want. The 
+     default parser to use would then be the wrapper which sits on top of 
+     BPlite but it would make it  easier to move parsers if desired or 
+     just offer more alternatives.
+      
+
+     Genewise and related modules
+     ----------------------------
+
+     These modules contain a lot of redundant code like sequence fetching
+     and gene creation which can be factored out into base classes. 
+
+     The code currently also generates SeqFeatures and SubSeqFeatures in 
+     the Runnables which are then converted into genes once in the 
+     RunnableDB's we will change the code to create Exons etc directly.
+
+     
+     Genebuilder and Prediction Genebuilder
+     --------------------------------------
+     
+     These are currently two modules which don't follow the 
+     Runnable/RunnableDB module but instead simply live in 
+     Bio::EnsEMBL::Pipeline.
+
+     Ab initio modules
+     -----------------
+     
+     Most of the modules which run ab initio gene predictors follow the 
+     same basic structure and only have few different modules, generally
+     run_analysis and parse_results. These will be easy to boil down to
+     a base class with children to perform the program specific 
+     functionality and this will make them much easier to maintain.
+
+     Protein Annotation Runnables
+     ----------------------------
+
+     This code is now most non redundant but this can still be improved
+     and it can be moved in to Runnable/RunnableDB from Protein as there
+     is no need for a separate directory for it.
+
+
+   Configuration
+   *************
+     
+   The configuration is getting very crufty so some variables which. In
+   general the configuration needs to be rationalised and redundancies 
+   removed.
+
+
+   Seqfetchers
+   ***********
+
+   The genebuild process in particular uses seqfetchers a lot to 
+   get protein and cdna sequences for its analysis. The seqfetcher we
+   use most is Steves OBDA indicate indexing and the code we use currently
+   resides in bioperl. We propose moving this code back inside EnsEMBL 
+   to make it easier for us to maintain.
+
+
+   Error string passing
+   ********************
+
+    Roy recently introduced some code into the Blast runnable which 
+    parsed the blast processes STDERR output and returns a more sensible
+    error message when certain errors are throw like VOID when no valid
+    sequence context is found or OUT OF MEMORY when we run out of memory.
+    This makes it easier to see some errors and take appropriate action
+    and I think if possibly it would be sensible to have similar code for
+    other analysis which are prone to similar errors like Exonerate, Pmatch
+    and Genewise.
+
+
+Bioperl
+------
+
+We should move to using the most recent stable version of bioperl
+or at least the version of bioperl supported by the webcode   
