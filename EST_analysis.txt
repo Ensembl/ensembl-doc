@@ -235,6 +235,11 @@ The spliting can be done by hand:
  <outputdir> = dir where we're going to put the chunks
  <chunknum>  = total number of chunks
 
+ or
+
+    /nfs/acari/searle/progs/fastasplit/fastasplit [-size] <fastaFile> <nchunk> <outdir>
+    (this one is better, as it does not skip any chunk number)
+
 The index can be made by hand:
 
     /usr/local/ensembl/bin/makeseqindex human.ests > ! human.ests.jidx
