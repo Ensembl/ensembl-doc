@@ -99,52 +99,6 @@ although this script is specialised for mouse, where do far we are using a denor
 2. all transcripts have exons
     select count(transcript.transcript_id) from transcript left join exon_transcript on transcript.transcript_id=exon_transcript.transcript_id where exon_transcript.transcript_id is NULL;
 
-
-3. all exons for a gene are on the same strand (VC not RC!)
-   done through object layer, one VC at a time:
-
-GENE: foreach my $gene($vc->get_Genes_by_Type($genetype)){
-  # check all exons are on the same strand
-  my $strand;
-  foreach my $exon($gene->get_all_Exons){
-    if(!defined $exon->strand || ($exon->strand != 1 && $exon->strand != -1)){
-      print STDERR "Exon " . $exon->dbID . " has no strand!!\n";
-      next GENE;
-    }
-    if(!defined $strand){ $strand = $exon->strand; }
-    if($exon->strand != $strand){
-      print STDERR "strand problem with gene " . $gene->dbID . "\n";
-      next GENE;
-    }
-  }
-
- 
-4. check there are no folded transcripts
-   done through object layer, on VCs (also part of genebuild now so should be none.)
-
-GENE: foreach my $gene($vc->get_Genes_by_Type($genetype)){
-  foreach my $transcript($gene->each_Transcript){
-    my @exons = $transcript->get_all_Exons;
-    my $i;
-     for ($i = 1; $i < $#exons; $i++) {
-       if ($exons[0]->strand == 1) {
-	 if ($exons[$i]->start < $exons[$i-1]->end) {
-	   print STDERR "ERROR:  Transcript folds back on itself. Transcript : " . $transcript->dbID . "\n";
-	   next GENE;
-	 } 
-       } elsif ($exons[0]->strand == -1) {
-	 if ($exons[$i]->end > $exons[$i-1]->start) {
-	   print STDERR "ERROR:  Transcript folds back on itself. Transcript : " . $transcript->dbID . "\n";
-	   next GENE;
-	 } 
-       } else {
-	 print STDERR "EEEK:In transcript  " . $transcript->dbID . " No strand for exon - can't check for folded transcript\n";
-       }
-     }
-  }
-}
-
-
 5. check that there are no too-long single exon genes (>50kb)
      start with 
      select exon_id from exon where seq_end -seq_start > 50000; 
@@ -197,13 +151,13 @@ GENE: foreach my $gene($vc->get_Genes_by_Type($genetype)){
      select * from protein_align_feature where hit_start > hit_end;     
      select * from protein_align_feature where hit_start < 1;     
      
-     select * from dna_align_feature where contig__start > contig_end;
+     select * from dna_align_feature where contig_start > contig_end;
      select * from dna_align_feature where contig_start < 1;
-     select dna_align_feature_id from dna_align_feature f, contig c where f.contig_id = contig.contig_id and f.contig_end > contig.length;
+     select dna_align_feature_id from dna_align_feature f, contig c where f.contig_id = c.contig_id and f.contig_end > c.length;
 
      select * from protein_align_feature where contig_start > contig_end;
      select * from protein_align_feature where contig_start < 1;
-     select protein_align_feature_id from protein_align_feature f, contig c where f.contig_id = contig.contig_id and f.contig_end > contig.length;
+     select protein_align_feature_id from protein_align_feature f, contig c where f.contig_id = c.contig_id and f.contig_end > c.length;
 
 6. prune duplicate features 
 
