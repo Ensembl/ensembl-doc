@@ -1,134 +1,628 @@
 Running EST analysis in Ensembl
 -------------------------------
 
+Last modified: eae 07.02.2002
 Val Curwen 02.10.2001
 
-18.12.2001 this is all very much work in progress. Many scripts still
+07.02.2002 this is all very much work in progress. Many scripts still
 in development so not yet checked in. If you need them urgently,
-contact me.
+contact us (vac@sanger.ac.uk, eae@sanger.ac.uk)
 
 Overview
 --------
 
-Our aim is to use EST (and cDNA) data 
+Our aim is to map sequenced ESTs on the human genome, and use that information
+to predict genes with UTRs. Eventually, this information will be combined with
+the main GeneBuild to: add UTRs to predicted genes and to predict new genes and 
+spliced forms.
 
 Like the genebuild, the EST build is controlled by scripts and a
 config file, which should hopefully make it fairly painless. The scripts
 files live in ensembl-pipeline/scripts/EST, and the config file lives in 
-ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/EST_conf.pl
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/ESTConf.pm
 
 Modules
 -------
 
 The modules that control the EST run are:
 
-1. ExonerateESTs - this runs exonerate between a file of ESTs and a genomic sequence, and writes the results out to file.
+1. ExonerateESTs - this runs exonerate between a file of ESTs and a genomic sequence, and writes 
+   the results out to file.
 
-2. FilterESTs_and_E2G - this retrieves exonerate features from an ensembl database, filtered by score and %id, blasts against the genomic region, filters using the FeatureFilter (so we don't stack up 100s of identical hits), makes a minigenomic, runs est_genome and writes out a gene prediction for each EST.
+2. FilterESTs_and_E2G - for a given genomic region ( usually a 1Mb long virtual contig) this retrieves 
+   exonerate features from an ensembl database and filters them by score ( > 500 ) and percentage 
+   identity ( >= 97% ). The filtering is done using the FeatureFilter (so we don't stack up 100s of 
+   identical hits). For those succesful features, the corresponding ESTs are then blast-ed against the 
+   genomic region. ESTs with Blast features with coverage < 90% are rejected. I then makes a minigenomic, 
+   and runs est_genome with the selected features and writes out a gene prediction for each EST.
 
-3. EST_GeneBuilder - clusters the est_genome predictions, generates potential alternative transcripts and uses Genomewise to produce gene structures that are written to the database. (still in testing)
+3. EST_GeneBuilder - clusters the est_genome predictions ( i.e. exonerate_e2g genes ), and merge 
+   them according to consecutive exon overlap. This generates alternative transcripts.
+   The resulting transcripts are then passed as evidence, via a miniseq, to genomewise, which finds a 
+   translation, 5' and 3' UTRs and tries to keep the consensus sequence at the canonical
+   donor (GT) and acceptor (AT) splice sites. The genes produced are written to an EnsEMBL database.
+
 
 Scripts
 -------
 
 The running of these 3 modules is currently coordinated by a range of scripts:
+
+- to prepare the EST data:
 get_human_ests.pl - retrieves human ests from dbEST and polyA/polyT clips the ends
 prepare_ests.pl   - splits the ESTs into small files
-make_bsubs.pl     - generates bsub commands for running the various stages
-submit.pl         - submits jobs (basically just a  system call!)
+
+- to generate all the bsub commands for running the various stages:
+make_bsubs.pl     
+
+- to submit jobs:
+submit.pl  and submit_jobs.pl    
+the first one is just a system call with an optional sleep between
+every job, with the second one you can send the jobs in chunks and sleep in between
+
+- to check for errors and failed jobs:
+look_for_errors.pl  - search for error messages in the stdout and stderr files
+
+- to process the results:
 load_exonerates.pl- writes exonerate results into feature table
+exon2feature.pl   - converts est2genome exons into features
+
+
 
 Step by step instructions
 -------------------------
 
-1. You need to have 2 databases:
+A. Prerequisites
+----------------
+
+1. bioperl-0.7
+ensembl-pipeline
+ensembl-core
+ensembl-external
+
+2. You need to have 2 databases:
 
 main ensembl database - we call this "refdb" - holds dna sequences, static_golden_path, 
-pipeline results etc. We just use this as a source for dna sequence information
+pipeline results etc. We just use this as a source for dna sequence information. This is fairly common 
+in ensembl as it saves space - not every database has to have all the genomic DNA in it.
+Specify details in ESTConf.pm:
+EST_REFDBHOST
+EST_REFDBNAME
+EST_REFDBUSER
+EST_REFDBPASS
+EST_GOLDEN_PATH 
 
-est database - called "estdb" - we store the est results in a separate database to keep 
-table sizes under control. This database needs to have the clone, contig and static_golden_path 
-tables filled in - dump the data from these tables in refdb, and load it up into estdb.
+est database - usually referred to as "estdb" - here we store the est results in order to keep 
+table sizes under control, rather than adding millions of extra features into the main ensembl database 
+feature table. This database needs to have the clone, contig and static_golden_path 
+tables filled in - dump the data in these tables from refdb, and load it up into estdb.
+Specify details in ESTConf.pm:
+EST_DBNAME                
+EST_DBHOST                 
+EST_DBUSER                 
+EST_DBPASS                  
 
-2. you will need to have some sort of sequence fetcher installed. We use James Cuff's makeindex 
-and getseqs as they are the fastest and best we've found, but you can use anything you like as 
-long as the ensembl modules know how to use it ...
+3. a sequence fetcher. We use James Cuff's 'makeseqindex' 
+and 'getseqs' as they are the fastest and best we've found, but you can use anything you like as 
+long as the ensembl modules know how to use it...
 
-3. fill in the fields in EST_conf.pl; it should be self explanatory but email me (vac@sanger.ac.uk) if it isn't.
+4. fill in the fields in ESTConf.pm. Below, more details are given about the purpose
+of each one of these fields. Contact us if it remains unclear.
 
-4. run get_human_ests.pl against (sections of) dbEST
+5. 'fastasplit', or something similar, to divide the ESTs file into small chunks.
 
-get_human_ests.pl -estfile dbEST-1 -outfile myoutfile
+6. 'dust', for low complexity masking of genomic sequence.
 
-5. run prepare_ests.pl
-all options are set in EST_conf.pl
+
+
+B. Preparing the EST data
+-------------------------
+
+1. 1. Make a multiple entry fasta file with the ESTs you want to use. 
+For human we use the human entries from dbEST. Headers are best kept simple i.e. 
+>Accession number 
+ATCGGCGGTTAGCA...
+
+The latest version of ESTs is usually in Plato in /newdata/blastdb/
+in the files dbEST-1, dbEST-2, ... 
+Run the command   
+ 
+   get_human_ests.pl -estfile /newdata/blastdb/dbEST-1 -outfile my_outfile
+
+put the output in your directory (in acari) and
+when done, move it to where there is more space, e.g. /work6a/.
+Concatenate all output files into a big file.
+
+Don't run all get_ests together as this will collapse Plato and fill up acari.
+In order to save some time, this could be done at the same time as we're getting 
+the dna sequence (if it hasn't been done yet).
+
+Note: dbEST contains ESTs from different species, hence check that the regex in the script is
+appropriate for the species you're interested in, e.g. Homo Sapiens, Mus Musculus, etc...
+
+Note: a gotcha with makeseqindex - if you've made a beautiful simple
+fasta file, avoid giving it a name that contains swall, humanest or
+EST, or you'll end up using the wrong parsing method and be unable to
+fetch any sequences.run get_human_ests.pl against (sections of) dbEST
+
+
+2. run prepare_ests.pl
+all options are set in ESTConf.pm,
 this prepares a sequence index for the ESTs so we can fetch them out later.
+The ESTs are split in chunks, these will go into the directory specified as EST_CHUNKDIR. 
+The number of chunks must be specified in EST_CHUNKNUMBER 
+- this is the total number of chunks, not the number of sequences in each chunk!!!
 
-6. prepare a multiple entry fasta file of the contigs in the golden path, repeatmasked and preferably dusted (or a file of whatever sequence you are going to run against)
+The chunk size is CRITICAL: too large, and your exonerate jobs will run out
+of memory, too small and they'll waste time.
+Our farm nodes have 1G of memory. We have found that for human
+sequence (dumped as RawContigs) ~350 seqs per chunk is optimal, while
+for mouse (very small RCs, dumped as 500K virtual contigs) we had to
+drop this to <100 seqs per chunk. In any case you'll always get some jobs failing
+and have to resplit and rerun the troublesome chunks.
 
-7. distribute est seq index across farm and specify its location in EST_conf.pl::est_genome_conf::est_index
+The spliting can be done by hand:
 
-8. distribute gp seq file across farm - this is critical otherwise nfs overhead is horrific - at least, 
-it is here.
+    /work2/gs2/gs2/bin/fastasplit <fastapath> <outputdir> <chunknum>
+ 
+ <fastapath> = the myltiple-entry fastA file with the ests
+ <outputdir> = dir where we're going to put the chunks
+ <chunknum>  = total number of chunks
 
-9. make_bsubs.pl
+The index can be made by hand:
 
-10. submit.pl exonerate_ests.jobs.dat
+    /usr/local/ensembl/bin/makeseqindex human.ests > ! human.ests.jidx
 
-11. cd to the place where you ahve specified output files to go, then use load_exonerates.pl to load 
-up the data::
+3. distribute the (multiple-entry fasta) EST seqfile and the index file across farm where they
+can be see from all running nodes, and specify its location in ESTConf: 
+EST_FILE and EST_INDEX.
 
-
-28.11.2001 - load_exonerate.pl is far too slow - can take days to load results. Make insert statements instead.
-
-(/work2/vac/ensembl-scripts/)exonerate2mysqltab.pl converts o/p files into tab delimited files for loading
-
-
-need to dump out golden contig ids first
-
-ecs1g[vac] % foreach i ( exest* )
-foreach? gunzip $i
-foreach? exonerate2mysqltab.pl $i:r >> estfeatures
-foreach? gzip $i:r
-foreach? end
-
-strips out features with id <90:
-
-11a. make est table in est database - 
-
-mysql estdb < enembl-pipeline/sql/est.sql
-(/work2/vac/ensembl-scripts/)get_estlengths > estlengths
-load data infile 'estlengths' into table est
-
-
-12. submit.pl filter_ests.jobs.dat
-
-(will fill in the next section when genomewise is really running properly)
-
-Genomewise
-
-make sure there's a sgp in the est database
-
-run_EST_RunnableDB -runnable Bio::EnsEMBL::Pipeline::RunnableDB::EST_GeneBuilder -dbname est_to_main_trunk -dbhost ecs1f -dbuser ***REMOVED*** -dbpass ensembl -input_id chr6.181727278-181767874 -write
+At Hinxton they need to be in /data/blastdb/Ensembl/ and rdisted over the farm.
 
 
 
-Dusting
--------
+C. Preparing Genomic Sequence for Exonerate
+-------------------------------------------
 
-Need to have a (masked) dusted fasta file of golden contigs.
-Dump using /work2/vac/ensembl-scripts/dump_golden_contigs.pl
-Split into 4000 files into /work6a/vac.tmp/dust
-dust them using the scripts in /work2/vac/dust:
+1. prepare a multiple entry fasta file of the contigs in the golden path, 
+repeatmasked and dusted (or a file of whatever sequence you are going to run against)
+
+a. cd to somewhere which has plenty of space! You'll be dumping the whole
+   genome effectively 3 times though you can delete interim files as you go.
+
+b. For human sequence we dump RawContigs as these are of reasonable size (10s of kb).
+   Set the following options in ESTConf.pm for the database from where the contigs will be read:
+   EST_REFDBNAME   
+   EST_REFDBUSER
+   EST_REFDBHOST
+   EST_GOLDEN_PATH
+
+   and run ensembl-pipeline/scripts/dump_golden_contigs.pl and 
+   dump_golden_contigs.pl -outfile masked_contigs.fa
+
+c. Or, for mouse, where the RawContigs were tiny, we dump fixed-size 500K masked virtual contigs 
+   using ensembl-pipeline/scripts/GeneBuild/dump_vc_seq.pl:
+
+   generate the chrname, start, end you need for each of the contigs (mysql + perl -e), then for each:
+
+   dump_vc_seq.pl -dbname dbname -dbhost dbhost -dbuser dbuser -path golden_path -start start -end end 
+       -chrname chrname -masked -outfile masked_contigs.fa
+
+   default parameters can be set in the script, so we can write for instance:
+   ~/ensembl-scripts/dump_vc_seq.pl -chrname 4 -masked &
+         
+   Once these are all put together into a single multiple-entry fastA file, we do the dusting
+
+
+2. dust the masked sequence:
+use the scripts in /work2/vac/dust, they'll soon be transfered to 
+nsembl-pipeline/scripts/EST/dust/
 
 copy files to /work6a/vac.tmp/fam where there is more space
-fill in config.txt - restrict jobs to ecsnodes either with ecslong or -qacari -mecsnodes
-ls /work6a/vac.tmp/dust* > job_ids.txt
 
-fam.sh /work6a/vac.tmp/fam init to set up directories
-fam.sh /work6a/vac.tmp/fam submit to create bsub lines
-to_submit.sh to submit jobs
-fam.sh /work6a/vac.tmp/fam collate > outfile to collate results
+a. mkdir contig_chunks
+
+b. mkdir dust_results
+
+c. split contig file into smaller chunks (for human we use 4000
+   chunks) using eg fastasplit and put these in the directory
+   contig_chunks, eg:
+
+	/work2/gs2/gs2/bin/fastasplit <fastapath> <outputdir> <chunknum>	
+   where 
+ 
+   <fastapath> = the myltiple-entry fastA file with the contigs
+   <outputdir> = where we're going to put the chunks
+   <chunknum>  = number of chunks
+
+d. edit ensembl-pipeline/scripts/EST/dust/config.txt to reflect the
+   path to your dust executable and the path to the contig_chunks
+   directory, e.g.
+
+   DUSTEXE=/usr/local/ensembl/bin/dust                 
+   SEQDIR=/work6a/eae.tmp/Mouse/contigs/contig_chunks    <--- where the seq chunks are
+   SEQFILE=${SEQDIR}/${JOBID} 
+
+   BSUB_OPTIONS="-q acari -m ecsnodes"      <--- ecsnodes are local, bcsnodes are the whole farm
+
+   At Hinxton we tend to restrict dust jobs to just the ecsnodes to avoid
+   having to distribute sequence files across the farm.
+
+e. write in file job_ids.txt the ids of the jobs to be run, reading them from the files
+   previously split with fastasplit
+   cd contig_chunks/
+   ls *chunk* > ../job_ids.txt
+
+f. ensembl-pipeline/scripts/EST/dust/fam.sh /path/to/dust_results/ init
+   sets up directories for output in the dust_results/ directory you made above
+
+   before submitting the jobs it is good to do few checks:
+
+     1. mv job_ids.txt temporarily elsewhere and put there few jobs (maybe 10) to be checked
+     2. run .../fam submit  to create bsub lines with these few ids
+     3.	look inside to_submit.sh and run one check and one dust job locally to see that all is o.k.
+     4. run to_submit.sh with these few jobs to check them on the nodes
+    
+   if everything is o.k., continue with the whole set of jobs
+
+g. ensembl-pipeline/scripts/EST/dust/fam.sh /path/to/dust_results submit
+   makes a script called to_submit.sh
+
+h. run to_submit.sh to submit jobs 
+
+i. ensembl-pipeline/scripts/EST/dust/fam.sh /path/to/dust_results/ collate > dusted_masked_contigs.fa
+   collates results into a multiple entry fasta file
+
+
+3. distribute genomic seq file across farm 
+Put dusted_masked_contigs.fa into the place you specified in
+ESTConf:EST_GENOMIC, tipically in /data/blastdb/Ensembl/
+and distribute across all nodes where you intend to run 
+- this is CRITICAL otherwise nfs overhead is horrific - at
+least, it is here.
+
+
+
+D. Prepare the Job Commands
+---------------------------
+
+1. run make_bsubs.pl
+
+this makes the files with the bsub commands 
+for ExonerateEST, FilterESTs_and E2G and EST_GeneBuilder.
+
+    The job-file names must be specified in ESTConf:
+    EST_EXONERATE_BSUBS         
+    EST_FILTER_BSUBS
+    EST_GENEBUILDER_BSUBS
+
+    together with...
+    
+    the database where the chromosomes, contigs, etc... are:
+    EST_REFDBHOST    
+    EST_REFDBUSER		 
+    EST_REFDBNAME			
+
+    The size of the vcontigs in which we want to run	
+    These two numbers should be the same so that we keep things
+    falling off the contig to a minimum, we usually take 1Mb
+    EST_FILTERCHUNKSIZE
+    EST_GENEBUILDER_CHUNKSIZE
+
+    in which queue we will run the jobs							
+    EST_QUEUE	  
+					
+    the path to ensembl-pipeline/scripts/EST
+    EST_SCRIPTDIR
+
+    The path to run_EST_RunnableDB
+    EST_RUNNER
+					
+    Path where the file with all the ests sits
+    (usually in /data/blastdb/Ensembl and mirrored over the farm)		       
+    EST_FILE
+
+    number of est chunks 
+    EST_CHUNKNUMBER
+
+The script make_bsubs.pl also creates the directories for the out and err files, we need to specify:
+
+    where these directories will be, e.g. /scratch2/ensembl/user_id/:
+    EST_TMPDIR	  
+
+    for ExonerateEST, two directories are created:
+    EST_TMPDIR/exonerate_est/results/ and EST_TMPDIR/exonerate_est/bsub/
+    and within each one, two subdirectories stdout/ and stderr/
+
+    for FilterESTs_and_E2G, as many directories EST_TMPDIR/filter_and_e2g/chr_name/
+    are created as chr_name's there are in the reference database EST_REFDBNAME
+
+    likewise, for EST_GeneBuilder, directories EST_TMPDIR/est_genebuilder/chr_name/
+    are created
+
+
+E. ExonerateEST
+---------------
+
+1.- check that the bsub commands look something like:
+
+bsub -q acari -C0 
+-o /scratch2/ensembl/eae/est_NCBI_28//exonerate_est/bsub/stdout/human.ests_chunk_0000056 
+-e /scratch2/ensembl/eae/est_NCBI_28//exonerate_est/bsub/stderr/human.ests_chunk_0000056 
+-E "/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/EST//check_node.pl human.ests_chunk_0000056" 
+/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/EST//exonerate_est.pl -chunkname human.ests_chunk_0000056
+
+2. submit the jobs
+
+   We ALWAYS check a few jobs by hand to make sure the output directories
+   are set up right, and there are going to be no nasty bouncing jobs due
+   to failing pre-exec commands etc. Then I send the rest of the jobs
+   off, but be careful not to overload LSF - at Hinxton this means try
+   not have have >5000 odd jobs in the queues at any time.
+
+Note: how to run the jobs by hand -
+   It is good to split the files with the bsub command lines and run them by hand in chunks,
+   of 10,20 or as many as we think won't upset the farm, e.g. for 6000 jobs:
+
+   head -n 10 exonerate_est.jobs > exonerate_by_hand.1-10
+   tail -n 5990 exonerate_est.jobs > temp.5990
+   cat temp.5990 > ! exonerate_est.jobs
+
+   edit exonerate_by_hand.1-10 and include '-m ecsnodes', so that the runs by hand are restricted to
+   the ecs nodes ( 8 nodes with 4 processors each ). In emacs
+     
+   ESC-x
+   replace-string
+   -q acari
+   -q acari -m ecsnodes
+
+   then we can run these 10
+
+   chmod u+x exonerate_by_hand.10
+   ./exonerate_by_hand.10
+
+   and so on...
+
+make sure that things run without having rdisted the data are run in the ecsnodes, you can check it with
+
+     bjobs -u all -q acari | grep 'RUN'
+
+
+Then we can submit the jobs ( tune the sleep commands 
+according to the behaviour observed in the test jobs run by hand above)
+
+     submit.pl  ( or submit_jobs.pl -file ) <EST_EXONERATE_BSUBS>         
+    
+
+3. checking for failed jobs 
+ExonerateEST is prompt to produce memory problems in the farm, check for 
+	     
+     grep -il glib *.stderr 
+
+     in the .../exonerate_est/bsub/stderr/ (and .../results/stderr/ ) directories.
+     Since they are surely very big, use a foreach loop
+
+     ecs1g[vac] % foreach i ( exest* )
+     foreach? grep -il 'glib' $i
+     foreach? end
+
+     or write a script to identify failing chunks, for example:
+     ...exonerate_est/results/stderr/> look_for_errors.pl > ../error_file
+
+     Cat those together, resplit in smaller chunks and rerun.
+
+
+4. Load results into the database
+cd to the place where you have specified output files to go (ESTConf::EST_TMPDIR)
+then use load_exonerates.pl to load up the data:
+
+     28.11.2001 - load_exonerate.pl is far too slow - can take days to load results. 
+     Make insert statements instead.
+
+     (/work2/vac/ensembl-scripts/)exonerate2mysqltab.pl converts output files into 
+     tab delimited files for loading
+
+Note: you may need to dump out golden contig ids first. 
+      Also: Take into account that you may be using virtual contigs instead. 
+
+    use a shell command:
+
+    ecs1g[vac] % foreach i ( exest* )
+    foreach? gunzip $i
+    foreach? exonerate2mysqltab.pl $i:r >> estfeatures
+    foreach? gzip $i:r
+    foreach? end
+
+    you can also write a script to do that, for example, in Mouse,
+    where golden contigs are denomrmalized 5Mb supercontigs and
+    ESTs are run on 500Kb contigs, you can use:
+   
+    .../exonerate_est/results/stdout> .../ensembl-pipeline/scripts/EST/get_features_from_exonerate_output.pl &
+
+    this is a wrapper around exonerate2mysqltab.
+    It will uncompress the output.gz files and redirect the content to exonerate2mysqltab.pl for processing,
+    there the info is converted into feature table entries, for intance by recalculating the
+    start and end hits in vcontig coords into rawcontig coords
+   
+    exonerate2mysqltab.pl also strips out features with percentage identity <90
+
+    You can find these two scripts in ~eae/ensembl-scripts/ESTs/ if they aren't checked in yet
+
+
+5. read estlengths, hid's etc...
+   (/work2/vac/ensembl-scripts/)get_estlengths > estlengths
+   
+   check for duplicates. i.e.
+   exact duplicates  : same est-id and same length --> if both are 5' or 3' or none, keep one of them
+                                                   --> if they are different ends, i.e. 5' 3', modify the
+                                                       est-id of one of them and keep them both
+   partial duplicates: same est-id but different length --> keep the longest
+
+   Note: dbEST also has re-sequenced ests, thus a given end of the same clone is present twice sometimes,
+   we keep all these entries, redundancy is dealt with later on.
+
+   in the est database ( EST_DBNAME, etc... ) make an est table:
+   mysql estdb < enembl-pipeline/sql/est.sql
+
+   and load it into the estdb:
+   mysql> load data infile 'estlengths' into table est
+
+   We need as well to copy over the entries for the analysisprocess table:
+
++------------+---------------------+---------------+-------+------------+---------+
+| analysisId | created             | logic_name    | db    | db_version | db_file |
++------------+---------------------+---------------+-------+------------+---------+
+|          1 | 2001-11-03 12:56:34 | est_exonerate | dbEST | 1          | NULL    |
+|          2 | 2001-12-18 09:15:11 | exonerate_e2g | dbEST | 1          | NULL    |
+|          3 | 2001-12-18 09:15:11 | est           | dbEST | 1          | NULL    |
++------------+---------------------+---------------+-------+------------+---------+
+
+---------------+-----------------+--------------+------------+---------------------+
+ program       | program_version | program_file | parameters | module              |
+---------------+-----------------+--------------+------------+---------------------+
+ exonerate     | 3               | NULL         | NULL       | ExonerateESTs       |
+ exonerate_e2g | 1               | NULL         | NULL       | FilterESTs_and_E2G  |
+ exonerate_e2g | 3               | NULL         | NULL       | Filter_ESTs_and_E2G |
+---------------+-----------------+--------------+------------+---------------------+
+
+----------------+---------------+-------------+
+ module_version | gff_source    | gff_feature |
+----------------+---------------+-------------+
+ NULL           | exonerate     | similarity  |
+ NULL           | exonerate_e2g | gene        |
+ NULL           | exonerate_e2g | similarity  |
+----------------+---------------+-------------+
+
+
+
+
+F. FilterESTs_and_E2G
+---------------------
+
+1. check that the bsub commands look something like:
+
+bsub -q acari -C0 
+-o /scratch2/ensembl/eae/est_NCBI_28//filter_and_e2g/1/1.49000001-50000000.out 
+-e /scratch2/ensembl/eae/est_NCBI_28//filter_and_e2g/1/1.49000001-50000000.err 
+-E "/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/run_EST_RunnableDB -check -runnable Bio::EnsEMBL::Pipeline::RunnableDB::FilterESTs_and_E2G" 
+/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/EST//filter_and_e2g.pl -input_id 1.49000001-50000000
+
+2. submit.pl ( or submit_jobs.pl -file ) <EST_FILTER_BSUBS>
+
+   As always, it is good to run the 'check' command, run a job locally and
+   check few jobs in the farm to see how it behaves.
+
+3. these jobs will read and write in the same databases, so check status of the database with the commands:
+   mysql -u user -h host -e "show processlist";
+   mysql -u user -h host -e "show variables"  ;
+
+once the jobs have finished, we're ready for the next step:
+
+
+
+G. EST_GeneBuilder
+-----------------
+
+1. check that the bsub commands look something like
+
+bsub -q acari -C0 
+-o /scratch2/ensembl/eae/est_NCBI_28//est_genebuilder/1/1.21000001-22000000.out 
+-e /scratch2/ensembl/eae/est_NCBI_28//est_genebuilder/1/1.21000001-22000000.err 
+-E "/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/run_EST_RunnableDB -check -runnable Bio::EnsEMBL::Pipeline::RunnableDB::EST_GeneBuilder" 
+/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/run_EST_RunnableDB -runnable Bio::EnsEMBL::Pipeline::RunnableDB::EST_GeneBuilder -input_id 1.21000001-22000000 -write
+
+2. make sure the relevant info is in ESTConf.pm.
+Besides the info about EST_REFDBNAME and EST_DBNAME, we need:
+   
+   EST_GENEBUILDER_INPUT_GENETYPE => 'exonerate_e2g' (gene type from Filter...)
+   EST_GENOMEWISE_RUNNABLE        => 'Bio::EnsEMBL::Pipeline::RunnableDB::Genomewise',
+   EST_GENOMEWISE_GENETYPE        => 'genomewise',
+   EST_EVIDENCE_TAG               => 'exonerate_e2g',
+
+   At the moment we don't use these:
+   EST_STRICT_LOWER_BOUND         => '', # 1 for ESTs only, 0 for cDNAs/mRNAs only
+   EST_MIN_EVIDENCE_SIMILARITY    => 65,
+   EST_MAX_EVIDENCE_DISCONTINUITY => 10,
+
+
+3. check in the runnable Bio::EnsEMBL::Pipeline::RunnableDB::Genomewise that the right
+   version of genomewise, with the right parameters, is called. At the moment we use:
+
+   /nfs/acari/searle/progs/ensembl-trunk/wise2/src/models/genomewise 
+     -switch 10000 -silent -nogff -smell 8 -notrans -nogenes -geneutr <genome_file> <evidence_file>
+
+
+4. submit the jobs: submit.pl ( or submit_jobs.pl -file ) <EST_GENEBUILDER_BSUBS>
+
+   As always, it is good to run the 'check' command, run a job locally and
+   check few jobs in the farm to see how it behaves.
+   
+   These jobs run quite quickly. Take this into account so that they're run efficiently.
+   
+
+
+H. EST-data delivery
+--------------------
+
+1. As features:
+
+   We can skip the EST_GeneBuilder step and write the results as features.
+   FilterESTs_and_E2G produces genes of type exonerate_e2g.
+   The exons can be converted into features, and these features
+   are put in a different database.
+
+   To convert the exons ( combined with their supporting feature data ) into features
+   we need first to dump all exon ids into one file:
+   in your estdb:
+   mysql> select exon_id from exon into outfile '/path/file.tab';
+   
+   the run  exon2feature.pl with the appropriate parameters
+
+   exon2feature.pl [ -refdb -refhost -refuser -refpass ] -exonfile file.tab > feature.tab
+
+   Then we load the data file feature.tab into the feature table in the new database.
+   This database must have the same contig, clone and static_golden_path table as
+   we had above), and the analysisprocess table:
+
++------------+---------------------+-------------+-------+------------+---------+
+| analysisId | created             | logic_name  | db    | db_version | db_file |
++------------+---------------------+-------------+-------+------------+---------+
+|          1 | 2001-07-10 17:00:00 | ex_e2g_feat | dbEST | 1          | NULL    |
++------------+---------------------+-------------+-------+------------+---------+
+
+---------------+-----------------+--------------+------------+---------------------+
+ program       | program_version | program_file | parameters | module              |
+---------------+-----------------+--------------+------------+---------------------+
+ exonerate_e2g | 3               | NULL         | NULL       | Filter_ESTs_and_E2G |
+---------------+-----------------+--------------+------------+---------------------+
+
+----------------+------------+-------------+
+ module_version | gff_source | gff_feature |
+----------------+------------+-------------+
+ 1              | est        | similarity  |
+----------------+------------+-------------+
+
+Final checks on the features:
+
+* check that there are features in both strands
+* check that the features have the right analysis_ID ( check analysisprocess table )
+
+This database then is ready to be delivered for release.
+
+
+
+2. As gene predictions:
+
+The release 3.28.1 ( i.e. the first version of the release 
+based on the code code of branch 3 (pipelin2-121) and assembly NCBI_28)
+will be the first time we present the gene-predictions on the Web.
+
+For the following release we'll combine these genes with the rest of the
+gene-build.
+
+
+
+
 
 
 
