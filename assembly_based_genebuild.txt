@@ -153,6 +153,8 @@ C. TargettedGenewise build
     new way:
     or for NCBI (and mouse and ...)
     get out chromosome names & coords into a file called names_and_coords:
+    select chr_name,min(chr_start),max(chr_end) from static_golden_path group by chr_name into outfile
+    '/.../names_and_coords';
 
     more names_and_coords:
     chr4_NT_022804  1       153717
@@ -707,6 +709,10 @@ In this sense it helps to construct first the analysisprocess table. It should h
 
 
 
+############################################################################################
+Note: when you have all features ready, if you are working on a file, recall that
+about 48 million features can take up to four hours to upload bacj into the feature table.
+############################################################################################
 
 
 
