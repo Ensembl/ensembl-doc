@@ -230,7 +230,7 @@ Another index system: INDICATE (by Steve Searle)
 	make sure that it is correctly defined in your Runnables
 
 3. distribute the (multiple-entry fasta) EST seqfile and the index file across farm where they
-can be see from all running nodes, and specify its location in ESTConf: 
+can be seen from all running nodes, and specify its location in ESTConf: 
 EST_FILE and EST_INDEX.
 
 At Hinxton they need to be in /data/blastdb/Ensembl/ and rdisted over the farm.
@@ -713,12 +713,12 @@ Create a fourth database, where you'll put contig, clone and sgp as the previous
 Copy gene, exon, exon_transcript and translation tables relevant to
 the genomewise genes into this new db, e.g.:
 
-    shell>mysqldump -u ***REMOVED*** -***REMOVED*** -h ecs1f "-wgene_id>=1245146" ens_NCBI_28_est gene | mysql 
+    shell>mysqldump -t -u ***REMOVED*** -***REMOVED*** -h ecs1f "-wgene_id>=1245146" ens_NCBI_28_est gene | mysql 
     -u ***REMOVED*** -***REMOVED*** -h ecs1e -D ens_NCBI_28_est_genes &
  
 Copy the supporting evidence
 relevant to these genes and write them as features into this new database.
-Use script ~eae/ensembl-scripts/ESTs/supp_evidence2feature.pl to convert the supporting_feature
+Use script ensembl-pipeline/scripts/ESTs/supp_evidence2feature.pl to convert the supporting_feature
 table into a tab-delimited file with feature table info.
 
 Include two entries in the analysisprocess table. Make sure that the analysisId
