@@ -186,7 +186,7 @@ More info about the various databases:
 
 Here we descibe the various databases and the configuration options 
 relevant to each. These configuration options can be found in 
-Bio::EnsEMBL::Pipeline::Config::Database
+Bio::EnsEMBL::Pipeline::Config::GeneBuild::Database
 
 Remember that the following tables need to be filled in:
 coord-system, seq_region, assembly,
