@@ -70,7 +70,7 @@ User description (should this go elsewhere?):
   cd /usr/local/ensembl/src
   gunzip -c mcl-02-063.tar.gz | tar xvf -
   cd mcl-02-063
-  CC=cc ./configure --prefix=/usr/local/ensembl
+  CC=cc ./configure --prefix=/usr/local
   make
 
 # In case of installing a new version test it before doing it the
@@ -80,16 +80,17 @@ User description (should this go elsewhere?):
   rm -f mcl
   ln -s mcl-02-063 mcl
 
-# then copy all executables to the bin path (/usr/local/ensembl/bin)
-# and documentation in the man path (/usr/local/ensembl/man)
+# then copy all executables to the bin path (/usr/local/bin)
+# and documentation in the man/share path (/usr/local/man and /usr/local/share)
 # main path defined by --prefix option in configure step
-# --prefix should be the path where bin/ and man/ directories exists
+# --prefix should be the path where bin/, man/ and share/ directories exists
 #
 # Next install the executables. Root access rights could be needed for
 # this step.
 
   make install
-  
+  make clean
+
 # ------------------------------------------------------------------------
 
 # Getting the data.
