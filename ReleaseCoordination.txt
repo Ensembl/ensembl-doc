@@ -24,41 +24,41 @@ Main steps in release coordination
 ==================================
 
 * A- on the 1st of the month previous to release send a mail with
-subject like "July release: declaration of intention", asking people
-to declare what are the new databases and schema changes expected.
+  subject like "July release: declaration of intention", asking people
+  to declare what are the new databases and schema changes expected.
 
 * B- Ask the martians to copy from ecs2d over to ecs2f the old dbs. When
-they acknoledge that is done, you can drop from ecs2d all the old dbs
-(use drop database command in a MySQL client, never do a rm -rf as
-mysqlens user). Do not delete database like ensembl_% and with
-%_expression_% in their name.
+  they acknoledge that is done, you can drop from ecs2d all the old dbs
+  (use drop database command in a MySQL client, never do a rm -rf as
+  mysqlens user). Do not delete database like ensembl_% and with
+  %_expression_% in their name.
 
 * C- Based on the synthesis of what is new coming, you can decide what are
-the databases that will not change, and can copy their latest version
-from ecs3d using ensembl/scritps/CopyDBoverServer.pl scripts, -h gives
-you an idea how to use it.
-You have to run it as mysqlens user.
+  the databases that will not change, and can copy their latest version
+  from ecs3d using ensembl/scritps/CopyDBoverServer.pl scripts, -h gives
+  you an idea how to use it.
+  You have to run it as mysqlens user.
 
 * D- keep a tight contact with the persons involved in the production of
-new data, i.e.
-Yuan for snp,
-Laura for worm dbs,
-Val for mammalian dbs,
-Manu for insect dbs,
-Kertin for Zebrafish,
-Stephen for vega,
-Abel/Cara for compara/family...
+  new data, i.e.
+  Yuan for snp,
+  Laura for worm dbs,
+  Val for mammalian dbs,
+  Manu for insect dbs,
+  Kertin for Zebrafish,
+  Stephen for vega,
+  Abel/Cara for compara/family...
 
 Send them a mail from time to time, to see how things are going.
 
 From time to time ask James Smith to run lite in the corresponding 
 
 * E- By the 15th 12.00pm all dbs but compara/family are expected to be
-ready and copied over to ecs2d.
+  ready and copied over to ecs2d.
 
 * F- Set up a web test server on ecs2d port 5000. When done, send a mail
-to ensembl-admin to ask everyone concerned to check the display of
-his/her data on the web.
+  to ensembl-admin to ask everyone concerned to check the display of
+  his/her data on the web.
 
 To set up a web server, you will have to do it as ***REMOVED*** unix user,
 if not already set up.
@@ -172,19 +172,18 @@ to stop it
 
 
 * G- Ask the release core assistant to run health check suite and to
-update schema if needed. To advertise any inconsistancy in the dbs,
-and fix or arrange someone to fix them. 
+  update schema if needed. To advertise any inconsistancy in the dbs,
+  and fix or arrange someone to fix them. 
 
 * H- Run a healthcheck again just before handover (checking things
-we had done before plus new things that have been added during the data
-shakedown) - if possible of course
+  we had done before plus new things that have been added during the data
+  shakedown) - if possible of course
 
 * I- By the 22nd if everything is fine, send a mail to hand-over the
-dbs, listing all dbs, specifying what are the new data coming in, the
-schema changes, and a summary of mart translation (that can be
-obtained from the martians). Mention there that the mart db is
-expected 3 working days after the handover.
-
+  dbs, listing all dbs, specifying what are the new data coming in, the
+  schema changes, and a summary of mart translation (that can be
+  obtained from the martians). Mention there that the mart db is
+  expected 3 working days after the handover.
 
 Here is an example,
 
@@ -209,18 +208,18 @@ directly who will load the data in....Tim, James, is that right?
 * New SNP dbs for mosquito based on dbSNP114
 
 * New human ensembl vega database in sync with vega.sanger.ac.uk released 
-on May 12th.
+  on May 12th.
 
 * New protein family database including now Zebrafish Ensembl proteins. 
-All families have their multiple alignment stored, but the first 7 largest 
-families. I still did not have time to investigate/try the solution 
-proposed by Tony to maybe solve the pb.
+  All families have their multiple alignment stored, but the first 7 largest 
+  families. I still did not have time to investigate/try the solution 
+  proposed by Tony to maybe solve the pb.
 
 * New compara database, with additional subset of DNA/DNA alignments 
-focused on highly conserved regions, for human/mouse, human/rat, mouse/rat 
-and elegans/briggsae.
-Homologous gene pairs included now Zebrafish Ensembl proteins compared to 
-human, mouse, rat and fugu.
+  focused on highly conserved regions, for human/mouse, human/rat, mouse/rat 
+  and elegans/briggsae.
+  Homologous gene pairs included now Zebrafish Ensembl proteins compared to 
+  human, mouse, rat and fugu.
 
 Databases
 =========
@@ -365,13 +364,19 @@ Abel
 -------------------------------------------------------------------------------
 
 * I- Even if by this date, the main part of your work is over, you will
-still need to follow mail about dbs problems take some decision
-together with the web team to fix them.
+  still need to follow mail about dbs problems take some decision
+  together with the web team to fix them.
 
 * K- By the day of release, organise a post-mortem meeting to list what
-were the problem during the release, propose/ask for possibles
-solutions/improvements for the next release.
-The main persons to be there should be Jim, James, Arne, Graham, Arek,
-Abel, Val, Ewan and Michele. I found out that find the right day and time to have
-most of those people together has been the most complicated task. You
-will have to organize that in morning as Val is working part time.
+  were the problem during the release, propose/ask for possibles
+  solutions/improvements for the next release.
+  The main persons to be there should be Jim, James, Arne, Graham, Arek,
+  Abel, Val, Ewan and Michele. I found out that find the right day and time to have
+  most of those people together has been the most complicated task. You
+  will have to organize that in morning as Val is working part time.
+
+* L- send a email minute to ensembl-admin to summarize what was discussed/decided during
+  post-mortem.
+
+
+
