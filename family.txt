@@ -1,4 +1,4 @@
-# -*- mode: text -*-;
+ -*- mode: text -*-;
 
 (For maintainer description, see below)
 
@@ -181,27 +181,8 @@ $ perl $scripts/family-input.pl -r 3 -C $tablesql \
 # fine.
 
 # Very occasionally, you get one protein ending up in two families. This is
-# rare, and harmless. If so, you get something like:
-# 
-#   DBD::mysql::st execute failed: Duplicate entry 'ENSEMBLPEP-ENSP00000265107' for key 2 at /nfs/acari/lijnzaad/head/ensembl-external/scripts/family-input.pl line 366, <> chunk 5134.
-#   Issuing rollback() for database handle being DESTROY'd without explicit disconnect(), <> chunk 5134.
-#   Issuing rollback() for database handle being DESTROY'd without explicit disconnect(), <> chunk 5134.
-# 
-# in famload.err.  This is due to something like:
-# 
-#   ENSF00000005133	HYPOTHETICAL 75.4 KDA PROTEIN	100	:ENSP00000265107:Q9H053
-#   ENSF00000005134	HYPOTHETICAL 73.2 KDA	100	:ENSP00000265107:Q9NW82
-# 
-# in the family file.  If so, the loader just hangs; just kill it, and delete *
-# from family and family_members. Manually edit the file, keeping the first
-# pep->family assignment, and deleting the second one (so the above would become:
-# 
-#   ENSF00000005133	HYPOTHETICAL 75.4 KDA PROTEIN	100	:ENSP00000265107:Q9H053
-#   ENSF00000005134	HYPOTHETICAL 73.2 KDA	100	:Q9NW82
-# ). 
-# 
-# Then simply reload, using the same incantation but without the 
-# `-C $tablesql' argument.
+# rare, and harmless. If this happens, this is notified by family-input.pl,
+# and the first one is taken, the rest ignored. 
 # 
 # The family-input.pl script tries to be careful with going from peptides
 # (which the clusters contain) to genes (which are 'added' to the
