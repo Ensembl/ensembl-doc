@@ -47,6 +47,9 @@ User description (should this go elsewhere?):
 # to needs, then source it
 
     source setenv.sh
+# or
+    source setenv.csh
+
 
 # (If you're doing the source inside ensembl-external/family, you won't need 
 # any adjustment (because it uses the value of `pwd`). It might be better to
@@ -284,6 +287,9 @@ User description (should this go elsewhere?):
 # By now, there are many non-hits that have dropped out (sequences that
 # did't even match themselves during the blast hits, due to low-complexity
 # filtering. These are typically short repetive sequencs).
+
+# Note: this needs stuff from Algorithm::Diff, which will be found under
+# $FAMPATH/modules; see�e setenv.{c}sh  bit above. 
 
 # ------------------------------------------------------------------------
 # new directory for the families:
