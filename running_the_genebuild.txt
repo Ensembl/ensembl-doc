@@ -105,17 +105,19 @@ new alternative transcripts to existing genes.
 ######################
 
 Its a good idea to have directories where you can keep all the 
-stdout/stderr from the jobs, and for the data for the jobs. 
+stdout/stderr from the jobs, and for the data for the jobs.
 
 Get checkouts of the three pieces of code you need, ensembl, 
 ensembl-pipeline and bioperl and make sure they are in your PERL5LIB
 
-make sure you have access to binaries for genewise which is availble 
-from the ensembl cvs under rd-utils and wise2 packages respectively
+Make sure you have access to binaries for genewise which is available 
+from the ensembl cvs under rd-utils and wise2 packages respectively. 
+You also need to set the environment variable WISECONFIGDIR to the 
+location of a wisecfg directory with the genewise config files.
 
-setup the databases
+Set up the databases.
 
-this is a diagram of all databases you require
+This is a diagram of all databases you require:
 
 
  _______  
