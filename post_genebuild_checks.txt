@@ -46,9 +46,14 @@ where x is the assembly number
 
 1. check for duplicate exons
 
-     select e1.exon_id as exon1, e2.exon_id as exon2 from exon e1, exon e2 where e1.contig_start = e2.contig_start and e1.contig_end=e2.contig_end and e1.contig_strand=e2.contig_strand and e1.phase=e2.phase and e1.end_phase=e2.end_phase and e1.exon_id != e2.exon_id;
-
-     note that there may be exons that are identical but as a part of a sticky-exon: Two exons with different ids may
+   select e1.exon_id as exon1, e2.exon_id as exon2 from exon e1, exon e2 
+where e1.contig_start = e2.contig_start and e1.contig_end=e2.contig_end 
+and e1.contig_strand=e2.contig_strand and e1.phase=e2.phase and 
+e1.end_phase=e2.end_phase and e1.exon_id != e2.exon_id and e1.contig_id 
+= e2.contig_id;
+  
+     note that there may be exons that are identical but as a part of a sticky-exon: 
+     Two exons with different ids may
      have the same entries but be the sticky_rank 2, say, of two different sticky exons.
 
 2. check for sane exon coords
@@ -101,7 +106,7 @@ where x is the assembly number
     select count(transcript.transcript_id) from transcript left join exon_transcript on transcript.transcript_id=exon_transcript.transcript_id where exon_transcript.transcript_id is NULL;
 
 3. all transcripts belong to a gene
-select count(distinct t.transcript_id) from transcript t left join gene g on g.gene_id =t.gene_id where g.gene_id is null;
+   select count(distinct t.transcript_id) from transcript t left join gene g on g.gene_id =t.gene_id where g.gene_id is null;
 
 4. check that there are no too-long single exon genes (>50kb)
      start with 
