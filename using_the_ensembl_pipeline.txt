@@ -26,9 +26,7 @@ ensembl pipeline
 all availible from cvs and on the web.
 
 The code you should use is current the main trunk. For the core api use 
-the most recent stable branch (branch-ensembl17 13/10/03). There will 
-soon be a stable branch of the pipeline which contains this code but 
-there isn't currently
+the most recent stable branch (branch-ensembl-20 01/03/04). 
 
 The pipeline will probably run with newer versions of bioperl but this 
 is the only version we guarantee compatability.
@@ -124,7 +122,8 @@ A. No dependencies, these are analyses which don't depend on anything
    For example, the RepeatMask analysis has no dependancies but in the
    rule_goal table it must have SubmitContig and an input_id type of 
    CONTIG.Before the pipeline is set the input_id_analysis table has 
-   entries for each contig under the analysis SubmitContig.
+   entries for each contig in the seq_region table under the analysis 
+   SubmitContig.
 
 B. Dependencies which use the same input_id: these are analyses which
    depend on another analysis being complete and use the same input id.
@@ -243,8 +242,10 @@ ensembl-pipeline/scripts/add_analysis
 This will allow you to add individual lines to an analysis table. This
 script depends on the database already having the pipeline tables included
 
-The second method will fill the analysis table and input_id_type_analysis 
-table all at once. This method takes a conf file which has this format
+
+The second method uses the ensembl-pipeline/scripts/analysis_setup.pl and
+will fill the analysis table and input_id_type_analysis table all at once.
+This method takes a conf file which has this format
 
 [RepeatMask]
 db=repbase
@@ -269,6 +270,8 @@ This script can also be pointed at a complete database to produce a config
 file
 
 this script can also be told not to expect pipeline tables
+
+
 
 Both these script have a -help option which should print out the 
 documentation from the script
