@@ -35,7 +35,9 @@ PA_CHUNKS_DIR   the location of the directory the chunks of the peptide
                 file will go
 PA_CHUNKS_SIZE  the size of the chunks file, we tend to use 100
                 peptides in a file
-
+PA_IPRSCAN_DIR the directory where the architecture specifc directories for the interpro code lives
+               for example /acari/analysis/iprscan/bin where there two directories dec_osf and linux
+               and the runnabledb code knows how to decide which one to use.  
 There are also three other files which must be filled out which live in
 Bio::EnsEMBL::Pipeline::Config and are described in the document
 using_the_ensembl_pipeline.txt
