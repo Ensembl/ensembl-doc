@@ -66,17 +66,18 @@ been properly documented yet. But the first bits are:
  
      sp-mapping-dump.sh -h host -u user database
 
-   This produces a file mapping.dat (and .log), containing the ENSG ->
-   sp/trembl accnos mapping
+   This produces a file ens-sptr-mapping.dat (and .log), containing the ENSG
+   -> ENSP -> sp/trembl accnos mapping
 
  - Produce the tab-delimited data file to be loaded into the gene-description
    table:
 
-     gene-descriptions.pl sp-descriptions.dat mapping.dat > gene-descriptions.dat
+     gene-descriptions.pl sp-descriptions.dat ens-sptr-mapping.dat \
+       > sptr-descriptions.dat
 
    Have a look at this file; if it contains too much junk  (like the
-   2900010M17Rik cruft), filter it. Maybe easiest to do it inside the
-   gene-descript.pl script itself, see towards the end. 
+   2900010M17Rik cruft), filter it. It's easiest to do this inside the
+   gene-descriptions.pl script itself (see towards the end of the script).
 
  - Load gene-descriptions.dat into a into an ensembl database, e.g. as
 
@@ -85,18 +86,28 @@ been properly documented yet. But the first bits are:
 
  - (preceeding steps should be integrated with the peptide mapping pipeline)
 
- - The next step is adding the family additions for genes that have no or a
-   poor description. This boils down to running
+ - The next step is adding the family additions for genes that have no
+   description. This is done by running
 
-     ensembl/scripts/desc-from-fam.sh coreDB -h host -u user famDB
+     ensembl/scripts/desc-from-fam.sh coreDB famDB DBNAME -h host -u user 
 
-   which will, in famDB, create a merged gene_description table that is a
-   replacement for the old one in coreDB.  The script writes a few
-   statistics to stdout. Look in the script itself for further directions.
+   where coreDB is an ensembl database, famDB the family database, and DBNAME
+   the database name used inside famDB for looking up the ids. This will be
+   typically ENSG or ENSMUSG. 
+   The script will, in famDB, create a merged gene_description table that is a
+   replacement for the old one in coreDB (note: famDB and coreDB should be on
+   the same mysql server, otherwise you can't do the required cross-database
+   joins). 
+
+   The script writes a few statistics to stdout.  If the numbers under
+   'all_old_descriptions' and 'all_new_descriptions' are the same, this means
+   that none have been added. This is likely the result of using the wrong
+   DBNAME. 
 
    The table that is created does not automatically replace
    the old one; this has to be done by hand, e.g. as follows:
 
-   delete from gene_description;
-   insert into gene_description
-      select * from FAMILYDB.gene_description;
+     delete from gene_description;
+     insert into gene_description select * from famDB.gene_description;
+
+   (assuming again famdb and coredb are on the same  server). 
