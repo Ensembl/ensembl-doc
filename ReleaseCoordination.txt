@@ -5,19 +5,36 @@ whether or not to commit it somewhere...
 Deadlines Summary
 =================
 
-1st - declaration of intention
 
-12th - core dbs should be somewaht ready for id-mapping and peptide dumps
+Thew deadlines are counted backwards from the release date so that every phase
+has a consistent amount of time each month.  The declaration of intentions is 
+the expception and is always on the 1st of the month.
 
-15th - core-like dbs, snp, vega should be ready to copy over ecs2d
-       ready meaning, gene_build complete
-		      stabel_id and id-mapping done
-		      protein annotation and mapping done
+DECLARATION OF INTENTIONS
+1st - declaration of intentions
 
-18th - family/compara db ready
+3 Days before GeneBuild handover  (pseudo-deadline)
+  By this time core dbs should be somewaht ready for id-mapping and
+  peptide dumps
 
-22nd - dbs hand-over to the web team depending on bank holidays or when
-       the 1st of next month is this date date can splip by few days.
+GENEBUILD HANDOVER to Core/Compara
+5 Working days before Core handover  (~13-15th)
+  core-like dbs, snp, vega should be ready to copy over ecs2d
+  ready meaning, gene_build complete
+  stabel_id and id-mapping done
+  protein annotation and mapping done
+
+
+CORE/COMPARA HANDOVER to Mart/Webteam
+5 Working days before Mart handover, (7 before release ~20th)
+
+MART HANDOVER to Webteam
+2 Working days before release (~28th)                                          
+
+RELEASE - 
+1st of the next month or the following Monday if the 1st is on a Friday, 
+Saturday, or Sunday (webteam do not release on Fridays).
+    
 
 
 Main steps in release coordination
@@ -53,8 +70,8 @@ Send them a mail from time to time, to see how things are going.
 
 From time to time ask James Smith to run lite in the corresponding 
 
-* E- By the 15th 12.00pm all dbs but compara/family are expected to be
-  ready and copied over to ecs2d.
+* E- On the Genebuild handover date all dbs but compara/family are expected 
+to be ready and copied over to ecs2d.
 
 * F- Set up a web test server on ecs2d port 5000. When done, send a mail
   to ensembl-admin to ask everyone concerned to check the display of
@@ -179,11 +196,11 @@ to stop it
   we had done before plus new things that have been added during the data
   shakedown) - if possible of course
 
-* I- By the 22nd if everything is fine, send a mail to hand-over the
-  dbs, listing all dbs, specifying what are the new data coming in, the
-  schema changes, and a summary of mart translation (that can be
-  obtained from the martians). Mention there that the mart db is
-  expected 3 working days after the handover.
+* I- By the Core/Compara handover date if everything is fine, send a mail to
+hand-over the dbs, listing all dbs, specifying what are the new data coming in,
+the schema changes, and a summary of mart translation (that can be
+obtained from the martians). Mention there that the mart db is
+expected 3 working days after the handover.
 
 Here is an example,
 
