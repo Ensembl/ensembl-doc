@@ -79,9 +79,13 @@ Main steps in release coordination
       Warn people on ensembl-admin about deletion and new copy and database renaming.
 
       NB: (use drop database command in a MySQL client, never do a rm -rf as
-      mysqlens user). Do not delete databases like ensembl_% and with
-      %_expression_% in their name. Check with compara and mart people to see 
-      if ensembl_compara_* and ensembl_mart_* can be dropped.
+      mysqlens user). Do not delete (without at least checking):
+        - databases like ensembl_% 
+        - databases like %_expression_% (needed for Mart)
+	- gnf_evoc (needed for Mart)
+
+      Check with compara and mart people to see if ensembl_compara_*
+      and ensembl_mart_* can be dropped.
 
 * D - keep a tight contact with the persons involved in the production of
   new data, i.e.
@@ -121,8 +125,8 @@ Main steps in release coordination
   There are 2 more scripts that need to be run *after* the SNP *and* lite 
   databases have been built:
 
-    snp_lite_density.pl      (takes about XXX, produces SNP density features)
-    seq_region_stats.pl      (takes about XXX, produces seq_region_attribs)
+    snp_lite_density.pl      (takes about 35 minutes, creates SNP density features)
+    seq_region_stats.pl      (takes about 35 minutes, creates seq_region_attribs)
 
 * E - On the Genebuild handover date all dbs but compara are expected 
   to be ready and copied over to ecs2:3364.
