@@ -466,9 +466,18 @@ Note: you may need to dump out golden contig ids first.
     denormalised contigs at the moment. 
 
     It also strips out features with percentage identity <90
+    
+    Now you need to make sure the db column is the same as the EST_SOURCE
+    you've defined in ESTConf - or no features will be retrieved during later stages eg
+
+    mysql> update analysisprocess set db='wibble' where db='dbEST';
+
+    and load the data into the feature table:
+    mysql> load data infile 'estfeatures' into table features;
 
     You can find these scripts in /nfs/acari/eae/ensembl-scripts/ESTs/ if they aren't checked in yet
 
+    
 
 6. read estlengths, hid's etc...
    (/work2/vac/ensembl-scripts/)get_estlengths > estlengths
@@ -486,9 +495,8 @@ Note: you may need to dump out golden contig ids first.
    mysql estdb < enembl-pipeline/sql/est.sql
 
    
-
    and load it into the estdb:
-   mysql> load data infile 'estlengths' into table est
+   mysql> load data infile 'estlengths' into table est;
 
    We need as well to copy over the entries for the analysisprocess table:
 
@@ -541,6 +549,10 @@ bsub -q acari -C0
 
 once the jobs have finished, we're ready for the next step:
 
+4. check for errors. One thing that can go wrong is that the est2genome runs out of memory. The option
+   -space in the command in Est2Genome.pm may have to be changed. If you plan to re-run this region, make
+   sure it does not trouble later stages, or otherwise you'll have to delete the genes written in the
+   corresponding job.
 
 
 G. EST_GeneBuilder

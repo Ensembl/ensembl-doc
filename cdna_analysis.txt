@@ -359,7 +359,13 @@ As ever, I start off slowly and make sure to test the pre-exec command before lo
    mysql -u user -h host -e "show processlist";
    mysql -u user -h host -e "show variables"  ;
 
+3. check for errors. One thing that can go wrong is that the est2genome runs out of memory. The option
+   -space in the command in Est2Genome.pm may have to be changed. If you plan to re-run this region, make
+   sure it does not trouble later stages, or otherwise you'll have to delete the genes written in the
+   corresponding job.
+
 once the jobs have finished, we're ready for the next step:
+
 
 G. EST_GeneBuilder
 ------------------
