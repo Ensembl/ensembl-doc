@@ -63,6 +63,12 @@ where x is the assembly number
     
     select count(distinct e.exon_id) from exon e left join exon_transcript et on e.exon_id =et.exon_id where et.exon_id is null;
 
+
+3. check how many contigs have no exons on them. In Human is about half of the contigs:
+
+    select count(distinct a.contig_id) from assembly a left join exon e on e.contig_id = a.contig_id where e.contig_id is null;
+
+
 3. check for too short exons ( < 10 bases long ): Have a look to them and see whether they look real or not.
      select (contig_end-contig_start+1) as s, sticky_rank, exon_id  from exon where (contig_end-contig_start+1)<10;
      
