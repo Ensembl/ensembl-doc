@@ -1,19 +1,321 @@
+=================================
+Fugu-Specific Gene Build Details
+=================================
+                                                                                                       
+Last major update of this document : 1.06.2004 by Kevin Howe
+                                                                                                       
+Contents
+========
+                                                                                                       
+A. Data sources
+	DNA/Assembly
+        Proteins
+        cDNAs
+        ESTs
+
+B. Fugu-specific configuration
+	Repeat Masking
+	Other Raw computes
+	Similarity build
+	Pseudogenes
+	Other stages
+
+C. Running the similarity build
+	Input ID generation
+	Iterative similarity building
+
+D. Miscellaneous
+                                                                                                       
+
+
 A. Data sources:
+================
+
+DNA/Assembly:
+-------------
+
+The assembly known to the community as version 3 was used, downloaded
+from the JGI:
+
+http://genome.jgi-psf.org/fugu6/fugu6.download.ftp.html
+
+[note: when I downloaded it at the start of the 2004, there were some garbage
+lines which need to be removed]
+
+Protein
+-------
+
+Only proteins in Swall were used for the build. For the targetted
+build, all fugu proteins in Swall were extracted. As well as the
+sequences themselves, we also need the ful descriptive entries for
+xref association stage at the end of the gene build:
+
+getz '[swall-org:Takifugu rubripes]! [swall-ogn:Mitochondrion]' \
+  | perl -ne '/:(\S+)$/ and print "$1\n"' \
+  | xargs pfetch ? Fugu_proteins.swall.fa
+getz -e '[swall-org:Takifugu rubripes] ! [swall-ogn:Mitochondrion]' \
+  >! Fugu_proteins.swall.full_entries 
+
+Notes: 
+
+- mitochondral proteins were omitted because they are not expected to
+  map to the nuclear genome; if these proteins have paralogues in the
+  nuclear genome, they will be picked up in the similarity build (all
+  13 fugu proteins in refseq are mitochondrial). 
+
+- fragmentary proteins were not omitted but perhaps they should be in
+  future builds because similarity genes are not built in regions with
+  targetted genes (and a better gene may be build from a non-fugu
+  ortholog of a fragment fugu protein).
+
+cDNA
+----
+
+There were only 205 fugu cDNAs at the time of analysis:
+
+getz '[embl-org:Takifugu rubripes]&[embl-mol:mRNA]&[embl-div:VRT]' \
+  | perl -ne '/:(\S+)/ and print "$1\n";' \
+  | xargs pfetch -l100 > fugu_mRNAs.fa
+
+
+I experimented with using cDNAs from other fish species-groups, using taxonomy, 
+but found that only fugu cDNAs align with high coverage and identity. There may 
+be yardage in dropping the required coverage and identity as you move up the tree; 
+this wasn't explored rigourously for this gene-build.
+
+
+EST
+---
+
+There were approximately 28000 fugu ESTs at time of analysis: 24398
+that were already in EMBL ("EMBL ESTs"):
+
+getz '[embl-org:Takifugu rubripes]&[embl-mol:mRNA]&[embl-div:EST]' \
+  | perl -ne '/:(\S+)$/ and print "$1\n"' \
+  | xargs pfetch -l100 > fugu_embl_ests.fa
+
+and an additional 3947 ESTs from the Elgar group at the HGMP that were taken 
+from fugu embryos ("Embyronic ESTS"). After clipping and removal of resultant 
+small ESTs, 24063 and 3923 (resp) remained.
+
+
+B. Fugu-specific configuration
+==============================
+
+Repeat Masking
+--------------
+
+RepeatMasker was run with the options "-fugu -nolow" which only masks
+masks interspersed repeats, using the fugu-specific library. Simple repeats
+and low complexity regions are not masked using these options, but these
+are addressed specifically with the TRF and Dust raw computes. In the stages
+of the gene-build that require repeat-masked sequence, only RepeatMasker 
+features were masked, meaning that low-complecity and tandem repeats are
+retained. 
+
+Other raw computes
+-------------------
+
+Genscan and tRNAscan were run as standard, as well as the BlastGenscanPep
+against Swall and BlastGenscanDNA against vertrna (EMBL vertebrate mRNA
+entries) and Uniuni (the set of representative sequences from Unigene).
+CpG and Eponine were also run, although the accuracy of the latter in
+vertebrate sequences in general is not known.
+
+In addition to these standard raw-computes, a raw translated BLAST
+search of the genome against Swall (wublasx) was performed. This
+search was used to find additional seeds for the similarity build
+below. To save on space, only the top-scoring exon from each hit is
+stored, and we used fast parameters because it is only necessary to
+match one exon of the gene at this stage. The BLAST options used were:
+
+-spoutmax 1 -hitdist 40 W=4 T=16 V=700000 B=700000 Y=365000000 Z=500000000
+
+Y and Z are used to force the query and target sequence lengths that 
+BLAST uses to calculate significance. Standardiing these values makes
+E-values between differenct searches comparable. 
+
+
+Similarity build
 ----------------
 
-Protein: 
+The way in which the similarity build was run for fugu is so different
+to that for other genomes that it has a section to itself. It suffices
+to say here that the general settins are as usual (i.e. coverage 
+cut-offs of 70% for multi-exon genes and 90% for single-exon genes). 
+Three important differences are:
+
+GB_SIMILARITY_MAX_INTRON         => 50000,
+GB_SIMILARITY_MIN_SPLIT_COVERAGE => 1000,
+GB_SIMILARITY_MAX_LOW_COMPLEXITY => 1000,
+
+These ensure that introns > 50000bp always result in the gene being
+split into 2-pieces (the "1000" for GB_SIMILARITY_MIN_SPLIT_COVERAGE
+ensures that this splitting is performed regardless of the coverage
+of the putative transcript). It is necessary to do this, because 
+Genewise prodices many gene predictions with high coverage but
+ridiculously long introns). 
+
+Other changes relate to the iterative manner in which the similarity
+build is run, explained below.
+
+Pseudogenes
+-----------
+
+The "proper" way to run the Pseudogene analysis is to wait for a 
+pre-compara database so that synteny information can be used to
+confirm/reject pseudogene calls. This was not done for this build
+however; the relevant lines were commented out of the code (cleaning
+this up should be on our to-do list). Ignoring synteny, we used the 
+following definition of a pseudogene, which was achieved by parsing 
+the output of the Pseudogene code in the appropriate way:
+
+Any transcript where
+ 
+(i)   has introns and
+(ii)  all introns are frameshifts and
+(ii)  has evidence spliced elsewhere
+ 
+OR
+ 
+(i)   has no introns AND
+(ii)  has evidence spliced elsewhere and
+(iii) does not start with a Met
 
 
-cDNA:
+
+Other stages
+------------
+
+All other stages of the "core" build can be run out-of-the-box. 
 
 
-EST:
+C. Running the Similarity Build
+===============================
 
 
-B. Problems with past builds:
+For fugu, by far and away the most important part of the build.
+Due to paucity of Fugu-specific proteins and cDNAs, the overwhelming
+majority of genes arise from this step. It is also the only step
+for which the way in which it is run differs markedly from other
+genomes. 
+
+There are two problems with running the similarity build in the
+standard way on fugu. The first is that there are a lot of jobs 
+to run, and an uneven distribution of protein hits across the 
+genome sequence, so distributing the work by splitting on sequence 
+will results in many jobs running quickly but a small few that take 
+forever (and therefore hold everything up). The second is that 
+standard Genscan-based way of seeding the Genewises results in 
+a gene-count that is probably too low (~15000 on this assembly 
+and the dataset used for this build). 
+
+Input Id generation
+-------------------
+
+To address the first problem, we generate input_ids for the jobs
+more sensibly, distributing the proteins to be aligned in a 
+specific region across several jobs. The input ids are generated by 
+this script:
+
+scripts/GeneBuild/make_input_ids_for_similarity_build.pl
+
+(full instructions for running it there-in). In addition, it
+is necessary to set the regular expression for parsing these
+generated input ids:
+
+GB_SIMILARITY_INPUTID_EXTRA_REGEX => '^\S+\.\d+\-\d+:(\S+):(\S+)'
+
+This regexp has been designed to pick-out appropriate parts of
+the input ids generated by the script. If input ids are generated
+by conventional means, this regular expression will not be matched
+and the job will run as normal.
+
+Iterative similarity building
 -----------------------------
- C. Miscellaneous
-----------------
 
-Make sure there is an entry in the meta table for genebuild.version of the form YYMMOrganisation
-eg 0405Ensembl
+The second problem is overcome by applying additional similarity
+build stages to fill-in obvious gaps left by the first, standard
+stage. To re-cap from other documents, in the standard similarity
+build, proteins in Swall that match a Genscan-prediction with
+a bit-score of 200 or more are re-aligned to the genome using
+Genewise.
+
+For this fugu build, we supplemented these Genscan-derived
+"sequence seeds" by doing a raw BLASTX search of the genome
+against Swall (see "Other Raw computes", above). These raw
+BLAST hits are then used to build genes in gaps left by the
+first, Genscan-based similarity build. 
+
+To get this to work in practice, it is necessary to change
+certain config attributes config file in between iterations. 
+This needs cleaning up, and will be, but for now I will outline 
+what needs to be done with the current working system. 
+
+For the initial, Genscan-seeded build:
+
+GB_SIMILARITY_DATABASES => [
+{ 
+  'type'       => 'Swall',
+  'threshold'  => '200',
+  'index'      => '/data/blastdb/Ensembl/swall_index',
+  'seqfetcher' => 'Bio::EnsEMBL::Pipeline::SeqFetcher::OBDAIndexSeqFetcher'
+},
+],
+
+GB_SIMILARITY_GENETYPE         = 'similarity_genewise',
+GB_SIMILARITY_GENETYPEMASKED   = ['TGE_gw'],
+# Proteins with matches overlapping targetted genes are not aligned
+GB_SIMILARITY_POST_GENEMASK => 0,
+GB_SIMILARITY_POST_EXONMASK => 0,
+# no post-masking is done
+
+For the first supplemental, BLASTX-seeded build:
+
+GB_SIMILARITY_DATABASES => [
+{ 
+  'type'       => 'Swall_blastx',
+  'threshold'  => '200',
+  'index'      => '/data/blastdb/Ensembl/swall_index',
+  'seqfetcher' => 'Bio::EnsEMBL::Pipeline::SeqFetcher::OBDAIndexSeqFetcher'
+},
+],
+
+GB_SIMILARITY_GENETYPE         = 'similarity_genewise_gapfill_one',
+GB_SIMILARITY_GENETYPEMASKED   = ['TGE_gw','similarity_genewise'],
+# proteins with matches overlapping genes from any previous stage are not aligned
+GB_SIMILARITY_POST_GENEMASK => 1,
+GB_SIMILARITY_POST_EXONMASK => 1,
+# resulting genes that overlap genes from any previous stage are rejected
+
+For this build, we also did a second supplemental BLASTX-seeded build:
+
+GB_SIMILARITY_DATABASES => [
+{ 
+  'type'       => 'Swall_blastx',
+  'threshold'  => '100',
+  'upper_threshold' => 200,
+  # the above 2 lines ensure that only proteins with a top-scoring hit
+  # of >= 100 BUT strictly below 200 are considered. This allows us to 
+  # immediaetly rule-out proteins that were used in the previous stage
+  'index'      => '/data/blastdb/Ensembl/swall_index',
+  'seqfetcher' => 'Bio::EnsEMBL::Pipeline::SeqFetcher::OBDAIndexSeqFetcher'
+},
+],
+
+GB_SIMILARITY_GENETYPE         = 'similarity_genewise_gapfill_two',
+GB_SIMILARITY_GENETYPEMASKED   = ['TGE_gw','similarity_genewise', 'similarity_genewise_gapfill_one'],
+# proteins with matches overlapping genes from any previous stage are not aligned
+GB_SIMILARITY_POST_GENEMASK => 1,
+GB_SIMILARITY_POST_EXONMASK => 1,
+# resulting genes that overlap genes from any previous stage are rejected
+
+With hind-sight, it would probably have been sufficient to perform just one
+(rather that two) gapfill build with a bit-score cutoff of 100.  
+
+
+D. Miscellaneous
+================
+
+Make sure there is an entry in the meta table for genebuild.version of
+the form YYMMOrganisation *eg 0405Ensembl)
