@@ -1,0 +1,156 @@
+
+This document describes how to use the different tools
+in Ensembl to do comparisons between genes, transcripts and exons.
+The classes are in ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/GeneComparison/
+and the scripts are in 
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/GeneComparison/
+
+############################################################
+# Comparing isoforms in gene pairs
+############################################################
+
+1) dump in a file (e.g. gene_pairs ) the 
+gene ids for the pairs, e.g.:
+
+ENSG00000000003	ENSMUSG00000031252
+ENSG00000000005	ENSMUSG00000031250
+ENSG00000000419	ENSMUSG00000027542
+...
+
+2) run the script
+../ensembl-pipeline/scripts/GeneComparison/make_bsubs_compare_isoforms.pl
+
+Usage: make_bsubs_compare_isoforms.pl -tmp_dir /full/path/output_dir/
+			[ -gap_penalty n -coding_exons -from_file < file_with_pairs]
+
+e.g: make_bsubs_compare_isoforms.pl -tmp_dir /ecs2/work1/eae/.../dir -coding_exons -from_file < gene_pairs
+
+
+3) you should get one file Compare_isoforms_jobs
+
+with lines like bsub -q acari -C0 -m"rlx_hosts" -o /ecs2/work1/eae/TheYearOfTheRat/LeoRatOrthologs/human_mouse/results_isoform_comparison/stdout//comparison_ENSG00000000457_ENSMUSG00000026584 -e /ecs2/work1/eae/TheYearOfTheRat/LeoRatOrthologs/human_mouse/results_isoform_comparison/stderr//comparison_ENSG00000000457_ENSMUSG00000026584 
+-E "/nfs/acari/eae/ensembl/ensembl-pipeline/scripts/GeneComparison/compare_isoforms.pl -check" /nfs/acari/eae/ensembl/ensembl-pipeline/scripts/GeneComparison/compare_isoforms.pl -gene_id1 ENSG00000000457 -gene_id2 ENSMUSG00000026584 -coding_exons
+
+and a directory results_isoform_comparison/, with two subdirs: stderr/ stdout/
+
+
+4) Before running - have a look at compare_isoforms.pl
+You have to write in the script the databases where the genes are:
+
+Everything looks like you're comparing human against mouse.
+You only need to make do the appropriate metamorphoses of the variable values to the
+dbs you are gonig to use:
+
+# human_db
+my $human_dbname = 'homo_sapiens_core_14_31';
+my $human_dbhost = 'ecs2f';
+my $human        = 'Homo sapiens';
+# human_dnadb
+my $human_dnadbname = 'homo_sapiens_core_14_31';
+my $human_dnadbhost = 'ecs2f';
+
+# mouse_db
+my $mouse_dbname = 'mus_musculus_core_10_3a';
+my $mouse_dbhost = 'ecs1d';
+my $mouse        = 'Mus musculus';
+# mouse_dnadb
+my $mouse_dnadbname = 'mus_musculus_core_10_3a';
+my $mouse_dnadbhost = 'ecs1d';
+
+
+5) IMPORTANT:
+there are two lines below in the script:
+my $db1 = $human_db;
+my $db2 = $mouse_db;
+
+db1 is the one which refers to the first id in your first file 'gene_pairs'
+db2 refers to the second
+
+
+6) to complicate things more, there are three possible checks to do on 
+every gene pair:
+
+      $gene_pair->compare_CDSs( $gene1, $gene2, $coding_exons );
+Make the transcript pairs based on the blastp comparisons of the CDSs.
+It will compare exons using dynamic programming for global alignment in exon-space.
+
+      $gene_pair->compare( $gene1, $gene2, $coding_exons);
+Makes the transcript pairs based on simple blastn comparisons of the
+cDNAs. It will compare exons using dynamic programming for global alignment in exon-space.
+
+      $gene_pair->find_exact_matches( $gene1, $gene2, $coding_exons);
+Makes the transcript pairs based on simple blastn comparisons of the
+It will compare exons using a blastz comparison of the genomic extent of the cDNAs
+(can use coding exons only or all exons).
+
+7) you can run this in your favourite way. If you don't want to restrict to rlx nodes you can change that in
+the make_bsubs_compare_isoforms.pl script.
+
+8) to get the output files one just need to collect the lines with the summary data from the files in
+stderr/
+
+you just need to run ../ensembl-pipeline/scripts/GeneComparison/collect_isoform_comparison_output.pl
+on a separate directory:
+ shell> collect_isoform_comparison_output.pl
+ Script to collect the results from the run of compare_isoforms.pl
+ it prints the results into two files transcripts.out and genes.out
+ Usage: collect_isoform_comparison_output.pl /dir/with/stderr_results/
+
+ it will create 7 files with the summary lines.
+ (will only fill those for which it ran an analysis)
+
+
+
+#############################
+# SEQUENCE BASED COMPARISON #
+#############################
+
+
+### cDNA_Comparison ###
+
+It is basically a wrapper around the Exonerate Runnable class.
+
+You need to have two multiple fastA files with the cdnas you want to compare.
+One of the fasta files will have to be split into chunks. Exonerate will run per chunk.
+
+Before starting the analysis, you'll need to fill in some entries in
+Bio::EnsEMBL::Pipeline::GeneComparison::GeneCompConf
+
+COMP_EXONERATE_RUNNABLE     => 'Bio::EnsEMBL::Pipeline::GeneComparison::cDNA_Comparison',
+		 # where the cDNA chunks are, and how many there are
+COMP_cDNA_CHUNKDIR          => where the cdna chunks are
+COMP_cDNA_CHUNKNUMBER       => number of chunks (such that there are about 20-200 cdnas per chunk)
+COMP_cDNA_FILE              => cDNAs you want to compare to
+COMP_TRANSCRIPTS            => transcripts set we want to compare against the cdnas specified in COMP_cDNA_FILE
+			       (e.g. if we are comparing ensembl against RIKEN cdnas, here would go the ensembl
+			        cdna file)
+	
+To create the job files automatically, you need to run
+ensembl-pipeline/scripts/GeneComparison/make_cDNA_exonerate_bsub.pl		
+and need to fill in some fields in the GeneCompConf file:
+
+COMP_TMPDIR                 => where the results will go
+COMP_EXONERATE_BSUBS        => file where the bsub lines will be written
+COMP_QUEUE                  => farm queue where the analysis will run
+COMP_SCRIPTDIR              => path to the scripts directory: ensembl-pipeline/scripts/GeneComparison/
+
+The splitting of the cdna file can be done as follows:
+			  	 
+    /acari/work2/gs2/gs2/bin/fastasplit <fastapath> <outputdir> <chunknum>
+ 
+ <fastapath> = the myltiple-entry fastA file with the ests
+ <outputdir> = dir where we're going to put the chunks
+ <chunknum>  = total number of chunks
+
+		 
+
+
+
+Post-processing of the data:
+
+ensembl-pipeline/scripts/GeneComparison/find_pairs_cDNA_exonerate.pl -file pairs > & log_file
+
+THis must be run on the directory where the output data is, and the 
+files 'pairs' and 'log_file' should be put in an upper level in the directory structure so that the
+script does not attempt to open them. Also, the script assumes that
+the output files are gzipped.
