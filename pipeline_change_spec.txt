@@ -261,7 +261,9 @@ General Objectives
     This makes it easier to see some errors and take appropriate action
     and I think if possibly it would be sensible to have similar code for
     other analysis which are prone to similar errors like Exonerate, Pmatch
-    and Genewise.
+    and Genewise. We also want to introduce a controlled vocabulary for
+    error messages to make it easier to assess what has gone wrong and if 
+    the errors are significant enough to need to stop the pipeline
 
 
 Bioperl
