@@ -1,4 +1,5 @@
-This document should describe what you need to do in order to run the protein annotation pipeline
+This document should describe what you need to do in order to run the
+protein annotation pipeline.
 
 if you have any questions contact lec@sanger.ac.uk (Laura Clarke) or ensembl-dev@ebi.ac.uk
 
@@ -12,7 +13,8 @@ core ensembl
 ensembl-pipeline
 
 
-you also need a core database which contains a set of transcripts which translate
+You also need a core database which contains a set of transcripts which
+translate.
 
 
 What to do
@@ -23,263 +25,299 @@ First you need to fill out the appropriate config files
 
 Bio::EnsEMBL::Pipeline::Config::Protein_Annotation::General
 
-this contains general settings for the the protein_annotation
+This contains general settings for the the protein_annotation
 
 PA_PEPTIDE_FILE the location of the peptide file
-PA_CHUNKS_DIR the location of the directory the chunks of the peptide file will go
-PA_CHUNKS_SIZE the size of the chunks file, we tend to use 100 peptides in a file
+PA_CHUNKS_DIR   the location of the directory the chunks of the peptide
+                file will go
+PA_CHUNKS_SIZE  the size of the chunks file, we tend to use 100
+                peptides in a file
 
 
 Bio::EnsEMBL::Pipeline::Config::Protein_Annotation::Analysis
 
+This contains the information to set up the analysis, input_id_analysis
+and rule tables so the pipeline can be run.
 
-this contains the information to set up the analysis, input_id_analysis and rule tables so the pipeline can be run
-
-PA_ANALYSIS_TYPE this is an array of hashes which contain specific information for each analysis type
+PA_ANALYSIS_TYPE this is an array of hashes which contain specific
+                 information for each analysis type
 
 {
-logic_name => '', #logic name of analysis type 
-module => 'Protein/Prints', #runnabledb for analysis, if the analysis uses a runnabledb which is found in the Protein directory Protein/RunnableDB name
-			     will be needed as the runner script used to run the analysese assumes all modules which don't start with a / should be 
-			     prepended with Bio/EnsEMBL/Pipeline/RunnableDB	
-program_file => '', #this should be the full path to the program file which should be run 
-db_file => '', # this should be the path the db file which should be used 
-db => 'prints', # this is more of a human readble name for the database
-chunk_size => '', # this should be the logic name for either the single the chunk or the proteome dummy entries
-gff_source => 'Prints', # program name
-gff_feature => 'domain', # domain or annotation
-				 },
+  logic_name   => '', # logic name of analysis type 
+  module       => 'Protein/Prints', # runnabledb for analysis, if the analysis uses a runnabledb which is found in the Protein directory Protein/RunnableDB name
+			            # will be needed as the runner script used to run the analysese assumes all modules which don't start with a / should be 
+			            # prepended with Bio/EnsEMBL/Pipeline/RunnableDB	
+  program_file => '', # this should be the full path to the program file which should be run 
+  db_file      => '', # this should be the path the db file which should be used 
+  db           => 'prints', # this is more of a human readble name for the database
+  chunk_size   => '', # this should be the logic name for either the single the chunk or the proteome dummy entries
+  gff_source   => 'Prints', # program name
+  gff_feature  => 'domain', # domain or annotation
+},
 
-PA_SINGLE_DUMMY the name of the dummy analysis object for analysis which are done on each transcript individulally ( we do pfam this way)
-PA_CHUNK_DUMMY this is the name of the dummy analysis object for analysis which are done on chunks of the proteome most of our analysis are done this way
-PA_PROTEOME_DUMMY this is the name of the dummy analysis object for analysis which are done on the whole proteome, this is used for quick analysis like seg
+PA_SINGLE_DUMMY   the name of the dummy analysis object for analysis
+                  which are done on each transcript individually 
+                  (we do pfam this way)
 
-there is an example of this file at the bottom of this document
+PA_CHUNK_DUMMY    this is the name of the dummy analysis object for
+                  analysis which are done on chunks of the proteome 
+                  most of our analysis are done this way
 
-the dummy analyses are needed so the script which sets of the jobs has an idea of what analyses to start when it is running
+PA_PROTEOME_DUMMY this is the name of the dummy analysis object 
+                  for analysis which are done on the whole proteome, 
+                  this is used for quick analysis like seg
+
+There is an example of this file at the bottom of this document.
+
+The dummy analyses are needed so the script which sets of the jobs has
+an idea of what analyses to start when it is running.
 
 
 Bio::EnsEMBL::Pipeline::Config::General
 
-these are general settings used by the runnabledbs and by the rulemanager script
-
-the important entries to have filled in are
+These are general settings used by the runnabledbs and by the 
+rulemanager script.  The important entries to have filled in are:
 
 BIN_DIR
 DATA_DIR
 LIB_DIR  
 
-this are the locations of you programs, data file and library files if you don't want to have to put the full path in you analysis table your files mustby in these directories
+These are the locations of you programs, data file and library files. If
+you don't want to have to put the full path in you analysis table your
+files must be in these directories
 
 
 
-PIPELINE_RUNNER_SCRIPT this is the script you want to use to run the pipeline jobs, there is a script called runner.pl which can be found in Bio::EnsEMBL::Pipeline and this is the script normally used, 
+PIPELINE_RUNNER_SCRIPT this is the script you want to use to run the
+                       pipeline jobs. There is a script called runner.pl 
+                       which can be found in Bio::EnsEMBL::Pipeline and 
+                       this is the script normally used.
 
 Bio::EnsEMBL::Pipeline::Config::BatchQueue
 
-QUEUE_MANAGER this is the module you are using to control your batch submission, here are ensembl we use LSF there is also a BatchSubmission module for Suns GridEngine
+QUEUE_MANAGER this is the module you are using to control your batch
+              submission, here are ensembl we use LSF. There is also 
+              a BatchSubmission module for Suns GridEngine.
 
-MAX_PENDING_JOBS this is the maximum jobs the rulemanager script will have pending and still submit more
+MAX_PENDING_JOBS this is the maximum jobs the rulemanager script will 
+                 have pending and still submit more
 
-AUTO_JOB_UPDATE
+AUTO_JOB_UPDATE this set to one will mean the job module will automatically 
+                change the status of jobs, we usuallly have this set to one
 
-this set to one will mean the job module will automatically change the status of jobs, we usuallly have this set to one
-
-QUEUE_CONFIG this is another array of hashes, each element contains information about a particular analysis type
+QUEUE_CONFIG this is another array of hashes, each element contains 
+             information about a particular analysis type
 
 {
-logic_name => 'Prints', logic_name of analysis
-batch_size => 1,  the number of jobs to give to the runner script at once
-resource   => '', any resource requirements the jobs need to give to the batch submission module
-retries    => 3, the number of times the RuleManager should retry the job
-sub_args   => '', other args for the batchsubmission manager
-runner     => '', the runner script if different from the one in General
-queue => 'acari', the queue to use for the resource manager
-output_dir => '/acari/work1/lec/out/' the directory to write stdout and stderr
+  logic_name => 'Prints', logic_name of analysis
+  batch_size => 1,  the number of jobs to give to the runner script at once
+  resource   => '', any resource requirements the jobs need to give to the batch submission module
+  retries    => 3, the number of times the RuleManager should retry the job
+  sub_args   => '', other args for the batchsubmission manager
+  runner     => '', the runner script if different from the one in General
+  queue => 'acari', the queue to use for the resource manager
+  output_dir => '/acari/work1/lec/out/' the directory to write stdout and stderr
 },	      
 
 
-there are also default settings for Batch_size, retries output_dir and queue that Job will use if an analysis doesn't have an entry here
+There are also default settings for Batch_size, retries output_dir and
+queue that Job will use if an analysis doesn't have an entry here
 
 *****************************************************************
 
 What to run
+-----------
 
-Once you have the config filled in you need to run a few things, all the scripts mentioned here live in protein_annotation
+Once you have the config filled in you need to run a few things. All
+the scripts mentioned here live in ensembl-pipeline/scripts/protein_pipeline.
 
-first you need to dump the peptides
+First you need to dump the peptides. The script is called dump_translations.pl
 
-the script is called dump_translations.pl
-
-an example command line is
+An example command line is:
 
 ./dump_translations.pl -dbname gene_db -dbhost localhost -dbuser ensro -db_id 1 > peptide.fa
 
-this would print the peptides to stdout and they would be caught in the file and any translation which contain internal stops would be skipped and a message printed to stderr
+This would print the peptides to stdout and they would be caught in the
+file and any translation which contain internal stops would be skipped
+and a message printed to stderr.
 
 
-once this is done you need to run
+Once this is done you need to run
 
 chunk_protein_file.pl
 
-this woudl produce files in the directory specified in the Protein_Annotation/General config each containing the specified number of peptides till the file which contains all the peptides has been complete split
+this would produce files in the directory specified in the
+Protein_Annotation/General config each containing the specified number
+of peptides till the file which contains all the peptides has been
+completely split.
 
-this doesn't damage the file it is pointed at 
+This doesn't damage the file it is pointed at 
 
 
-now this is done you need to run
+Now this is done you need to run the script generate_analysis_and_rules.pl
 
-generate_analysis_and_rules.pl
+In order for this to work the database you are dealing with must
+contain the tables in ensembl-pipeline/sql/table.sql
 
-in order for this to work the database you are dealing with must contain th tables in ensembl-pipeline/sql/table.sql
+This script fills the pipeline tables and the analysis table
 
-the scripts fills these tables and the analysis table
-
-an example command line looks like this
+An example command line looks like this
 
 ./generate_analysis_and_rules.pl -dbname elegans_95 -dbuser ***REMOVED*** -dbpass ***** -dbhost ecs1b -input_id_analysis -rules -analysis
 
-the input_id_analysis, rules and analysis flags tell the script which tables to fill
+The input_id_analysis, rules and analysis flags tell the script which
+tables to fill:
 
-the analysis flag tells the script to fill the analysis table, this must be done before the other steps can be done
+ -analysis          - fill the analysis table. This must be done before the 
+                      other steps can be done
+ -rules             - fill the rule tables the dependancies are worked out 
+                      based on the chunk option set for each analysis
+ -input_id_analysis - fill the input_id_analysis table so the rulemanager 
+                      script will know what it can run
 
-the rules flag tells the script to fill the rule tables the dependancies are worked out based on the chunk option set for each analysis
 
-the input_id_analysis flag tells the script to fill the input_id_analysis table so the rulemanager script will know what it can run
+Now all these set up steps have been carried out it is time to run the
+RuleManager script.
 
+The current rulemanager script used is RuleManager3.pl and this can be
+found in Bio/EnsEMBL/Pipeline/
 
-Now all these set up steps have been carried out it is time to run the RuleManager script
-
-the current rulemanager script used is RuleManager3.pl and this can be found in Bio/EnsEMBL/Pipeline/
-
-the commandline should look something like this
+The commandline should look something like:
 
 perl RuleManager3.pl -dbname elegans_95 -dbhost ecs1b -dbuser ***REMOVED*** -dbpass **** -start_from 204 -once
 
 
-the db options are to tell the script which database to use
+The db options are to tell the script which database to use.
 
-you can also use enviroment variables
+You can also use enviroment variables
 
 my $dbhost    = $ENV{'ENS_DBHOST'};
 my $dbname    = $ENV{'ENS_DBNAME'};
 my $dbuser    = $ENV{'ENS_DBUSER'};
 my $dbpass    = $ENV{'ENS_DBPASS'};
 
-the two other options
+The two other options
 
--starts_from is the analysis id of the analysis the script is to start from this analysis id isn't actually carried out the analysis ids to put in would be one of the analysis ids for the dummy analyses then the script will submit all the jobs which depend on that particular dummy analysis
+-starts_from the analysis id of the analysis the script is to start
+             from.  This analysis id isn't actually carried out. The analysis ids to
+             put in would be one of the analysis ids for the dummy analyses. Then
+             the script will submit all the jobs which depend on that particular
+             dummy analysis.
 
-this flag can appear multiple times on the commandline each time for a different analysis id and teh script them puts them into an array and will check for each analysis id in the array
+This flag can appear multiple times on the commandline each time for a
+different analysis id and the script then puts them into an array and
+will check for each analysis id in the array
 
-it is probably advisible to only use one at once inorder not to flood your system with too many jobs at once especially for the analysese which run on single transcripts at once
+It is probably advisible to only use one at once in order not to flood
+your system with too many jobs at once especially for the analyses
+which run on single transcripts at once.
 
-the -once flag tells the script only loop over the input_ids in the analysis table once this means it won't start any jobs which depend on other jobs already having been run and it won't retry failed jobs
+-once flag tells the script only loop over the input_ids in the
+      analysis table once. This means it won't start any jobs which depend on
+      other jobs already having been run and it won't retry failed jobs
 
-this flag is probably a good idea to use as well as once all the jobs dependent on a particular dummy analysis have been submitted you can wait and make sure if those jobs are running fine and if they are yu can set of the ruleManager script for the next dummy analysis
+This flag is probably a good idea to use as well because once all the jobs
+dependent on a particular dummy analysis have been submitted you can
+wait and make sure if those jobs are running fine and if they are you
+can set of the ruleManager script for the next dummy analysis.
 
-there can't be two rulemanager scripts running on the same database at the same time there is locking in place to prevent this
+There can't be two rulemanager scripts running on the same database at
+the same time. There is locking in place to prevent this.
 
 
-there are more options for the script and these are detailed in the script itself alternatively for any question you can ask ensembl-dev@ebi.ac.uk
+there are more options for the script and these are detailed in the
+script itself. Alternatively for any question you can ask
+ensembl-dev@ebi.ac.uk
 
 
 
-here is an example of the %Analysis entry in Analysis.pm  
-
+Here is an example of the %Analysis entry in Analysis.pm  
 
 %Analysis = (
-	     PA_SINGLE_DUMMY => 'SubmitTranscript', # this is the logic name for the dummy analysis type required in order to start those analyses
-	     PA_CHUNK_DUMMY => 'SubmitTranscriptChunk', # as above but for chunk of peptides
-	     PA_PROTEOME_DUMMY => 'SubmitProteome',
-	     PA_ANALYSIS_TYPE =>[
-				 {
-				  logic_name => 'Prints', 
-				  module => 'Protein/Prints', 
-				  program_file => '/acari/analysis/iprscan/bin/OSF1/FingerPRINTScan', 
-				  db_file => '/acari/analysis/iprscan/data/prints.pval', 
-				  db => 'prints', 
-				  chunk_size => 'SubmitTranscriptChunk', # this should be the logic name for either the single
-				  #the chunk or the proteome dummy entries
-				  gff_source => 'Prints', # program name
-				  gff_feature => 'domain', # domain or annotation
-				 },
-				 {
-				  logic_name => 'pfscan', # logic name in analysis table
-				  module => 'Protein/Profile', #module path, the runner script adds this to the start Bio/EnsEMBL/Pipeline/RunnableDB so if module in RunnableDB/Protein will need to have Protein/ on name
-				  program_file => '/acari/analysis/iprscan/bin/OSF1/pfscan', # location of binary
-				  db_file => '/acari/analysis/iprscan/data/prosite_prerelease.prf', #location of any db file needed
-				  db => 'pfscan', # more human name for db
-				  chunk_size => 'SubmitTranscriptChunk', # this can be three things, single which means it will run on a single transcript, chunk which means 
-				  # it will run on a chunk file and genome which means it will run on all the transcripts in the genome
-				  gff_source => 'Profile', # program name
-				  gff_feature => 'Domain', # domain or annotation
-				 },
-				 {
-				  logic_name => 'scanprosite', # logic name in analysis table
-				  module => 'Protein/ScanProsite', #module path, the runner script adds this to the start Bio/EnsEMBL/Pipeline/RunnableDB so if module in RunnableDB/Protein will need to have Protein/ on name
-				  program_file => '/acari/analysis/iprscan/bin/scanregexpf.pl', # location of binary
-				  db_file => '/acari/analysis/iprscan/data/prosite.patterns', #location of any db file needed
-				  db => 'prosite', # more human name for db
-				  chunk_size => 'SubmitProteome', # this can be three things, single which means it will run on a single transcript, chunk which means 
-				  # it will run on a chunk file and genome which means it will run on all the transcripts in the genome
-				  gff_source => 'Prosite', # program name
-				  gff_feature => 'domain', # domain or annotation
-				  parameters => '-confirm /acari/analysis/iprscan/data/confirm.patterns'
-				 },
-				 {
-				  logic_name => 'Signalp', # logic name in analysis table
-				  module => 'Protein/Signalp', #module path, the runner script adds this to the start Bio/EnsEMBL/Pipeline/RunnableDB so if module in RunnableDB/Protein will need to have Protein/ on name
-				  program_file => 'signalp', # location of binary
-				  db_file => '', #location of any db file needed
-				  db => 'signal_peptide', # more human name for db
-				  chunk_size => 'SubmitTranscriptChunk', # this can be three things, single which means it will run on a single transcript, chunk which means 
-				  # it will run on a chunk file and genome which means it will run on all the transcripts in the genome
-				  gff_source => 'Signalp', # program name
-				  gff_feature => 'annotation', # domain or annotation
-				 },
-				 {
-				  logic_name => 'Seg', # logic name in analysis table
-				  module => 'Protein/Seg', #module path, the runner script adds this to the start Bio/EnsEMBL/Pipeline/RunnableDB so if module in RunnableDB/Protein will need to have Protein/ on name
-				  program_file => 'seg', # location of binary
-				  db_file => '', #location of any db file needed
-				  db => '', # more human name for db
-				  chunk_size => 'SubmitProteome', # this can be three things, single which means it will run on a single transcript, chunk which means 
-				  # it will run on a chunk file and genome which means it will run on all the transcripts in the genome
-				  gff_source => 'Seg', # program name
-				  gff_feature => 'annotation', # domain or annotation
-				 },
-				 {
-				  logic_name => 'ncoils', # logic name in analysis table
-				  module => 'Protein/Coil', #module path, the runner script adds this to the start Bio/EnsEMBL/Pipeline/RunnableDB so if module in RunnableDB/Protein will need to have Protein/ on name
-				  program_file => 'ncoils', # location of binary
-				  db_file => '', #location of any db file needed
-				  db => '', # more human name for db
-				  chunk_size => 'SubmitTranscriptChunk', # this can be three things, single which means it will run on a single transcript, chunk which means 
-				  # it will run on a chunk file and genome which means it will run on all the transcripts in the genome
-				  gff_source => 'ncoils', # program name
-				  gff_feature => 'annotation', # domain or annotation
-				 },
-				 {
-				  logic_name => 'tmhmm', # logic name in analysis table
-				  module => 'Protein/Tmhmm', #module path, the runner script adds this to the start Bio/EnsEMBL/Pipeline/RunnableDB so if module in RunnableDB/Protein will need to have Protein/ on name
-				  program_file => '/acari/work5a/lec/code/run_tmhmm', # location of binary
-				  db_file => '', #location of any db file needed
-				  db => '', # more human name for db
-				  chunk_size => 'SubmitTranscriptChunk', # this can be three things, single which means it will run on a single transcript, chunk which means 
-				  # it will run on a chunk file and genome which means it will run on all the transcripts in the genome
-				  gff_source => 'Tmhmm', # program name
-				  gff_feature => 'annotation', # domain or annotation
-				 },
-				 {
-				  logic_name => 'Pfam',
-				  module => 'Protein/Hmmpfam',
-				  program_file => 'hmmpfam',
-				  db_file => '/data/blastdb/Ensembl/Pfam_ls;/data/blastdb/Ensembl/Pfam_fs',
-				  db => 'Pfam',
-				  chunk_size => 'SubmitTranscript',
-				  gff_source => 'Pfam',
-				  gff_feature => 'domain',
-				 },
-				],
-	    );
+  PA_SINGLE_DUMMY   => 'SubmitTranscript', # this is the logic name for the dummy analysis type required in order to start those analyses
+  PA_CHUNK_DUMMY    => 'SubmitTranscriptChunk', # as above but for chunk of peptides
+  PA_PROTEOME_DUMMY => 'SubmitProteome',
+  PA_ANALYSIS_TYPE  => [
+    {
+      logic_name   => 'Prints',  # logic name in analysis table
+      module       => 'Protein/Prints', # module path, the runner script prefixes this with Bio/EnsEMBL/Pipeline/RunnableDB
+      program_file => '/acari/analysis/iprscan/bin/OSF1/FingerPRINTScan', #location of binary
+      db_file      => '/acari/analysis/iprscan/data/prints.pval', # locations of any db files needed
+      db           => 'prints', # more human name for db
+      chunk_size   => 'SubmitTranscriptChunk', # Can be either single (run on a single transcript), chunk (run on a chunk file) or genome (run on all transcripts in genome)
+      gff_source   => 'Prints', # program name
+      gff_feature  => 'domain', # domain or annotation
+    },
+    {
+      logic_name   => 'pfscan',
+      module       => 'Protein/Profile',
+      program_file => '/acari/analysis/iprscan/bin/OSF1/pfscan',
+      db_file      => '/acari/analysis/iprscan/data/prosite_prerelease.prf',
+      db           => 'pfscan',
+      chunk_size   => 'SubmitTranscriptChunk',
+      gff_source   => 'Profile',
+      gff_feature  => 'Domain',
+    },
+    {
+      logic_name   => 'scanprosite',
+      module       => 'Protein/ScanProsite',
+      program_file => '/acari/analysis/iprscan/bin/scanregexpf.pl',
+      db_file      => '/acari/analysis/iprscan/data/prosite.patterns',
+      db           => 'prosite',
+      chunk_size   => 'SubmitProteome',
+      gff_source   => 'Prosite',
+      gff_feature  => 'domain',
+      parameters   => '-confirm /acari/analysis/iprscan/data/confirm.patterns'
+    },
+    {
+      logic_name   => 'Signalp',
+      module       => 'Protein/Signalp',
+      program_file => 'signalp',
+      db_file      => '',
+      db           => 'signal_peptide',
+      chunk_size   => 'SubmitTranscriptChunk',
+      gff_source   => 'Signalp',
+      gff_feature  => 'annotation',
+    },
+    {
+      logic_name   => 'Seg',
+      module       => 'Protein/Seg',
+      program_file => 'seg',
+      db_file      => '',
+      db           => '',
+      chunk_size   => 'SubmitProteome',
+      gff_source   => 'Seg',
+      gff_feature  => 'annotation',
+    },
+    {
+      logic_name   => 'ncoils',
+      module       => 'Protein/Coil',
+      program_file => '/usr/local/ensembl/bin/ncoils',
+      db_file      => '',
+      db           => '',
+      chunk_size   => 'SubmitTranscriptChunk',
+      gff_source   => 'ncoils',
+      gff_feature  => 'annotation',
+    },
+    {
+      logic_name   => 'tmhmm',
+      module       => 'Protein/Tmhmm',
+      program_file => '/acari/work5a/lec/code/run_tmhmm',
+      db_file      => '',
+      db           => '',
+      chunk_size   => 'SubmitTranscriptChunk',
+      gff_source   => 'Tmhmm',
+      gff_feature  => 'annotation',
+    },
+    {
+      logic_name   => 'Pfam',
+      module       => 'Protein/Hmmpfam',
+      program_file => '/usr/local/ensembl/bin/hmmpfam',
+      db_file      => '/data/blastdb/Ensembl/Pfam_ls;/data/blastdb/Ensembl/Pfam_fs',
+      db           => 'Pfam',
+      chunk_size   => 'SubmitTranscript',
+      gff_source   => 'Pfam',
+      gff_feature  => 'domain',
+    },
+  ],
+);
