@@ -34,6 +34,7 @@ General Objectives
   Error string passing
 Bioperl
 
+
 Introduction
 ------------
 
@@ -271,3 +272,143 @@ Bioperl
 
 We should move to using the most recent stable version of bioperl
 or at least the version of bioperl supported by the webcode   
+
+
+
+
+
+
+===================================================================
+Specific areas of the pipeline that could be improved (dta 070504):
+===================================================================
+
+
+Error messages.  Runnable chattiness.
+-------------------------------------
+
+* A controlled set of error messages would allow a set of decisions to
+be made by the runner as to whether to proceed, given some kind of
+error severity cut-off.
+
+* By default Runnables and RunnableDBs should be silent on STDERR and
+STDOUT and only make noise when something has gone awry.
+
+* The stderr and stdout of the runnable modules needs to be of
+controlled syntax to allow parsing of the success/failure/outcome of a
+job.  A reporting module could be constructed to simplify this.
+
+* If eval is used, every time an error is caught the error string MUST
+be printed - or you'll get the chair.
+
+
+Config Files.
+-------------
+
+* The cDNA database details currently have to be entered into the
+config files twice.  Once in the Config/GeneBuild/databases.pm file
+and once in the Config/cDNA_ESTs/EST_GeneBuilder.pm file.  This is a
+redundancy that could be removed.
+
+* It is impossible to run the EST and cDNA builds simultaneously,
+purely due to problems with the config files being the same.  This
+could do with a clever solution.
+
+
+RuleManager and Job Control
+---------------------------
+
+* RuleManager is very hard to run 'just quickly'.  Getting input ids
+for each cycle of the RuleManager run is glacially slow and makes this
+script a blunt tool for getting analyses run.
+
+* The time that RuleManager spends sleeping should be easily set
+through config files - quick jobs certainly don't want the RuleManager
+to sleep for 90 minutes if they exceed their pending limit.
+
+* The number of jobs running needs to be controlled somehow.
+Controlling the number of pending jobs is only indirectly controlling
+this.  Maybe the control could be shifted to the total number of
+submitted jobs (RUN + PEND + SUSP).
+
+* Where runnable execution is eval'd, there are many cases
+(e.g. SimilarityGeneWise) where one run out of many will fail.  It is
+impossible to simply rerun these as duplicate entries in the database
+will result.  It is important that an option exist that allows the
+user to specify what should be done when a runnable fails (ie. throw
+or warn).  In many cases a warning is not serious enough and leads to
+patchy data.  In these cases a throw before writing data would be all
+that is needed.
+
+* Jobs that are known to consume large amounts of memory need to be
+flagged as such in the documentation.  An internal check by the
+runnable of minimum memory available should also be performed.
+
+
+Pipeline tables.
+----------------
+
+* It is hard to fill in the input_id_type_analysis table.  Currently
+needs manual (error prone) SQL entry.  The table filling-in scripts
+could be tweaked to include this table too.
+
+* The need to insert dummy analyses is not ideal - especially since
+there are eight to ten of them which don't really have set names.
+Some lateral new way of doing this, or some fancy coding, or a
+documented standard set of dummy analysis, could remove
+this minor annoyance.
+
+
+Documentation.
+--------------
+
+* Thorough documentation of all that is expected from a core database
+before handover.  A sequence of steps, annotated with anecodtal
+warnings, heads-up for gotchas and even very general comments on
+conservative amounts of time needed for each stage (maybe ranked as
+QUICK, SLOW, VERY SLOW).  The purpose of this document would be to
+avoid stomach lurches because a genebuilder didn't know that protein
+annotation was required, or that some EST_Genebuilder jobs can run for
+days.  I'd like to see one loooooong flowchart that starts at loading
+sequence and ends at post-genebuild healthchecks and includes all
+optional excursions,the data sources used/needed and the various
+databases where everything is written.  This is a document that will
+benefit from lots of input and experiences of others.
+  --- I've begun work of this documentation and flow diagram (using an
+automated way of updating the flow diagram with 'dot').
+
+
+Writing to database.
+--------------------
+
+* Internal safeguards should be inherant within the pipeline that
+prevent the same job from writing twice.  This would be in the form of
+a record of rows inserted rather than a status in the
+job_status/input_id_analysis table.  This might not be necessary for
+each stage of the build, to reduce overhead, but when writing genes
+and features in the final stage of the build an anti-duplication
+function would avoid problems being written to release databases.
+
+ALTERNATIVELY,
+
+* RunnableDBs should be required to report the object types and db
+insertion ids of any objects that it stores in the database.  An ideal
+outcome of this would be that a tool for parsing this information
+could collate this information in order to identify features that have
+been stored either not at all or multiple times.
+
+
+Miscellaneous.
+--------------
+
+* Fetching a repeatmasked sequence seems to require the return of
+several Mb of text to stderr.  This should not be the default behaviour.
+
+* Everything to do with logic names should be case insensitive.
+
+
+* The LSF output directories divided into 0,1,2,3,4,5, etc are still
+not fine-grained enough.  When using 1Mbp slices, if jobs fail a
+number of times it is possible to have nearly 2000 files in a single directory.
+
+* The OBDA index seqfetcher is flawed due to a BioPerl bug.  This is
+quite a serious bug and stops 5-10% of proteins being fetched from swall.
