@@ -114,3 +114,17 @@ ensembl-pipeline/scripts/DataConversion/wormbase/WormBase.pm
 this contains a method called agp_parse to see how this method is used 
 look at the sequence_store.pl script in the same directory
 
+The meta table also needs to be given information about what mappings your
+assembly table contains. The format should be this name:version|name:version
+and as can be seen below the :version is optional
+
++---------+------------------+--------------------------+
+| meta_id | meta_key         | meta_value               |
++---------+------------------+--------------------------+
+|      43 | assembly.mapping | chromosome:NCBI33|contig |
+|      44 | assembly.mapping | clone|contig             |
+|      45 | assembly.mapping | supercontig|contig       |
++---------+------------------+--------------------------+
+
+If you look at the bottom of the sequence_store.pl script for wormbase
+an example of code to do this can be seem
