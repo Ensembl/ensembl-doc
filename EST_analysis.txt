@@ -353,7 +353,7 @@ bsub -q acari -C0
 -E "/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/EST//check_node.pl human.ests_chunk_0000056" 
 /nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/EST//exonerate_est.pl -chunkname human.ests_chunk_0000056
 
-2. Also check that the path to the exonerate executable is correctly spexified in
+2. Also check that the path to the exonerate executable is correctly specified in
    EST_EXONERATE               
    We use currently '/work2/gs2/gs2/bin/exonerate-0.3d'
     				
@@ -442,19 +442,20 @@ Note: you may need to dump out golden contig ids first.
     foreach? end
 
     you can also write a script to do that, for example, in Mouse,
-    where golden contigs are denomrmalized 5Mb supercontigs and
+    where golden contigs are denormalized 5Mb supercontigs and
     ESTs are run on 500Kb contigs, you can use:
    
-    .../exonerate_est/results/stdout> .../ensembl-pipeline/scripts/EST/get_features_from_exonerate_output.pl &
+    .../exonerate_est/results/stdout> .../ensembl-pipeline/scripts/EST/exonerate2features_human.pl &
 
-    this is a wrapper around exonerate2mysqltab.
-    It will uncompress the output.gz files and redirect the content to exonerate2mysqltab.pl for processing,
-    there the info is converted into feature table entries, for intance by recalculating the
-    start and end hits in vcontig coords into rawcontig coords
-   
-    exonerate2mysqltab.pl also strips out features with percentage identity <90
+    this is a script that uncompresses the output.gz files and converts exonerate output into
+    a tab delimited file with the info for the feature table: There are two of those:
+    exonerate2mysqltab_human.pl is specific for human. The mouse one 
+    (exonerate2features_mouse_denormalised.pl) is different since it uses
+    denormalised contigs at the moment. 
 
-    You can find these two scripts in ~eae/ensembl-scripts/ESTs/ if they aren't checked in yet
+    It also strips out features with percentage identity <90
+
+    You can find these scripts in /nfs/acari/eae/ensembl-scripts/ESTs/ if they aren't checked in yet
 
 
 6. read estlengths, hid's etc...
@@ -471,6 +472,8 @@ Note: you may need to dump out golden contig ids first.
 
    in the est database ( EST_DBNAME, etc... ) make an est table:
    mysql estdb < enembl-pipeline/sql/est.sql
+
+   
 
    and load it into the estdb:
    mysql> load data infile 'estlengths' into table est
@@ -622,15 +625,37 @@ This database then is ready to be delivered for release.
 2. As gene predictions:
 
 The release 3.28.1 ( i.e. the first version of the release 
-based on the code code of branch 3 (pipelin2-121) and assembly NCBI_28)
+based on the code code of branch 3 (pipeline-121) and assembly NCBI_28)
 will be the first time we present the gene-predictions on the Web.
 
 For the following release we'll combine these genes with the rest of the
 gene-build.
 
+Create a fourth database, where you'll put contig, clone and sgp as the prvious ds's.
+Copy gene, exon, exon_transcript and translation tables relevant to
+the genomewise genes into this new db, e.g.:
+
+    shell>mysqldump -u ***REMOVED*** -***REMOVED*** -h ecs1f "-wgene_id>=1245146" ens_NCBI_28_est gene | mysql 
+    -u ***REMOVED*** -***REMOVED*** -h ecs1e -D ens_NCBI_28_est_genes &
+ 
+Copy the supporting evidence
+relevant to these genes and write them as features into this new database.
+Use script ~eae/ensembl-scripts/ESTs/supp_evidence2feature.pl to convert the supporting_feature
+table into a tab-delimited file with feature table info.
+
+Include two entries in the analysisprocess table. Make sure that the analysisId
+corresponds to the ones in the gene table for the 'gene' entry and that in the feature table
+for the 'similarity' entry, e.g.:
+
++------------+---------------------+---------------+-------+------------+---------+---------------+-----------------+--------------+------------+--------------------+----------------+---------------+-------------+
+| analysisId | created             | logic_name    | db    | db_version | db_file | program       | program_version | program_file | parameters | module             | module_version | gff_source    | gff_feature |
++------------+---------------------+---------------+-------+------------+---------+---------------+-----------------+--------------+------------+--------------------+----------------+---------------+-------------+
+|          1 | 2002-02-28 00:00:00 | genomewise    | NULL  | 1          | NULL    | genomewise    | 1               | NULL         | NULL       | EST_GeneBuilder    |         NULL   | genomewise    | gene        |
+|          2 | 2002-02-28 00:00:00 | exonerate_e2g | dbEST | 1          | NULL    | exonerate_e2g | 1               | NULL         | NULL       | FilterESTs_and_E2G | NULL           | exonerate_e2g | similarity  |
++------------+---------------------+---------------+-------+------------+---------+---------------+-----------------+--------------+------------+--------------------+----------------+---------------+-------------+
+
+analysisId = 1 will be for the genes, and
+analysisId = 2 will be for the supporting features that we are going store as features in this database
 
 
-
-
-
-
+the data is then ready for delivery.
