@@ -74,26 +74,186 @@ Taregetted process is undertaken with 3 dataset:
 \end{enumerate}
 
 Here is an example of the conf file used for the last release (release 3).%add conf file here
-\\
-\\
+\begin{verbatim}
+  # minimum required coverage for multiexon predictions
+  GB_TARGETTED_MULTI_EXON_COVERAGE      => '25',
+  
+  # minimum required coverage for single predictions
+  GB_TARGETTED_SINGLE_EXON_COVERAGE     => '90',
+  
+  # maximum allowed size of intron in Targetted gene
+  GB_TARGETTED_MAX_INTRON               => '50000',
+  
+  # minimum coverage required to prevent splitting on long introns - keep it high!
+  GB_TARGETTED_MIN_SPLIT_COVERAGE       => '95',
+  
+  # genetype for Targetted_GeneWise
+  GB_TARGETTED_GW_GENETYPE              => 'TGE_gw',	   
+  GB_TARGETTED_MASKING => ['RepeatMask', 'Dust'],
+  #the above setting will lead no features being masked out, if
+  is used no masking will take place, if [''] is used all repeats 
+  in the table will be masked out
+  #if only some of the sets of repeats wants to be masked out put 
+  logic names of the analyses in the array e.g ['RepeatMask', 'Dust']
+  GB_TARGETTED_SOFTMASK => 0, # set this to one if you want the repeats 
+  softmasked ie lower case rather than uppercase N's
+\end{verbatim}
+
 \textbf{potential problems}:
 \begin{itemize}
-\item Check for XXXs in the protein sequence. If a sequence has too many XXXs, pmatch may never end. Generally check that pmatch properly finished, it would fail if there is bad characters.
+\item Check for XXXs in the protein sequence. If a sequence has too many XXXs, pmatch may never end. Generally check that pmatch properly finished, it would fail if there is bad characters. Some of the drosophila proteins definitely have to be deleted.
 \item After running pmatch(see ensembl-doc documentation) check at this step if most of the proteins have been mapped to the genome. 
 \end{itemize}
 
 \subsubsection{Similarity}
 The similarity process uses both blast hits from Swall and Drosophila blastX hits. With the blast filtering code on (see example of the conf file) all of the jobs should be finished after 24h (on the farm if not too loaded).
 \\
-\\
-\textbf{potential problems}: The score used for this run are low (125 for the blast hits) in some locus many spliced variants (or what will become spliced variants) with incomplete exons. Some of the transcripts may also span on two transcripts locus.
+Here si an example of hte configuration file used for the last anopheles release for the similarity process:
+
+\begin{verbatim}
+
+  GB_SIMILARITY_DATABASES => [
+    {				  
+      'type'       => 'Swall',
+      'threshold'  => '125',
+      'index'      => '/data/blastdb/Ensembl/swall_030604',
+      'seqfetcher' => 'Bio::EnsEMBL::Pipeline::SeqFetcher::OBDAIndexSeqFetcher'
+    },
+    {
+      'type' => 'drosphila-peptides',
+      'threshold' => '125',
+      'index'   => '/data/blastdb/Ensembl/drosophila-release3-peptides-unique_index',
+      'seqfetcher' => 'Bio::EnsEMBL::Pipeline::SeqFetcher::OBDAIndexSeqFetcher',
+    }
+  ],
+  # minimum required parent protein coverage
+  GB_SIMILARITY_COVERAGE           => 40,
+  
+  # maximum allowed size of intron 
+  GB_SIMILARITY_MAX_INTRON         => 10000,
+  
+  # minimum coverage required to prevent splitting on long introns - 
+  keep it high!
+  GB_SIMILARITY_MIN_SPLIT_COVERAGE => 90,
+  
+  # low complexity threshold - transcripts whose translations have low
+  # complexity
+  GB_SIMILARITY_MAX_LOW_COMPLEXITY => 70,
+  
+  # gene type for FPC_BlastMiniGenewise
+  
+  GB_SIMILARITY_GENETYPE           => 'similarity_pruned1',
+  
+  GB_SIMILARITY_MASKING => ['RepeatMask','DUST'],
+  
+  #the above setting will lead to RepeatMasker features being masked out, 
+  if  used no masking will take place, if [''] is used all repeats in the 
+  table will be masked out
+  #if only some of the sets of repeats wants to be masked out put logic names 
+  of the analyses in the array e.g ['RepeatMask', 'Dust']
+  GB_SIMILARITY_SOFTMASK => 0, 
+  
+  # set this to one if you want the repeats 
+  softmasked ie lower case rather than uppercase N's
+  #No similarity genes will be build overlapping the 
+  gene type put in this list. If nothing is put, the default will be to take 
+  Targetted genewise genes
+  
+  GB_SIMILARITY_GENETYPEMASKED => ['TGE_gw','genomewise_final'],
+  
+  GB_SIMILARITY_BLAST_FILTER => 1,
+  
+\end{verbatim}
 
 
-\subsubsection{Merging data}
+\textbf{potential problems}: 
+\begin{itemize}
+\item The score used for this run are low (125 for the blast hits) in some locus many spliced variants (or what will become spliced variants) with incomplete exons. Some of the transcripts may also span on two transcripts locus.
+\item In the last gene build there is few cases where genes should have been build with similarity and where nothing was build. I'll leave a list of location where genes have been missed.
+\item As we use low score blast hits a lot of wrong spliced variants may be build in later stage. One of the trick I've been using (that's definitely not the solution but this help waiting to find a solution), is to run the gene build over the similarity genes and limit the number of transcripts allowed for one cluster to 3. In that case only the 3 best transcripts from a cluster will be use.
+
+\end{itemize}
+
+\subsubsection{Combine with cDNAs}
+This process will combine the cDNAs to the similarity genes to add UTRs where possible. The process used here is the same than for human. The only difference is (see EST gene build section) that we don't do separate EST gene build and cDNA gene build, thus all of the data available (EST + cDNA mapped) are used for this step.
 
 \subsection{EST Gene build}
-\subsubsection{Exonerate and GeneCombiner}
-\subsubsection{Merging the EST build with the Similarity build}
+\subsubsection{Exonerate and the EST gene builder}
+
+The EST gene build is ran without much adaptation to the process (for more detaisl see the conf files). As the number of ESTs anopheles remains relatively low (less than 200 000) and that they are of pretty good quality, we treat these data as cDNAs. For the last release all of the \textit{An. gambiae} sequences labelled as RNA have been used for the gene build. 
+To map the EST to the genome, only exonerate has been used.
+
+For documentation on how to run this build read in ensemb-doc, cdna_analysis.txt.
+\\
+Here is the configuration file used to run the Exonerate step (mapping of the ESTs to the genome):
+
+\begin{verbatim}
+  EST_INPUTID_REGEX => '(\S+)\.(\d+)-(\d+)',
+  EST_RUNNER        => '/acari/work1/mongin/src/pipeline-new/scripts/EST/run_exonerate.pl', 	   
+  # path to pipeline-new/scripts/EST
+  EST_SCRIPTDIR     => '/acari/work1/mongin/src/pipeline-new/scripts/EST/',
+	      
+  # where the result-directories are going to go	
+  EST_TMPDIR        => '/acari/scratch1/ensembl/mongin/anopheles_mai/est_build/',	      
+  # job-queue in the farm
+  LSF_OPTIONS       => '-q acari -C0',
+  
+  # make_bsubs.pl options
+  EST_EXONERATE_BSUBS   => '/acari/work4/mongin/anopheles_mai/ests/bsubs/exonerate.bsub',
+  
+  # path to file containing ALL ESTs/cDNAs
+  EST_FILE                    => '/acari/work4/mongin/anopheles_mai/ests/total_ests_plus_submitted.fa',
+  
+  # path to directory where EST chunks live
+  EST_CHUNKDIR                => '/acari/work4/mongin/anopheles_mai/ests/est_chunks/',
+  
+  # how many chunks?
+  # for NCBI_28 we have 3690891 ests, at approx. 350 ests per chunk, we estimate
+  EST_CHUNKNUMBER             => 550, 	 
+  	      
+  # full path fo the dir where we have the masked-dusted chromosomes
+  EST_GENOMIC                 => '/data/blastdb/Ensembl/mosquito/genome/',
+  #EST_GENOMIC                 => '/ecs2/work4/eae/NCBI33/masked_genome/NCBI33_coding_mRNAs_chunk_0001815/',
+  #EST_GENOMIC                 => '/ecs2/scratch3/ensembl/eae/NCBI33/cdnas/test_chr',
+  
+  # path to file with repeatmasked dusted genomic sequences
+  # NB this file is huge - distribute it across the farm or 
+  # be prepared to face the wrath of systems when the network 
+  # seizes up!
+  
+  #EST_EXONERATE               => '/acari/work2/gs2/gs2/bin/arch/OSF1/exonerate-0.6.5',
+  #EST_EXONERATE               => '/acari/work2/gs2/gs2/bin/arch/Linux/exonerate-0.6.5',
+  EST_EXONERATE              => '/usr/local/ensembl/bin/exonerate-0.6.7',
+  
+  
+  # if set to true, this option rejects unspliced alignments for cdnas that have an spliced
+  # alignment elsewhere in the genome
+  REJECT_POTENTIAL_PROCESSED_PSEUDOS => 0,
+  
+  # if set to true, the only the best match in the genome is picked
+  # if there are several matches with the same coverage
+  # all of them are taken, except single-exon 
+  # ones if REJECT_POTENTIAL_PROCESSED_PSEUDOS is switched on 
+  BEST_IN_GENOME => 1,
+  
+  EST_MIN_COVERAGE            => 95,
+  EST_MIN_PERCENT_ID          => 97,
+  
+
+  EST_USE_DENORM_GENES	=> 0,
+  
+  ############################################################
+  # each runnable has an analysis
+  ############################################################
+  
+  EST_EXONERATE_RUNNABLE     => 'Bio::EnsEMBL::Pipeline::RunnableDB::ExonerateToGenes',      
+  EST_EXONERATE_ANALYSIS     => 'RNA_BEST',
+  
+  EST_SOURCE                  => 'EMBL',      
+  
+\end{verbatim}
+
+\subsubsection{GeneCombiner (merging EST genes with the similarity build}
 
 \section{Issues}
 
