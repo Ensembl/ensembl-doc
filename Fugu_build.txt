@@ -320,6 +320,16 @@ GB_SIMILARITY_POST_EXONMASK => 1,
 With hind-sight, it would probably have been sufficient to perform just one
 (rather than two) gapfill step with a bit-score cutoff of 100.  
 
+Note 1: it is important to regenerate the input_ids in the way explained
+above for each iteration, because the set of "active" protein hits in
+a given slice will change (slices that had no hits before now may have
+hits). 
+
+Note 2: Before running the next (Comine_Genewise_E2G) stage of the
+process, it is important to set the type of all similarity genes to be
+the same, and to set the GB_SIMILARITY_GENETYPE variable to this
+type. 
+
 
 D. Miscellaneous
 ================
