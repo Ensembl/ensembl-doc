@@ -1,0 +1,37 @@
+Mapping of Ensembl proteins to external databases
+
+I-Purpose
+Find the known genes and try to retrieve as much information as possible
+
+II-General strategy 2 different mapping are undertaken 
+	   a-Direct mapping of Ensembl peptides against curated databases
+	   containing the curated protein for the studied organism. For
+	   human we use RefSeq proteins and Human SPTR.
+	   
+	   b-Secondary mapping (or called X_mapping). This will allow the
+	   mapping of the curated database(s) to other databases. For
+	   example for human this provides link to HUGO, LocusLink, ...
+
+III-How to run the mapping
+	a-First fill in the mapping_conf file, this should be pretty
+	straightforward.
+	
+	b-Run prepare_proteome.pl (perl prepare_proteome.pl), this will
+	prepare the fasta file for pmatching
+
+	c-Run get_Xmappin.pl (perl get_Xmapping.pl), this will map the
+	curated databases to other databases
+
+	d-Run pmatch.pl: perl pmatch.pl -scd -p perc_id 
+			 You have to give the threshold after the -p
+			 option. This will be used to cut off under a
+			 certain percentage of identity.
+
+	e-Run maps2db.pl (perl maps2db.pl), this will take the result of
+	both mappings and load everything into the database.
+
+
+If you have any problem, contact:
+   Emmanuel Mongin (mongin@ebi.ac.uk)
+
+
