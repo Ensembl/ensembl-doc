@@ -33,7 +33,7 @@ General Objectives
   SeqFetchers
   Error string passing
 Bioperl
-
+Private cvs for specifc genomes config files
 
 Introduction
 ------------
@@ -275,7 +275,17 @@ or at least the version of bioperl supported by the webcode
 
 
 
+Private CVS
+-----------
 
+It would be a good idea to have a private cvs repository to keep
+copies of the site specific config files for each build so we have a record
+of what people used for future reference
+
+this would keep versions of all files found in Bio::EnsEMBL::Pipeline::Config
+and copies of the analysis.conf and rules.conf which could be generated
+from the analysis and rules tables using the analysis_setup and rules_setup
+scripts. Plus a dump of the different input_ids used
 
 
 ===================================================================
@@ -408,7 +418,19 @@ several Mb of text to stderr.  This should not be the default behaviour.
 
 * The LSF output directories divided into 0,1,2,3,4,5, etc are still
 not fine-grained enough.  When using 1Mbp slices, if jobs fail a
-number of times it is possible to have nearly 2000 files in a single directory.
+number of times it is possible to have nearly 2000 files in a single 
+directory.
 
 * The OBDA index seqfetcher is flawed due to a BioPerl bug.  This is
 quite a serious bug and stops 5-10% of proteins being fetched from swall.
+
+
+
+* move Bio::EnsEMBL::Analysis:: code into pipeline from core api as it 
+doesn't really belong there
+
+
+
+*utility to check what proteins already have genes run on them, dnagling
+foreign keys etc before rerunning failed genewise jobs to try and reduce
+the amount of work you have to rerun
