@@ -12,7 +12,8 @@ by child Runnables if their structure isn't appropriate
 Runnable.pm will provide some methods to give the wrappers some base 
 functionality
 
-A constructor new which can take three arguments all of which are optional
+A constructor new which can take 8 arguments only one of which is obligatory
+-ANALYSIS a Bio::EnsEMBL::Analysis object and this is complusory
 -QUERY a Bio::EnsEMBL::Slice object which contains the sequence the 
     analysis is to be run on
 -PROGRAM the program which is to be run
