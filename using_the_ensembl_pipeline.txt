@@ -713,6 +713,9 @@ We use FAILED as standard so those jobs can be retried but if you want
 to see  an unknown error before it retried then you should alter this 
 string
 
+Running the pipeline
+=====================
+
 Once all of the above is this set then it is possible to run the 
 pipeline, the following documents give further information on how to run 
 a specific analysis:
@@ -723,9 +726,11 @@ a specific analysis:
 	running_the_protein_annotation.txt
 
 There are a couple of scripts which can be used to run jobs in the pipeline
-and these are all found in ensembl-pipeline/
+and these are all found in ensembl-pipeline
 
-The main script for running the pipeline is rulemanager.pl
+
+rulemanager.pl
+--------------
 
 This script looks at the commandline options and rule tables and
 cycles though its given input_ids decide what analyses it can submit to you
@@ -737,7 +742,7 @@ Here are it's commandline options
 It takes standard db connection options of -dbhost, -dbport, -dbuser, -
 dbpass and -dbname.
 
-The following arguments affect the scripts beahaviour
+The following arguments affect the scripts behaviour
 
    -once this flag means the script will only run through its loop once
     this is useful for testing 
@@ -825,13 +830,15 @@ This script should be used if you want your pipeline you run continuously
 and submit jobs as and when they can be run. If you just want to run one
 analysis at a time there are two other scripts you may want to use
 
-job_submission.pl This script is for submitting single analyses using
-the job system. As standard it will check the rules to see if a job
-should be run and check with the running jobs to see if a failed job needs
-resubmitting or if the job is already running but the script can be forced
-to ignore all this and just create and submit jobs. It can also create
-input_ids on the fly rather than having to read them from either a file or
-the input_id_analysis table
+job_submission.pl 
+-----------------
+
+This script is for submitting single analyses using the job system. 
+As standard it will check the rules to see if a job should be run and check 
+with the running jobs to see if a failed job needs resubmitting or if the 
+job is already running but the script can be forced to ignore all this and 
+just create and submit jobs. It can also create input_ids on the fly rather 
+than having to read them from either a file or the input_id_analysis table
 
 Here are its commandline options
 
@@ -929,10 +936,11 @@ Details on the input_id generation
 example command lines can be found in the perl docs of the
 script
 
-The last script is for submitting analyses to your compute farm outside
-of the pipeline system. 
 
-lsf_submission.pl creates submission lines using which ever BatchSubmission
+lsf_submission.pl
+-----------------
+
+This script creates submission lines using which ever BatchSubmission
 module is specified and runs them. As standard it creates commandlines
 for the test_RunnableDB script but it can take a custom commandline and use
 that instead
