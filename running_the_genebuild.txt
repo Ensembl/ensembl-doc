@@ -271,7 +271,10 @@ Some of these are required for the pipeline to run and this are located
 in Bio::EnsEMBL::Pipeline::Config,
 
 These files are General, BatchQueue and Blast and the entries are
-descibed in using_the_ensembl_pipeline.txt
+descibed in using_the_ensembl_pipeline.txt. One thing to note
+is you generally want to keep the output from your genebuild jobs so
+you need the entries for these analysis in BatchQueue.pm to have
+cleanup set to no rather than yes
 
 The genebuild has several general config files two. These are found in
 Bio::EnsEMBL::Pipeline::Config::GeneBuild
@@ -751,9 +754,9 @@ too many times.
 =D. UTR Addition=
 =================
 
-The fourth analysis combines genes built from cdnas with genes built
-from the protein based analyses to hopefully produce genes with UTR's.
-How the cdna genes are generated is explained in the document
+The fourth analysis combines cdna alignments from exonerate with genes 
+built from the protein based analyses to hopefully produce genes with 
+UTR's. How the cdna genes are generated is explained in the document
 est_cdna_genebuild.txt The runnabledb used to do this is 
 Combined_gw_and_e2g.pm
 
@@ -763,13 +766,9 @@ Before Starting
 As before you need the Reference database with pipeline tables and the 
 genewise database. You also need the database where your cdna results have
 been written and a database to write the results of this combination too.
-It is a good idea to copy your genewise genes to the output database before
-starting this analyses and the next stage will expect all your genes to be
-in that database and if the copy is performed while the tables are empty
-you will not need to alter the dbIDs in any of the tables. As well as
-all the standard configuration you have already filled out you also need
-to add another entry to the BatchQueue.pm and fill out the Combined.pm
-file in the Genebuld config
+As well as all the standard configuration you have already filled out you 
+also need to add another entry to the BatchQueue.pm and fill out the 
+Combined.pm file in the Genebuld config
 
 Running the UTR Addition
 ------------------------
@@ -823,4 +822,68 @@ Before Starting
 
 Again you need all you databases and config setup. Currently genecombiner
 only uses the config found in 
-Bio::EnsEMBL::Pipeline::Config::GeneBuild::GeneCombiner
+Bio::EnsEMBL::Pipeline::Config::GeneBuild::GeneCombiner although there are
+plans to considate its config into the rest of the structure
+
+You also need to have a set of genes built from your cdna alignments.
+How this is done is described in est_cdna_genebuild.txt. 
+
+Running the Genecombiner
+-----------------------
+
+Again test a couple of runs first before running everything and also 
+remember to check the output for any strange errors
+
+
+
+Once you have completed all these steps you may want run the pseudogene
+analysis which is described in Pseudogenes.txt
+
+
+Here is a summary of the analysis you need to run along with the module
+they use and the size piece we run on. There is also a checklist for
+before and after the
+
+
+Analysis,          RunnableDB,           input size,             section
+
+Pmatch             Pmatch                slice, full chromosomes A
+BestPmatch         BestPmatch            genome (all results)    A
+TGE_gw             FPC_TargettedGenewise 5MBslice                B
+similarity_genewise FPC_BlastMiniGenewise 5MBslice               C
+UTR_Addition        Combined_gw_and_e2g   5MSlice                D
+Genebuilder         Gene_Builder          Chromosome             E
+GeneCombiner        GeneCombiner          5MSlice                F
+
+
+Remember after each stage is run you need to check the output for any
+strange errors (see end of section B for a description).
+
+
+
+
+Checklist
+=========
+
+When running the raw computes it is worth checking these things out
+before you hit go
+
+1. Do you have all the executables, and data files for the
+analysis you want to run? are they push out across you compute 
+farm where appropriate
+
+2. Have you filled out all the config files in 
+Bio::EnsEMBL::Pipeline::Config::Genebuild
+
+3. Does BatchQueue.pm contain entries for all the analyses you wish to run
+
+4. Have you filled in the analysis table
+
+5. Have you filled in the rule tables
+
+6. Are the appropriate dummy entries in the input_id_analysis table
+
+7. Have you tested jobs for your different analyses
+
+If the answers to all these questions are yes you are probably read
+to set the RuleManager going
