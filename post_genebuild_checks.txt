@@ -1,5 +1,18 @@
-Post genebuild checks (Last modified 4-April-2002)
+Post genebuild checks (Last modified 18-November-2002)
 ---------------------
+
+You can get most of the checks done by running 
+
+ensembl-pipeline/scripts/post_GeneBuild/post_GeneBuild_checks.pl
+
+Example: post_GeneBuild_checks.pl -dbname homo_sapiens_core_9_30 -dbhost ecs2d -dnadbname homo_sapiens_core_9_30 -dnadbhost ecs2d -genetype ensembl > & check &
+
+It checks
+
+1.- all exons in a gene are in the same strand
+2.- it checks that phases are consistent between exons
+3.- also checks for folded transcripts
+4.- it flags also single exon genes and from these, the ones which are longer than 50000 bases
 
 This document describes the steps that we currently take to check data
 from the gene build. Where possible sample sql or perl that
@@ -26,18 +39,21 @@ database is handed over to the post-compute team:
 
      note that until we have a better way of storing genewise frameshifts we will have very small exons ( < 10bases ) so not much point in testing seq_start=seq_end. 
 
+
+2. check that all exons belong to some transcript:
+    
+    select count(distinct e.exon_id) from exon e left join exon_transcript et on e.exon_id =et.exon_id where et.exon_id is null;
+
 3. check for too short exons ( < 10 bases long ): Have a look to them and see whether they look real or not.
      select (seq_end-seq_start+1) as s, sticky_rank, exon_id  from exon where (seq_end-seq_start+1)<10;
+     
+     check whether they are sticky exons, this is usually the case.
+
 
 4. check very short introns  ( < 50 bases long ): Have a look to them and see whether they look real or not.
 
 5. exons with no supporting feature data - there will be some but it should not be an enormous number!
      select count(exon.exon_id) from exon left join supporting_feature on exon.exon_id=supporting_feature.exon_id where supporting_feature.exon_id is NULL;
-
-6. check that all exons belong to some transcript:
-
-
-   select count(distinct e.exon_id) from exon e left join exon_transcript et on e.exon_id =et.exon_id where et.exon_id is null;
 
 
 
@@ -147,14 +163,24 @@ GENE: foreach my $gene($vc->get_Genes_by_Type($genetype)){
 
 4. check that all features map to analysisprocess. All analyses have a 'db'. Logic names should be stable. 
 
-5. check there are no features with hstart > hend
+5. check for sane feature coordinates
 
-6. check for sane feature coordinates
+     select * from feature where hstart > hend;
+     select * from feature where hstart < 1;
+
+     select * from supporting_feature where hstart > hend;
+     select * from supporting_feature where hstart < 1;  
+
+     select * from feature where seq_start > seq_end;
      select * from feature where seq_start < 1;
      select feature.id from feature, contig where feature.contig = contig.internal_id and feature.seq_end > contig.length;
-     select * from feature where seq_start > seq_end;
 
-7. prune duplicate features (except genscan - because they might have feature-sets hanging from them.) 
+     select * from supporting_feature where seq_start > seq_end;
+     select * from supporting_feature where seq_start < 1;
+     select supporting_feature.supporting_feature_id from supporting_feature, contig where supporting_feature.contig_id = contig.internal_id and supporting_feature.seq_end > contig.length;
+
+
+6. prune duplicate features (except genscan - because they might have feature-sets hanging from them.) 
    
    To check for duplicate features:
 
@@ -172,6 +198,10 @@ GENE: foreach my $gene($vc->get_Genes_by_Type($genetype)){
   shell> sort -u -k 2 feature_filename
   in the files and then upload the results. This is also faster if split the features (maybe by analysis, or by
   its origin: pipeline, interim genebuild, cdna_features) and you do it independently for each set
+
+
+8. If you're including supporting features in the final database it would be good to
+check also for duplicates in this table
      
 
 
