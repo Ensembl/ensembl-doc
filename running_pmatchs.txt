@@ -1,9 +1,14 @@
-this document should describe what is needed in order to run pmatches against your genome in a semi pipeline fashion so the 
+this document should describe what is needed in order to run pmatches
+against your genome in a pipeline fashion so the
 Targetted Genewises can be run
 
-if you have any questions contact lec@sanger.ac.uk (Laura Clarke) or ensembl-dev@ebi.ac.uk
+The pmatch analysis finds exact matches of proteins to the genome and 
+then filter them to find the best in genome hits plus those hits whose
+identity lie within 2% of the best in genome hit.
 
-last update 03/03/03
+if you have any questions contact ensembl-dev@ebi.ac.uk
+
+last update 01/08/03
 
 
 What you need
@@ -16,212 +21,173 @@ core ensembl
 ensembl-pipeline
 
 You also need a core database which contains your genome
+and also had pipeline tables added and loaded 
+for what the pipeline tables are and how to load them see
+using_the_ensembl_pipeline.txt
 
 
 What to do
-==========
+++++++++++
+
+========
+=Config=
+========
 
 first out the config
 
-there are 6 Config files which need at least partially filling out before you can run the pmatchs
+there are 6 Config files which need at least partially filling out 
+before you can run the pmatchs
 
-4 of the config files can be found in 
+3 of the config files can be found in
 
 ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/Config/GeneBuild/
 
-Pmatch.pm, this contains pmatch specific settings all of which need to be set to somethings
+Pmatch.pm, this contains pmatch specific settings all of which need to
+be set to somethings
 
 GB_PFASTA this is the location of the complete proteome fasta file
 
 GB_PMATCH this is the location of the pmatch binary
 
-GB_PMATCH_MAX_INTRON this is a value used by the pmatch parsing code when merging hits
+GB_PMATCH_MAX_INTRON this is a value used by the pmatch parsing code
+when merging hits
 
-GB_PMATCH_MASKING this is where you put the logic_names of any repeats you want masked out in the genomic sequence 
+GB_PMATCH_MASKING this is where you put the logic_names of any repeats
+you want masked out in the genomic sequence
 that will be passed to pmatch
 
-GB_INITIAL_PMATCH_LOGICNAME this is the logicname of the first pmatch analysis
+GB_INITIAL_PMATCH_LOGICNAME this is the logicname of the first pmatch
+analysis
 
-GB_INTIAL_PMATCH_RUNNABLEDB this the module which will be used in the first run of pmatch, if you want to use a module 
-which doesn't live in Bio::EnsEMBL::Pipeline::RunnableDB you must state its name in full e.g Random::Analysis::Pmatch 
-if no colons are found in the module name the module is assumed to live in the RunnableDB directory
+GB_FINAL_PMATCH_LOGICNAME this is the logic name of the final analysis
+which sorts out the best in genome hits from the pmatch results
 
-GB_FINAL_PMATCH_LOGICNAME this is the logic name of the final analysis which sorts out the best in genome hits from the pmatch results
+Scripts.pm this contains variables used by scripts as part of the
+genebuild, it currently needs several other config files to exist to
+compile (see use statements are top) but most of the variables don't 
+need to be filled in
 
-Database.pm this contains the name, host, username and password for the various databases used by the GeneBuild 
+GB_KILL_LIST should be the path to a file called kill_list.txt located
+in ensembl-pipeline/scripts/GeneBuild/ this file contains
+the ids of proteins which are repeats or pseudo genes so either cause
+erroneous predictions or cause problems with pmatch
 
-GB_DBHOST, GB_DBNAME, GB_DBUSER, and GB_DBPASS as used by the Pmatch modules and scripts
-
-Scripts.pm this contians variables used by scripts as part of the genebuild
-
-GB_KILL_LIST should be the path to a file called kill_list.txt located in ensembl-pipeline/scripts/GeneBuild/ this file contains 
-the ids of proteins which are repeats or pseudo genes so either cause erroneous predictions or cause problems with pmatch
-
-GB_PROTEOME_FILE this is an array used by new_prepare_proteome.pl. it contains an anonyomous hash which specifies fasta file 
+GB_PROTEOME_FILE this is an array used by new_prepare_proteome.pl. it
+contains an anonyomous hash which specifies fasta file
 locations and a regex to parse the desired id out of the header
 
-GB_PMATCH_PIPELINE this is a flag used by the populate pipeline tables script to show whether to generate the pmatch input_ids or not
-
-GB_PMATCH_SUBMIT_LOGICNAME this is the logic_name of the dummy analysis which will be used by the pipeline to set off the first stage of the pmatch
-
-GB_PMATCH_CHUNKS this is to be set to one if you want to run pmatch on chunks of a chromsome rather than on complete 
-chromosomes
-
-GB_PMATCH_SIZE this would be the size of the chunks to be run across
 
 General.pm this contains general settings for the GeneBuild
 
-GB_INPUTID_REGEX this is the regular expression which will parse chr name, start and end out of your input_ids
+GB_INPUTID_REGEX this is the regular expression which will parse chr name,
+start and end out of your input_ids
 e.g cb25.fpc4171.1-10000 would have a regex of (^\S+\.\S+)\.(\d+)-(\d+)
 where as 1.1-10000 would have a regex of (\S+)\.(\d+)-(\d+)
 
-There are also two config files in Bio/EnsEMBL/Pipeline/Config which need filling out
+There are also 3 config files in Bio/EnsEMBL/Pipeline/Config which
+need filling out
 
-General.pm
-
-These are general settings used by the runnabledbs and by the 
-rulemanager script.  The important entries to have filled in are:
-
-BIN_DIR
-DATA_DIR
-LIB_DIR  
-
-These are the locations of you programs, data file and library files. If
-you don't want to have to put the full path in you analysis table your
-files must be in these directories
+General.pm, BatchQueue.pm and Blast.pm and what goes in them should
+be described in using_the_ensembl_pipeline.txt
 
 
+==================
+=Data preperation=
+==================
 
-PIPELINE_RUNNER_SCRIPT this is the script you want to use to run the
-                       pipeline jobs. There is a script called runner.pl 
-                       which can be found in Bio::EnsEMBL::Pipeline and 
-                       this is the script normally used.
+Once the config is filled out you need to produce a complete proteome 
+file
 
-BatchQueue.pm  is used by Job.pm to figure out where to put stderr adn stdout files etc for a particular analysis type
-
-QUEUE_MANAGER this is the module you are using to control your batch
-              submission, here are ensembl we use LSF. There is also 
-              a BatchSubmission module for Suns GridEngine.
-
-MAX_PENDING_JOBS this is the maximum jobs the rulemanager script will 
-                 have pending and still submit more
-
-AUTO_JOB_UPDATE this set to one will mean the job module will automatically 
-                change the status of jobs, we usuallly have this set to one
-
-QUEUE_CONFIG this is another array of hashes, each element contains 
-             information about a particular analysis type
-
-{
-  logic_name => 'Prints', logic_name of analysis
-  batch_size => 1,  the number of jobs to give to the runner script at once
-  resource   => '', any resource requirements the jobs need to give to the batch submission module
-  retries    => 3, the number of times the RuleManager should retry the job
-  sub_args   => '', other args for the batchsubmission manager
-  runner     => '', the runner script if different from the one in General
-  queue => 'acari', the queue to use for the resource manager
-  output_dir => '/acari/work1/lec/out/' the directory to write stdout and stderr
-},	      
-
-if these aren't set the default values are used
-
-
-Once the config is filled out you need to produce a complete proteome file 
+this is done by taking fasta files of you prefered datasources and 
+parsing them to produce a single file with headers in the format
+understood by the Pmatch Runnable.
 
 to do this use the script
 
 ensembl-pipeline/scripts/GeneBuild/new_prepare_proteome.pl
 
-this should take all the files specified in GB_PROTEOME_FILES in Scripts.pm and parse them to produce a fasta file 
+this should take all the files specified in GB_PROTEOME_FILES in
+Scripts.pm and parse them to produce a fasta file
 which will be written to GB_PFASTA as specified in Pmatch.pm
 
-then you need to run ensembl-pipeline/scripts/GeneBuild/populate_ipa.pl with GB_PMATCH_PIPELINE set to 1 and it 
-will fill the input_id analysis table with input_ids for running the first pmatch analysis
+
+the data sources generally used for the pmatch stage are specific
+specific proteins or if there are none of those proteins from closely
+related organisms
+
+For human, mouse rat and zebrafish we use the refseq proteins
+which can be found here
+
+ftp://ftp.ncbi.nih.gov/refseq/
+
+For human mouse and rat we also use the sptrembl proteomes we
+can be found here
+
+ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/
+
+(note here the names of the files are the taxonomy ids 
+which can be found in the ncbi taxonomy database)
+
+at this point teh genbank format or embl format files respectively are 
+also collected as they are used later to add xrefs to the predicted
+gene sequences and having out of sync files can cause problems
+
+for other species such are briggsae closely related proteins files
+are used in this case wormpep
+
+=========================
+=Setting up the Database=
+=========================
+
+Once you have your proteome file you need to make sure you database
+contains the tables in ensembl-pipeline/sql/pmatch.sql
+
+you also must ensure the appropriate core and pipeline tables are
+filled out
+
+your database needs sequence (contig, clone, dna, chromosome, assembly
+meta) it also needs analysis objects for all analyses required for the
+pmatch pipeline to work (5 described later)
+
+the rule tables, the input id analysis table and the input id type 
+analysis table also need to be filled out 
+(see using_the_ensembl_pipeline.txt)
 
 
-You also need to make sure you have the tables in ensembl-pipeline/sql/pmatch.sql and 
-ensembl-pipeline/sql/table.sql loaded into the database
+the dependancies required for the pmatch pipeline to run are as such:
 
-Two analysis objects should be present in the analysis table one for the first analysis which will call pmatch, this 
-also need the module column filled with the module which is to be used to run pmatch. We use Bio::EnsEMBL::Pipeline::RunnableDB::Pmatch 
-but only the name Pmatch is required as any module found in Bio::EnsEMBL::Pipeline::RunnableDB which automatically 
-have that added to its name. The second represents the analysis which works out the best in genome pmatchs 
-and we normally call it BestPmatch
-lastly a dummy analysis will be required in the analysis table for the first analysis if it is to be run using the pipeline 
-this only needs a logic_name and it should be what ever is specified in GB_PMATCH_SUBMIT_LOGICNAME in Scripts.pm
+5 analysis objects are required, two to actually describe the analysis
+being done and point to the RunnableDBs Pmatch and BestPmatch, 
+These should have the logic names used in the Pmatch config file and
+point at the Pmatch RunnableDB for the initial stage and the BestPmatch
+ RunnableDB for the final stage. Two dummy analysis to point at entries
+ in the input_id_analysis table are also required as is one ACCUMULATOR
+ analysis to bridge the change in input id between Pmatch and 
+BestPmatch and this needs to run the runnabledb Accumulator. 
+All these analysis also need input_id_types. The Pmatch analysis is 
+best run on whole chromosomes the best type to specify is CHROMOSOME 
+and use the make_input_ids to make slice ids for your whole chromosomes
+The BestPmatch analysis needs to be run on the whole genome so the best
+input id type is GENOME. The make_input_ids script should also beable
+to add a input_id to the input_id_analysis for this too.  Pmatches 
+dummy analysis and BestPmatches dummy analysis obviously need the same
+ type as Pmatch and BestPmatch and the accumulator analysis need the 
+type ACCUMULATOR. All the analyses can be added using the add_analysis
+ script described in using_the_ensembl_pipeline.txt
 
-the first pmatch analysis if it is to be run with the RuleManager script needs entries putting in the rule tables
+You also need three Rules in the rule tables
 
-There are two rule tables one rule_goal should contain a numerical id and an analysis id which should be carried out 
-when the rule is executed the second rule_condition should contain the same numerical id and then the logic name of 
-any analysis which should be complete for the same input_id before that rule can be executed one rule goal can have 
-more than one condition
+the first rules goal should be Pmatch and it should depend on the 
+Pmatch dummy analysis. The second rule goal should the accumulator 
+analysis and the third rule goal should be be BestPmatch and it
+should depend on the BestPmatch dummy analysis and accumulator analysis
+so the Pipeline is aware that it has to wait for all the pmatches to 
+run before it can run the accumulator and hence the BestPmatch analysis
 
-e.g
-
- 
-rule_goal
-
-rule_id | goal |
-+---------+------+
-|      13 | 74 
-
-rule_condition
-
-rule_id | condition       |
-+---------+-----------------+
-|      13 | SubmitPmatch
-
-analysis_id 74 represent the Pmatch analysis
-SubmitPmatch is the id of the dummy analysis which should have entries in input_id_analysis table after running populate_ipa.pl
-
-eventually there will be scripts which will automatically populate the rule and analysis tables too but for now it has to be done by hand
-
-Now you can run the two analysis
-
-first you must run the pmatchs
-
-this can be done with the RuleManager3.pl script which is found in ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/
-
-the commandline would look like this
-
-perl RuleManager3.pl -dbname mouse_pmatch_test -dbhost ecs2e -dbuser ***REMOVED*** -dbpass ensembl -start_from 54 -once > & rule.txt &
+You also need to fill out the input_id_analysis table with input ids
 
 
-the db settings are relatively obvious
-
--start_from specifies which analysis_id to start looking for analysis this can be carried out from, entries for 
-this analysis must exist in the input_id_analysis table so this should be the analysis_id for the analysis specified 
-by GB_SUBMIT_PMATCH_LOGICNAME specifed in Scripts.pm
-
--once means the RuleManager script will only check each input_id once before exiting so if any other analysis 
-depend on analysis set off by the script on its first loop they won't be executed, you can omit this flag but 
-given no analysis should depend directly on the Pmatch analysis being complete there is little point as it 
-just means you have to remember to kill the RuleManager script once everything is finished running. 
-
-
-you can also run the pmatchs using the new_pm_filter.pl script which lives in ensembl-pipeline/scripts/GeneBuild/
-
-this uses the commandline
-
-new_pm_filter.pl input_id
-
-input_id should be in the format specified in Bio/EnsEMBL/Pipeline/Config/GeneBuild/General.pm in GB_INPUTID_REGEX e.g 1.1-10000 
-
-you would need to run this for each chromosome so piece of chromsome you wanted pmatched against the proteome set
-
-
-Once one of these analysese have been run you need to run the 
-
-new_pm_bestmatch.pl script again which is found in ensembl-pipeline/scripts/GeneBuild/
-
-this just needs a word to use as the input_id for the BestPmatch module generally the commandline format looks like this
-
-./new_pm_bestmatch.pl -dbname mouse_pmatch_test -dbhost ecs2e -dbuser ***REMOVED*** -dbpass ***** -input_id genome -analysis BestPmatch -write
-
-where genome is the word being used as the input_id, this word could be anything as it is never actually used by the runnableDB
-
-this script does need the GB_FINAL_PMATCH_LOGICNAME from Bio::EnsEMBL::Pipeline::Config::GeneBuild::Pmatch for the analysis 
-object to be passed in correctly and the database details are needed from Bio::EnsEMBL::Pipeline::Config::GeneBuild::Databases
-
+Once you have filled out all the tables you need to run the RuleManger
+script which again is described in the using_the_ensembl_pipeline.txt
+document
 

@@ -481,7 +481,7 @@ the files present in the intial checkout will be appended with a
 
 e.g General.pm.example should become General.pm
 
-there are 2 files which need filling out for the pipeline to work
+there are 3 files which need filling out for the pipeline to work
 
 General.pm
 ----------
@@ -577,147 +577,51 @@ are both optional
 runner is if you want to use a different runner script for a particular
 analysis type than the one specified in General.pm
 
-Running the Pipeline
-====================
+Blast.pm
+--------
 
-Now the database and the configuration is setup you can run your pipeline
-the script used to run the pipeline is called RuleManager3.pl
+Blast.pm for blast specific settings
 
-here i will describe the basics of using the script and the basic loop
-the script executes, there are other documents about the specifics of
-using this system to run parts of the ensembl analysis which will be 
-detailled at the end of the document
+This contains an array of hashes which contain specific settings for
+each blast database you want to run against
 
-the script used to run the ensembl pipeline system is 
+these are
 
-ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/RuleManager3.pl
+name this should be the entry in the db_file column of the analysis
+table
 
-the RuleManager script's basic process is a loop which cycles through each 
-input_id (these are fetched at the start of the script) and check what analyses
-are complete for that input_id and given that what rules can be executed for 
-that input_id, when a rule can be executed for a particular input id then a job
-is created for that input_id and analysis and enters the system to wait to be
-submitted, many jobs can be retries and if a job for a particular input_id and
-analysis has failed its retry count is checked against the configured number
-which is allowed and if is can be retried it is
+type this is whether the blast is agains dna or protein to ensure the
+correct type of AlignFeature is created
 
-the RuleManager script can take several arguments
+header this is the regex to be used to parse the correct id out of the
+fasta header for a particular hit
 
-perl RuleManager3.pl -dbname pipeline_genebuild_050303 -dbhost ecs2b
--dbuser ***REMOVED*** -dbpass ***** 
+flavour this can be ncbi or wu as these require slightly different
+command line construction
 
-the database arguments are manditory and the script cannot run without a database
-connection
+ungapped if this is defined you will get the ungapped pieces or each
+hit as feature pairs if the data is to be stored in a standard ensembl
+database this should be set to 0 as the blast features are stored as
+align features with cigar strings which describe how the coordinates
+can be split to produce the individual features which make up the
+alignment
 
-other arguments are
+refilter is this is set then the an internal filtering method will be
+used rather than the FeatureFilter runnable
 
-other flags that can be used are
+min_unmasked this is the minimum number of consectutive unmasked bases 
+which must be present before a blast will be run, as default we use 10
+for blastn and 15 for blastx
 
--local this will mean the jobs run on the machine the script is running
-on rather than using the batch submission system
+Once you have all this set up you are ready to run the pipeline see specific
+documents on how to run the pipeline for specific analysis
 
--runner  this should be the path to a runner script it you don't want
-to use the one in config
-
--output_dir this should be the path to a output dir it you don't want
-to use the one in config
-
--once this makes the script only check each input_id once rather than
-looping over them consistently so it means failed jobs won't be rerun
-and jobs which depend on analysis which haven't ben run but will be
-completed in the first loop also won't be submitted, this flag is good
-to use if you are just going to test you have your setup correct or
-that the jobs work but if you want everything to run you need to leave
-the script running and continually looping over the input_ids
-
--shuffle this randomises the input_id list each time it is to loop over
-it so it won't check the ids in the same order each time
-
-
--v this is the verbose flag which will make the script a lot more
-chatty
-
-You can monitor the progress of your jobs using the monitor script
-which is located here ensembl-pipeline/scripts/monitor
-
-it takes several command line options which affect what it displays for
-you
-
-the 4 options which are required are -dbname, -host, -pass, -user as
-these provide the database connection
-
-you must then specify other options inorder for the script to display
-information
-
-these are all flags which you just need to specify on the command line
-they don't need any values
-
--current tell you what is currently runnning by status and logic_name
-
--current_summary tells you the total number of jobs with each status
-
--finished tell you what is finshed by logic_name
-
--analysis give a summary of the analysis table
-
--rules gives you a summary of the rule_goal table
-
--conditions tells you what rule and analyses depend other analyses
-
-the last flag
-
--status_analysis does require a value this is in the format
-status:logicname and then shows a summary of the job table for that
-status and logic name for example -status_analysis failed:RepeatMask
-would show you information about RepeatMask jobs which had failed
-
-here is an example command line and output
-
-ecs2a[lec]183: ./../../../../scripts/monitor -dbname
-pipeline_genebuild_050303 -host ecs2b -user ensro -pass ***** -current
--current_summary -finished
-
-Pipeline current status [ecs2b pipeline_genebuild_050303]
-
-Name            Status   Count
- ----            ------   -----
-Briggsae_ESTs   FAILED   55 
-Briggsae_ESTs   VOID     45 
-Briggsae_mRNAs  FAILED   55 
-Briggsae_mRNAs  VOID     45 
-Elegans_ESTs    FAILED   55
-Elegans_ESTs    VOID     45 
-Elegans_mRNAs   FAILED   55 
+running_the_rawcomputes.txt
+running_the_pmatches.txt
+running_the_genebuild.txt
 
 
 
-Pipeline status summary [ecs2b pipeline_genebuild_050303]
-
-Status   Count 
-------   ----- 
-FAILED   522 
-RUNNING  3 
-VOID     405
 
 
-Finished job summary [ecs2b pipeline_genebuild_050303]
-
-Count Name            Id 
------ ----            -- 
-5605  SubmitContig    1 
-5605  RepeatMask      2 
-5605  Genefinder      3 
-5498  WormPep         5 
-5482  Swall           10 
-5505  Elegans_ESTs    11 
-
-this information is all derived from the job tables
-
-
-if you now need specific details about what analyses can be run with the ensembl-pipeline
-system you need to look at these documents
-
-rawcomputes.txt, genebuild.txt and protein_pipeline.txt 
-
-please direct any questions about this document to ensembl-dev@ebi.ac.uk
 
