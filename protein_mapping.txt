@@ -24,21 +24,31 @@ IV-How to run the mapping
 	
 	b-If you need to fetch the specific SP sequences for the given
 	organism run grep_sptr_entries.pl. It will also format the SP file
-	in fasta format.
-	Run prepare_proteome.pl (perl prepare_proteome.pl), this will
+	in fasta format. But this script will retrieve only sequences from 
+	one specific organism. If you can its recommended to prepare the file
+	yourself
+        
+        If you already have all of the files prepared you can
+	run prepare_proteome.pl (perl prepare_proteome.pl), this will
 	prepare the fasta file for pmatching.
 	
-
 	c-Run get_Xmapping.pl (perl get_Xmapping.pl), this will map the
-	curated databases to other databases
+	curated databases (SPTR or Refseq) to other databases. This external
+	databases mapped will depend of the organism. eg for human (GO, HUGO,
+	Locuslink, OMIM,...), mouse (MGI).
+	
 
-	d-Run pmatch.pl: perl pmatch.pl 
-			 You have to give the threshold after the -p
-			 option. This will be used to cut off under a
-			 certain percentage of identity.
-
+	d-Run pmatch.pl: perl pmatch.pl, pmatch.pl will run and postprocess the comparison
+	of the protein from (SP/Refseq) and your protein file.
+	
 	e-Run maps2db.pl (perl maps2db.pl), this will take the result of
 	both mappings and load everything into the database.
+	This is the longest part of the process, it can take few hours to load... Humm, maybe
+	something to improve.
+
+	f-If you wish, there is a script get_stats.pl which produces some basic statistics.
+	
+
 
 
 If you have any problem, contact:
