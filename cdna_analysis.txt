@@ -87,6 +87,20 @@ load up the file using:
 
 mysql -uuser -ppass -hhost estdbname < path/to/ensembl-pipeline/sql/EST_analysisprocess.sql
 
+Both databases also need to have an entry in the meta table giving the
+default assembly - it should look something like this:
+
+| meta_id | meta_key         | meta_value                 |
++---------+------------------+----------------------------+
+|       2 | assembly.default | NCBI_28                    |
+
+If not, load one up like this:
+
+mysql -uuser -ppassword -hhost -e "insert into meta values (\N, 'assembly.default', 'NCBI_28');" dbname
+
+Obviously, replace NCBI_28 with the name of the appropriate assembly -
+use the string from the 'type' column of the static_golden_path table.
+
 3. Some sort of sequence fetcher. We use James Cuff's makeseqindex and
 getseqs as they are the fastest and best we've found, but you can use
 anything you like as long as the ensembl modules know how to use
