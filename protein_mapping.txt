@@ -1,63 +1,162 @@
-Mapping of Ensembl proteins to external databases
+this document descibes what you need in order to map genes in an ensembl
+database to other data sets e.g refseq or swissprot
 
-I-Purpose
-Find the known genes and try to retrieve as much information as possible
+What you need
+=============
 
-II-Requirements
-ensembl
-bioperl-07
-rd-utils (you can check this out from the ensembl cvs repository, this
-contains pmatch binaries)
+a mysql_instance
 
-III-General strategy 2 different mapping are undertaken 
-	   a-Direct mapping of Ensembl peptides against curated databases
-	   containing the curated protein for the studied organism. For
-	   human we use RefSeq proteins and Human SPTR.
-	   
-	   b-Secondary mapping (or called X_mapping). This will allow the
-	   mapping of the curated database(s) to other databases. For
-	   example for human this provides link to HUGO, LocusLink, ...
+bioperl-072 
+ensembl core 
+rd-utils for the pmatch binary
 
-IV-How to run the mapping
-	a-First fill in the mapping_conf file, this should be pretty
-	straightforward.
-	! All of the fields don't have specifically to be completed. The mapping is 
-	organism specific and can be run without any pb only using SP files for example.
-	If you need specific Xmapping (eg MGI for mouse) you can add your own options 
-	in mapping_conf and modify get_Xmapping.pl script.
-	
-	b-If you need to fetch the specific SP sequences for the given
-	organism run grep_sptr_entries.pl. It will also format the SP file
-	in fasta format. But this script will retrieve only sequences from 
-	one specific organism. If you can it is recommended to prepare the file
-	yourself
-        
-        If you already have all of the files prepared you can
-	run prepare_proteome.pl (perl prepare_proteome.pl), this will
-	prepare the fasta file for pmatching.
-	
-	c-Run get_Xmapping.pl (perl get_Xmapping.pl), this will map the
-	curated databases (SPTR or Refseq) to other databases. This external
-	databases mapped will depend of the organism. eg for human (GO, HUGO,
-	Locuslink, OMIM,...), mouse (MGI).
-		
+these are all availible from cvs on the web
 
-	d-Run pmatch.pl: perl pmatch.pl, pmatch.pl will run and postprocess the comparison
-	of the protein from (SP/Refseq) and your protein file. Ok, pmatch.pl is currently a
-	mess. I will rewrite it as soon as possible. A specific version of pmatch is currently
-	needed to work with pmatch.pl, if needed contact me.
-	
-	e-Run maps2db.pl (perl maps2db.pl), this will take the result of
-	both mappings and load everything into the database.
-	This is the longest part of the process, it can take few hours to load... Humm, maybe
-	something to improve.
+an ensembl database containg genes
 
-	f-If you wish, there is a script get_stats.pl which produces some basic statistics.
-	
+you will also need the data files to do the mapping what you need here
+very much depends on what you have, which species you want to run on etc
+
+What to do
+==========
+
+first of all you need to set up your configuration
+
+all of the config lies in 
+
+ensembl/misc-scripts/protein_match/mapping_conf.pl
+
+this first contains a set of general options
+
+query_idt
+target_idt
+
+these are the minimum query and target percent identities which must
+be found in the pmatch script before a results is accepted
+the target identity is generally lower than the query as the mapping to 
+known genes is assymetrical. This is due to the fact that's our gene 
+prediction is quite fragmented compared to the manually curated genes
+
+statistic_file
+
+this is where the get_stats.pl script would write its statistics if run
+
+query, the loaction of the file containing the dumped peptides from the
+database
+
+total_sptr location of swall file in sp format which can be greped for
+entries specific to your organism 
+
+sptr_fa this should be a path to a fasta file which contains entries 
+for all the sptr protein you wish to map
+
+sptr_swiss this should contain the same entries as the fasta file but 
+in sp format so information about links to embl_ids and other databases
+can be parsed out
+
+pmatch_input.fa, a fasta file of all the proteins you wich to pmatch 
+against your genes, for human this would cotnain all human sptr and 
+refseq sequences
+
+x_map_out this should be a path to a location where the get_Xmapping.pl
+script writes its results to this shouldn't already exist if it does it will get written over
+
+pmatch_out this is where the output from the pmatch.pl script is written
+
+the maps2db.pl requires these two files as input too
+
+refseq_fa location of the refseq entries in fasta format
+
+refseq_gnp location of the refseq entries in genbank format
 
 
+there are then a series of species specific settings whic very much 
+depend on which species you are ding mapping for, if you are annotation 
+a species which we currently don't you may need to add new settings here
+for any questions about these settings please address then to 
+ensembl-dev 
 
-If you have any problem, contact:
-   Emmanuel Mongin (mongin@ebi.ac.uk)
+Database settings
+
+db name of database
+host host the database was on
+dbuser user name
+password password
+port port the database is on
+
+Executable location
+
+pmatch location of pmatch executable
+
+Organism related information
+
+organism a for your organism which the scripts can then use to if it 
+needs to do organism specific stuff
+
+ox this should be the taxonomy_id for your organism
+
+What you need to run
+====================
+
+all these scripts are present in ensembl/misc-scripts/protein_match
+
+you first need to get the specific files for your organism
+
+the files which are needed for all mappping are the swissprot files
+
+these can be got from here
+
+
+ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/swissprot_files/proteomes/
+for the sp format files and
+
+ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/fasta_files/proteomes/ for
+the fasta files
+
+the files are named by taxonomy id so 9606 files are human and 10090 are
+mouse
+
+alternatively you can the seq files by greping though a complete file of
+swall in sp format using the grep_sptr_entries.pl script
+
+some organisms also have refseq files these can be retrived from the 
+ncbi ftp site
+
+
+Once the config has been filled in and all the prequiste files are
+present you first need to run the get_Xmapping.pl script
+
+perl get_Xmapping.pl
+
+The you run pmatch.pl this will pmatch the transcript peptides against the 
+created peptide set form sptr and any other sequences you want the 
+sequences to be mapped to (ie every main id you have en try for in the
+output from get_Xmapping.pl) the output will be written to whatever
+location you have in mapping_conf.pl ( this currently requires a specific
+version fo pmatch which puts extra fields in the output, if you need a copy
+of this version mail mongin@ebi.ac.uk we should be change to use scanwisepep
+(from the wise2package soon (03/04/03))
+
+perl pmatch.pl
+
+Now run maps2db.pl which will use the xmapping output and the pmatch output
+to load information into the database this is the longest part of the
+process and can take several hours
+
+perl maps2db.pl
+
+Finally you run load_transcript_display_id.pl this puts entries in the
+display_xref_id of the gene and transcript columns which id they use for 
+a particular gene is specified by the priorities defined at the top of 
+the script. If you have created a new external_db table entry (is from
+using a new data source) you will need to decide whether those ids should
+be used before or after any other existing ids and set their priority
+accordingly
+
+perl load_transcript_display_id.pl
+
+ 
+as a note for elegans you don't need to do all this as wormbase
+provide a file containing all this mapping already
 
 
