@@ -15,6 +15,10 @@ User description (should this go elsewhere?):
   SWISS-PROT/SPTREMBL. If the description covers less than 40% of the
   SWISS-PROT/SPTREMBL members, the family description is assigned 'UNKNOWN'.
 
+  NOTE: the family identifiers, members and descriptions used in the
+  current release (1.10) are different from those used in previous
+  releases. They will be stable as of this release.
+
 
 ------------------------------------------------------------------------
 ####
