@@ -180,26 +180,52 @@ chopper $work/srs/$release.pep -n 400  # see also -h
 # match the number of peptides in $release.pep
 
 # ------------------------------------------------------------------------
+# make and go to new directory for preparing the clustering.
+
+  mkdir ../clustering
+  cd    ../clustering
+  ln -s ../blast/$release.parsed ./  # for convenience
+
 # convert blast hits to a markov matrix:
 
-    markov $release.parsed -ind $release.index -out $release.mci
+  nice markov $release.parsed -ind $release.index -out $release.mci
 
 # (you may need to play with the -chunk option; see markov -h)
 
-# This may take 30-300 min, and 1.5 Gbyte of memory. 
+# This may take 30-300 min, and 1.5 Gbyte of memory, so run on a big machine,
+# like ecs1h.
+# 
 # ------------------------------------------------------------------------
+# 
 # run clustering algorithm on the matrix:
 
-    mcl $release.mci -I 3.0 -progress 100
+  nice mcl $release.mci -I 3.0 -t 8 -P 1000 -progress 100 -o $release.mcl
 
-# takes 15 min or so. 
+# takes an hour or so (longer if -P is higher) 15 - 1500 min or so, depending
+# on the P value (and of course set size).
+#  -P basically determines the precision; the default value (1000) is
+#  probably good enough. If you're not sure about this, run 
+#
+#     clmdist $one.mcl $other.mcl # in ensembl-external-family/src/mcl/bin
+# 
+# on clustering files from mcl run with different P's (e.g., 1000 and 4000);
+# its output is two numbers that when added and divided by the number of
+# peptides, give a measure of the difference between the clusterings. If this
+# difference is smaller than say 1%, you might as well stick with the faster,
+# lower P-number
+# 
+# Run it on ecs1h, which has enough memory (16Gbyte); the higher P, the more
+# it will need (1.1 Gbyte for P=8000)
 
 # -I is the inflation parameter: the higher, the more (and smaller) families
 # will be.
 
-# this produces  out.mcl; rename it to something more specific
-  
-  mv out.mcl $release.mcl  
+## Further optimization stragegies, in case it's too slow:
+#
+#    -P 1000 -M 1000 -pct 90
+#    -P 2000 -M 1500 -pct 90
+#    -P 2000 -M 1500 --adapt -pct 90
+#    -P 3000 -M 2000 --adapt -pct 90
 
 # ------------------------------------------------------------------------
 # put the numbers and strings back together again:
@@ -219,13 +245,12 @@ chopper $work/srs/$release.pep -n 400  # see also -h
 
 # ------------------------------------------------------------------------
 
-# run the 'consensifier', with swiss-prot as well as sptrembl annotation:
+# find consensus descriptions:
 
-    anotater_sprot annotate.out > consensus.swissprot
+    consensifier.pl -d SWISSPROT  $release.annotated > $release.SWISSPROT-consensus
+    consensifier.pl -d SPTREMBL   $release.annotated > $release.SPTREMBL-consensus
 
-    anotater_sptre annotate.out > consensus.sptrembl
-
-# by now, there are many non-hits that have dropped out (sequences that
+# By now, there are many non-hits that have dropped out (sequences that
 # did't even match themselves during the blast hits, due to low-complexity
 # filtering. These are typically short repetive sequence). 
 
@@ -233,11 +258,21 @@ chopper $work/srs/$release.pep -n 400  # see also -h
 
 # finally, put everything together using
 
-    assembl2.pl annotate.out consensus.swissprot consensus.sptrembl >  final.families
+    assemble-consensus.pl $release.annotated \
+       $release.SWISSPROT-consensus $release.SPTREMBL-consensus  \
+       >  $release.families 2> $release.discarded
 
-# have a look at assembl2.pl; you can skip annotation words there (e.g., new
-# id's of databases that are not particularly informative, like /RIK$/ or
-# /image:/ 
+# This not only puts things together, but also drastically cleans the
+# annotations up. Typically well over half of the annotations are useless,
+# and are therefore assigned 'UNKNOWN'.
+# 
+# Have a look (grep -v UNK) through the result to see if there's not too much
+# junk, as well as through $release.discarded (grep -v UNK) to see if not too
+# much valuable has been thrown away. The end of stderr has some statistics
+# 
+# If needed, have a look at assemble-consensus.pl; towards the top, there 
+# are three tunable lists of regexps that may need adjusting  (but prolly
+# not).
 
 # ------------------------------------------------------------------------
 # now import stuff into an ensembl-family database:
@@ -247,24 +282,25 @@ chopper $work/srs/$release.pep -n 400  # see also -h
 
     pep-id-remap.pl mapping.dat  < final.family > families.out
 
-
-# ------------------------------------------------------------------------
-
 # load the families into the database:
 
-    tablesql=$work/head/ensembl-external/sql/family.sql
+    tablesql=$work/ensembl-external/sql/family.sql
 
-    ensdb='database=homo_sapiens_core_110;host=ensrv3;user=ensro'
+    human='database=homo_sapiens_core_110;host=ensrv3;user=ensro'
+    mouse='database=mouse_gb_aug01;host=ecs1d;user=ensro'
+    ensdbs="$human,$mouse"
 
-    famdb='database=family110;host=ensrv3;user=***REMOVED***'
+    famdbconnect='database=family110;host=ensrv3;user=***REMOVED***;pass=secret'
 
     perl $scripts/family-input.pl -r 3 -C $tablesql \
 
-    -E $ensdb -F $famdb final.families  > famload.out 2> famload.err
+    -E $ensdbs -F $famdbconnect final.families  > famload.out 2> famload.err
 
-# this may fail if the database or tables already exist; if so, just leave
-# out -C $tablesql (which creates the database and tables), and you should be
-# fine.
+# This may fail if the database or tables already exist, or if you have
+# access problems. If so, just leave out -C $tablesql (which creates the
+# database and tables). Creating the new family database + tables (when not
+# available) may be easier with a mysqladmin -u ***REMOVED*** -pSECRET create
+# DATABASENAME; mysql -u ***REMOVED*** -pSECRET DATABASENAME < $tablesql
 
 # Very occasionally, you get one protein ending up in two families. This is
 # rare, and harmless. If this happens, this is notified by family-input.pl,
@@ -282,7 +318,7 @@ chopper $work/srs/$release.pep -n 400  # see also -h
 # Lastly, on the logfile from the loading (famload.err), run the statistics
 # script:
 
-     $scripts/fam-stats.sh ensrv3 family110 ***REMOVED*** famload.err  > stat.out 2> stat.err
+     $scripts/fam-stats.sh $host $dbname $dbuser famload.err  > stat.out 2> stat.err
 
 # The output gives a rough summary of the way things have  been going (in
 # particular, the gene->family assignents. They should be roughly equal
@@ -292,7 +328,16 @@ chopper $work/srs/$release.pep -n 400  # see also -h
 # If the gene-descriptions (see gene-descriptions.txt) have not been done
 # yet, do them, then run the script 
 
-    ensembl/scripts/desc-from-fam.sh coreDB -h host -u user famDB
+    ensembl/scripts/desc-from-fam.sh coreDB MUSG -h host -u user famDB
 
 # and replace the existing gene-description table with the new one (which is
 # created in famDB.
+
+# ------------------------------------------------------------------------
+
+# Alignments:
+
+  mkdir $work/alignments
+  cd $work/alignments
+
+MORE HERE
