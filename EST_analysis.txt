@@ -719,7 +719,10 @@ the genomewise genes into this new db, e.g.:
 Copy the supporting evidence
 relevant to these genes and write them as features into this new database.
 Use script ensembl-pipeline/scripts/ESTs/supp_evidence2feature.pl to convert the supporting_feature
-table into a tab-delimited file with feature table info.
+table into a tab-delimited file with feature table info. To use it you need to dump first
+all the supporting_feature_id's you are interested in transforming:
+
+ supp_evidence2feature.pl [ -refdb -refhost -refuser -refpass ] -file supp_ids_file > feature.tab
 
 Include two entries in the analysisprocess table. Make sure that the analysisId
 corresponds to the ones in the gene table for the 'gene' entry and that in the feature table
