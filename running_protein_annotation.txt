@@ -137,6 +137,17 @@ This would print the peptides to stdout and they would be caught in the
 file and any translation which contain internal stops would be skipped
 and a message printed to stderr.
 
+the fasta header of this file should be have a specific format
+
+the first thing after the > should be the translation internal_id
+
+>1
+
+this script also puts other information into the header but this isn't 
+required by the protein annotation pipeline but if the translation id isn't the 
+first thing after the pipeline the translation_ids won't be stored properly in the
+database
+
 
 Once this is done you need to run
 
