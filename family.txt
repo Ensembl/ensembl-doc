@@ -307,7 +307,7 @@ mkdir ../families
 
     perl $scripts/family-input.pl -r 3 -C $tablesql \
 
-    -E $ensdbs -F $famdbconnect final.families  > famload.out 2> famload.err
+    -E $ensdbs -F $famdbconnect final.families  > famload.out 2> famload.log
 
 # This may fail if the database or tables already exist, or if you have
 # access problems. If so, just leave out -C $tablesql (which creates the
@@ -328,10 +328,10 @@ mkdir ../families
 # 
 # ------------------------------------------------------------------------
 
-# Lastly, on the logfile from the loading (famload.err), run the statistics
+# Lastly, on the logfile from the loading (famload.log), run the statistics
 # script:
 
-     $scripts/fam-stats.sh $host $dbname $dbuser famload.err  > stat.out 2> stat.err
+     $scripts/fam-stats.sh famload.log -h host -u user databasename  > stat.out 2> stat.err
 
 # The output gives a rough summary of the way things have  been going (in
 # particular, the gene->family assignents. They should be roughly equal
