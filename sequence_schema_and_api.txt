@@ -2,27 +2,11 @@ This document describes how sequence and assembly information is stored in
 the EnsEMBL database, and how this information should be loaded when creating
 a new EnsEMBL database.
 
-for ay questions please contact ensembl-dev(ensembl-dev@ebi.ac.uk)
+for any questions please contact ensembl-dev(ensembl-dev@ebi.ac.uk)
 
-What you need
-=============
-
-*a mysql instance
-*The ensembl core CVS module named ***REMOVED***
-
-Creating the Database
-=====================
-
-You need to create a database on your mysql instance and then create the 
-tables.
-
-The SQL table definitions are found in the file:
-ensembl/sql/table.sql
-
-To add the table definitions to an already existing database perform the 
-following command from a shell:
-
-mysql -h localhost -u ensdamin -p *****  my_ensembl_db < path/to/ensembl/sql/table.sql 
+For an explaination of what you need to use this database and api 
+and details of how to load sequence into the database see 
+loading_sequence_into_ensembl.txt
 
 
 Database Tables

@@ -49,7 +49,9 @@ Loading Sequence
 the sequence can be loaded into your database using this script
 
 ensembl-pipeline/scripts/load_scaffolds.pl, which uses Bioperl SeqIO to
-parse through a fasta file and load the sequence
+parse through a fasta file and load the sequence ( this script can be
+found in the ensembl-pipeline api which is a seperate cvs module availible
+from the sanger cvs repository)
 
 This script takes several options
 
