@@ -12,3 +12,9 @@ EST:
 
 B. Problems with past builds:
 -----------------------------
+
+C. Miscellaneous
+----------------
+
+Make sure there is an entry in the meta table for genebuild.version of the form YYMMOrganisation
+eg 0406Ensembl

@@ -49,3 +49,9 @@ Esp. GKB files need to be made by Imre/Esther/Bijay
 
 B. Problems with past builds:
 -----------------------------
+
+C. Miscellaneous
+----------------
+
+Make sure there is an entry in the meta table for genebuild.version of the form YYMMOrganisation
+eg 0405Ensembl
