@@ -10,7 +10,7 @@ database with sequence loaded (see loading_sequence_into_ensembl.txt).
 
 If you have any questions please contact ensembl-dev@ebi.ac.uk
 
-Document last updated (10/11/2003)
+Document last updated (19/05/2004)
 
 
 
@@ -313,8 +313,12 @@ gff_source 	the source or program which produces these results,
 gff_feature 	the type of feature e.g repeat, homology or gene,
 
 The input_id_type_analysis table is also filled in by the 
-add_Analysis script. This table links the analysis_id to an 
-input_id_type.
+add_Analysis script and analysis setup. This table links the analysis_id 
+to an input_id_type.
+
+When writing the analysis table even if you using the analysis_setup
+script with a core dbadaptor the code will throw if no input_id_type
+is specified for the analysis
 
 The input_id types can in theory be anything. The only fixed
 input id type is ACCUMULATOR, analyses which are to act as
@@ -428,6 +432,8 @@ and the Blast_Wait job being run. The jobs get their input_ids from the
 TGE_gw analysis, the Blast_Wait marker is just an entry in the 
 input_id_analysis table to mark the accumulator being finished.
 
+There are two methods for filling in the rule table
+
 You can add rules to the rule table using the script:
  ensembl-pipeline/scripts/RuleHandler.pl
 
@@ -443,7 +449,30 @@ also to delete rules. The fact that it can display the rules can
 sometimes be very useful as it allows you to see the logic_names of 
 both the rule goals and the rule conditions
 
-this sql will also give you a summary
+You can also fill in a complete set of rules in a similar manner to
+a complete analysis by using the ensembl-pipeline/scripts/rule_setup.pl 
+script. This expects a config file which looks like this
+
+[RepeatMask]
+condition=SubmitContig
+
+[Pmatch]
+condition=SubmitChromosome
+
+[Pmatch_Wait]
+condition=Pmatch
+
+[BestPmatch]
+condition=Pmatch_Wait
+condition=SubmitGenome
+
+the logic_name in the square brackets is the name of the goal analysis
+those which follow a condition are the conditional analyses
+
+unlike the analysis table config the same key can appear multiple times
+although condition is the only key recognised
+
+this sql will also give you a summary of the rules
 
 select rule_goal.rule_id, analysis.logic_name as goal, 
 rule_conditions.condition from rule_goal, rule_conditions, analysis 
@@ -537,18 +566,10 @@ this is set up in RunnableI and as default will be /tmp/.
 PIPELINE_RUNNER_SCRIPT is the location of the script to run the pipeline 
 and is usually: ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/runner.pl.
 
-MAX_JOB_TIME this is the maximum length of time the RuleManager will
-let a job have the status running for. For this method to work the
-BatchSubmission module being used has to of implemented the get_job_time
-method. This is implemented in the LSF module. If this method isn't 
-implemented this functionalilty will never be used.
-
-KILLED_INPUT_IDS, this is the path to a file where the input_id, logic_name
-and module of a killed job is written. The status of a job which is killed
-is also set to KILLED
-
-Both MAX_JOB_TIME and KILLED_INPUT_IDS can be overided in RuleManager
-on the commandline
+RENAME_ON_RETRY this is a option to move the stderr/stdout files from
+there existing names to ones appended with .retry*retry_count* as otherwise
+LSF at least appends the new output to the end of the old output which
+can be confusing when searching for error messages
 
 
 BatchQueue.pm
@@ -578,11 +599,30 @@ AUTO_JOB_UPDATE is true ie: set to 1 it automatically updates when a
 		job's status is changed. This will not occur if set to 0.
 		Usually, it is left set to 1.
 		
-DEFAULT_BATCH_SIZE  -
-DEFAULT_RETRIES      | series of default values, which will be used if
-DEFAULT_BATCH_QUEUE  | there is no entry for an analysis logic name
-DEFAULT_OUTPUT_DIR   |
-DEFAULT_CLEANUP     -	
+JOB_LIMIT the maximum number of jobs of defined statuses allow to
+to exist in the system. If this limit is reached the number of jobs
+over the limit is used to calculate how long to sleep for
+
+JOB_STATUSES_TO_COUNT an array of strings each of which is a status
+reported by your submission system for jobs in the system. With LSF
+jobs can have several different statuses PEND means they are waiting
+for a node to run on. RUN means they are running. SSUSP means the job
+has been suspended for some reason. EXIT means the job exiting with
+a non zero exit code and DONE means the job finished successfully
+
+MAX_JOB_SLEEP the maximum amount of time to sleep for when the job limit
+is reached
+
+MIN_JOB_SLEEP the minimum time to sleep for when the job limit is reached
+
+SLEEP_PER_JOB the amount of time to sleep per job over the job limit
+
+DEFAULT_BATCH_SIZE      -
+DEFAULT_RETRIES          | series of default values, which will be used if
+DEFAULT_BATCH_QUEUE      | there is no entry for an analysis logic name
+DEFAULT_OUTPUT_DIR       |  
+DEFAULT_CLEANUP     	   |
+DEFAULT_RUNNABLEDB_PATH -
 
 QUEUE_CONFIG    an array of hashes, each element contains information 
 		about a particular analysis type (keyed in Job.pm 
@@ -624,6 +664,9 @@ QUEUE_CONFIG    an array of hashes, each element contains information
 		cleanup    => 'yes', if yes, the job to delete stdout 
 		and stderr when it finishes successfully, if no the 
 		output will be kept	
+    runnabledb_path => 'Bio/EnsEMBL/Pipeline/RunnableDB' the location
+    of the perl module specified in the module column of the analysis table
+
    }		   
 
 Resource and sub_args are used to pass information into the 
@@ -635,8 +678,8 @@ LSF module, but they are both optional.
 
 Blast.pm
 --------
-This contains an array of hashes which contain BLAST specific settings 
-for each blast database you would like to run against.
+This contains an array of hashes called DB_CONFIG which contain BLAST 
+specific settings for each blast database you would like to run against.
 
 
   name  - is the entry in the db_file column of the analysis table.
@@ -664,6 +707,12 @@ for each blast database you would like to run against.
   which must be present before a blast will run, as a default we use 10
   for blastn and 15 for blastx.
 
+UNKNOWN_ERROR_STRING is the string you would like passed back to the 
+runnabledb is an error unrecognised by the blast stderr parsing appears
+We use FAILED as standard so those jobs can be retried but if you want
+to see  an unknown error before it retried then you should alter this 
+string
+
 Once all of the above is this set then it is possible to run the 
 pipeline, the following documents give further information on how to run 
 a specific analysis:
@@ -673,97 +722,333 @@ a specific analysis:
 	running_the_genebuild.txt
 	running_the_protein_annotation.txt
 
-Every pipeline though, is run using one script, RuleManager3.pl and 
-monitored using another called, monitor.
+There are a couple of scripts which can be used to run jobs in the pipeline
+and these are all found in ensembl-pipeline/
 
+The main script for running the pipeline is rulemanager.pl
 
-RuleManager3.pl
----------------
-Script location: ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/
-RuleManager3.pl
+This script looks at the commandline options and rule tables and
+cycles though its given input_ids decide what analyses it can submit to you
+compute farm. As standard it considers all rules in the rule table and
+checks all unique input_ids for each input_id type against the rules.
 
-It has several command line options:
+Here are it's commandline options
 
- -dbhost     host where the pipeline database is
- -dbport     port
- -dbuser     user to connect as
- -dbpass     password to use
- -dbname     database name
+It takes standard db connection options of -dbhost, -dbport, -dbuser, -
+dbpass and -dbname.
 
-dbhost, dbuser and dbname are obligatory options which you must provide
-if your dbuser needs a password you will also have to provide that and if
-your dbconnection needs to be set up on a port which isn't 3306 that will
-also need to be included.
+The following arguments affect the scripts beahaviour
 
- -local           run the pipeline locally without the batch submission 
-                  system
- -idlist_file     path to a file containing a list of input ids to be 
-		  used
- -runner          path to a runner script (if you want to overide the 
-		  setting in BatchQueue.pm)
- -output_dir      path to a output dir (if you want to overide the 
-				       setting in BatchQueue.pm)
- -once            run through the RuleManager loop once only.
- -shuffle         before running though the loop shuffle the order of the
-                  input ids
- -analysis        only run with these analyses objects, can be 
-		              logic_names or analysis ids, this option can appear in
-		              the commandline multiple times
- -skip_analysis  don't run with these analyses objects, like -analysis can
-                 be logic_names or dbIDs and can appear in the commandline
-                 multiple times                 
- -v               verbose mode
- -dbsanity        peform some db sanity checks, can be switched of with 
-		  -nodbsanity
- -input_id_types  which input id types to run the RuleManager,
-                  this option can also appear in the commandline 
-		  multiple times
- -start_from      this is which analysis to use to gather the input ids
-                  which will be checked by the RuleManagers central loop
- -accumulators    this flag switches the accumulators on, they are on  
-                  by default but can be switched off with: 
-		  -noaccumulators 
- -max_job_time    overides the $MAX_JOB_TIME value in General.pm
- -killed_file     overides the path to the $KILLED_INPUT_IDS file in 
-		  General.pm
- -queue_manager   overides the $QUEUE_MANAGER in General.pm
+   -once this flag means the script will only run through its loop once
+    this is useful for testing 
+   -reread_rules, this flag will force the rulemanager to reread the rule
+    table every loop
+   -reread_input_ids, this will force the rulemanager to reread the input
+    ids each and every loop
+   -accumulators, this is a flag to indicate if the accumulators are 
+    running. By default it is on but it is turned off if you specify any
+    flag which affects the rules or input_ids sets. You can switch
+    it off by specifying -noaccumulators 
+   -force_accumulators this forces accumulators on even if other conditions
+    would switch it on
+   -shuffle this reorders the array of input_ids each time it goes through
+    through the loop. The purpose of this is to ensure the ids aren't 
+    always checked in the same order'
+   -utils_verbosity, this affects the amount of chatter you recieve from
+    the core module Bio::EnsEMBL::Utils::Exception. By default this is set
+    to WARNING which means you see the prints from warnings and throws but
+    not from deprecate and info calls. See the modules itself for more 
+    information
+   -verbose, toggles whether some print statements are printed in this
+    script and in the RuleManager
+   -rerun_sleep, this is the amount of time the script will sleep for
+    if no jobs have been submitted in the previous loop
+
+Options which by default are taken from config files are 
+
+BatchQueue.pm
+
+  -queue_manager this specifies which 
+   Bio::EnsEMBL::Pipeline::BatchSubmission module is used by 
+   Bio::EnsEMBL::Pipeline::RuleManager
+  -job_limit the maximun number of jobs of specified status allowed in
+   system
+  -max_job_time the maximum time the rulemanager will sleep for when
+   job limit is reached
+  -min_job_time the minimum time the rulemanager will sleep for when
+   job limit is reached
+  -sleep_per_job the amount of time per job the rulemanager will sleep
+   for if the job limit is reached
+  -output_dir the path to an output directory when the jobs stderr and
+   stdout will be redirected. This alwaysoverrides the values specified in
+   BatchQueue
+  -mark_awol toggle to specify whether to mark jobs as awol if lost from
+   the submission system this can apply strain to the job table. It is on
+   by default and can be switched off using the -nomark_awol flag
+
+General.pm
+
+   -runner path to a default runner script. This will override what is
+    set in General.pm but will be overidden by any analyses specific
+    settings found in BatchQueue.pm
+   -rename_on_retry a toggle to specify whether to rename stderr/stdout 
+    file when a job is retried as otherwise the submission system just
+    cats them all together
+
+The following options alter which analyses or input_ids are considered
+for the run
+
+  -starts_from this should be a logic_name of an analysis which has been
+  run. The input_ids used for the central loop are retrived on the basis of
+  these logic_names. This option can appear in the commandline multiple 
+  times
+  -analysis a logic_name of an analysis you want run. If you specify
+  this option you will only run this analysis or analyses as the option can
+  appear on the command line multiple times
+  -skip_analysis a logic_name of an analysis you don't want to run. If
+  this option is specified these are the only analyses which won't be run
+  note this option and -analysis are mutually exclusive
+  -input_id_type a type of input_id you want to run with. If these is 
+  specified no other type of input will be considered. Again this can 
+  appear multiple times on the commandline
+  -skip_input_id_type a type of input to no be considered. If this appears
+  only these input_ids will not be run. Again this can appear multiple 
+  times on the commandline and is multially exclusive with -input_id_type
+  -input_id_file path to a file of input_ids which should be in the format
+  input_id input_id_type
+  -skip_input_id_file path to a file of input_ids to not run. The file
+  should be in the same format as for -input_id_file
+
+see the perldocs in the script for command line examples
+
+This script should be used if you want your pipeline you run continuously
+and submit jobs as and when they can be run. If you just want to run one
+analysis at a time there are two other scripts you may want to use
+
+job_submission.pl This script is for submitting single analyses using
+the job system. As standard it will check the rules to see if a job
+should be run and check with the running jobs to see if a failed job needs
+resubmitting or if the job is already running but the script can be forced
+to ignore all this and just create and submit jobs. It can also create
+input_ids on the fly rather than having to read them from either a file or
+the input_id_analysis table
+
+Here are its commandline options
+
+It takes standard db connection options of -dbhost, -dbport, -dbuser, -
+dbpass and -dbname.
+
+The details of what analysis to run are specified by these options
+
+  -logic_name the logic_name of the analysis you want to run. You 
+  must have this analysis already in the analysis table and it
+  must has an input_id_type and module specified. This logic
+  name is also used to fetch the rule. This analysis should be
+  the goal of the rule you want executed
+  -force this forces the script to ignore the rule and just create
+  and submit the jobs with no regard to whether they should be run
+  or are already running. If this option is specifed jobs already 
+  in the pipeline running this analysis are ignored and failed
+  jobs of this type are not retried
+
+Details on how the rules and jobs are considered
+
+ -utils_verbosity, this affects the amount of chatter you recieve from
+  the core module Bio::EnsEMBL::Utils::Exception. By default this is set
+  to WARNING which means you see the prints from warnings and throws but
+  not from deprecate and info calls. See the modules itself for more 
+  information
+  -verbose, toggles whether some print statements are printed in this
+  script and in the RuleManager
+  -config_sanity this is a test to check certain values are defined in
+  your General.pm and BatchQueue.pm config files
+
+  Some of the follow options can intially be set in either the General.pm
+  of BatchQueue.pm config files see docs of  rulemanager.pl for more 
+  details
+  
+  -queue_manager this specifies which 
+  Bio::EnsEMBL::Pipeline::BatchSubmission module is used by 
+  Bio::EnsEMBL::Pipeline::RuleManager
+  -output_dir the path to an output directory when the jobs stderr and
+  stdout will be redirected. This alwaysoverrides the values specified in
+  BatchQueue
+  -mark_awol toggle to specify whether to mark jobs as awol if lost from
+  the submission system this can apply strain to the job table. It is on
+  by default and can be switched off using the -nomark_awol flag
+  -runner path to a default runner script. This will override what is
+  set in General.pm but will be overidden by any analyses specific
+  settings found in BatchQueue.pm
+  -rename_on_retry a toggle to specify whether to rename stderr/stdout 
+  file when a job is retried as otherwise the submission system just
+  cats them all together
+
+Details on the input_id generation
+
+ If you specify no options to do with input_ids it will just take 
+  all the input_ids from the input_id_analysis table with an appropriate
+  input_id_type as specified by the analysis object
+
+  -input_id_file this is a text file in the format input_id input_id_type
+  if used these are the only input_ids which are considered
+  -make_input_ids this indicates you want to use the InputIDFactory
+   to make the input_ids for you. If you specify this option it
+   makes you use force too so the rules are ignored as if the
+   analysis needs its input ids created it won't pass a rule check'
  
- -rename_on_retry, this means any output already produced will be 
-		   deleted before a job is retried, this defaults to off 
-		   currently, it was put in as LSF appends output and error 
-		   files and sometimes you don't want this
- -h or -help      print out the help 
+  These are options needed for the manufacture of input ids
 
-Examples
+  -slice  signals to insert slice type input ids using
+  the format 
+  coord_system:coord_system_version:seq_region_name:start:end:strand
+  -coord_system the coordinate system you want slices in
+  -coord_system_version the version of the coord system you want
+  -slice_size the size to make the slice ids
+  -slice_overlap the slice overlap (non-overlapping by default)
+  -file     if the input_ids are to be a list of filenames from a directory
+  -dir      the directory to read the filenames from
+  -file_regex a regex to impose on the filenames before using them
+  -single if you just want a single dummy input_id ie for genome wide 
+  analyses
+  -single_name , by default this is genome but you can specify something
+  different here, for example for protein annotation jobs which use the 
+  whole proteome this must be proteome
+  -translation_ids if you want your input ids to be translation ids
+  -verbose if you want more information about what the script is doing
+  -input_id_type if you want to specific an input_id_type not already
+  used by the analysis object
+  -insert_analysis if you want to insert an analysis object if it doesn't
+     already exist in the database'
+  -seq_level if you want the ids for the seq_level seq_regions, can
+  work with slice_size but the -slice options isn't required'
+  -top_level this will fetch all the non_redundant pieces in
+  the database this may produce ids which are a mixture of different
+  coordinate systems, if -coord_system_version is specified it will
+  be ignored
 
-  A standard run of the pipeline would look like this:
-    perl RuleManager3.pl -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ****
-      -dbname pipeline_db -shuffle
+example command lines can be found in the perl docs of the
+script
 
-  To specify specific analysis: 
-    perl RuleManager3.pl -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ****
-     -dbname pipeline_db -analysis RepeatMask -analysis Swall
+The last script is for submitting analyses to your compute farm outside
+of the pipeline system. 
 
-  To only run the RepeatMask and Swall analyses:
-    perl RuleManager3.pl -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ****
-     -dbname pipeline_db -analysis RepeatMask -local
-
-  To run RepeatMask analysis locally:
-   perl RuleManager3.pl -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ensembl 
-    -dbname rat_Jun03_mk2 -shuffle -idlist_file id_list
+lsf_submission.pl creates submission lines using which ever BatchSubmission
+module is specified and runs them. As standard it creates commandlines
+for the test_RunnableDB script but it can take a custom commandline and use
+that instead
 
 
-as a note RuleManager is relatively light on the CPU and is can also be
-quite verbose even without the verbose flag so it is generally best to
-run it in the background and redirect the output into a file. Also
-a RuleManager script will not actually stop itself running unless
-it is passed the -once flag. If it isn't it will continue running
-ad infinitum untill it is stop manually. If the script recieves a sigterm
-though in the form of ^C or a kill command it will stop cleanly but
-you do need to remember Your RuleManager will continue running if you
-don't stop it
+Here are its commandline options
+
+It takes standard db connection options of -dbhost, -dbport, -dbuser, -
+dbpass and -dbname.
+
+Details of the analysis you wish run
+
+  -logic_name the logic_name of the analysis you want to run. You 
+   must have this analysis already in the analysis table and it
+   must has an input_id_type and module specified. This logic
+   name is also used to fetch the rule. This analysis should be
+   the goal of the rule you want executed
+  -insert_analysis this tells the script to insert the analysis object
+   and requires both the follow options are also used
+  -input_id_type this specified what type of input_id
+  -module this is the name of the RunnableDB to be used
+
+Details about the submission system
+
+  -queue_manager this specifies which 
+  Bio::EnsEMBL::Pipeline::BatchSubmission module is used
+  -output_dir which directory to put the stderr and stdout files in
+  This is the base directory the script creates 10 directorys from 0-9
+  below that where the files are actually placed to ensure that no
+  directory gets too many files in it
+  -queue the submission system queue the jobs will be submitted to
+  -pre_exec toggle if a pre exec command is to be used in the submission
+  command
+  -resource_requirements any resource requirements for the commandline
+  in the LSF system this string will placed after the -R flag
+  -sub_args any other arguments you want to pass to your submission system
+
+  All of these options are discretionary and if not specified the
+  settings will be taken from the BatchQueue config file
+
+  -open this tells the script to actually open the commandlines to the
+  submission system otherwise it will just print the commandlines
+  -submission_interval the length of time to sleep for between opening
+  submissions by default it is 5 seconds
+  
+Details about the test_RunnableDB commandline to create
+
+  -script_dir the directory where you copy of test_RunnableDB lives
+  if not specified the current working directory is used
+  -runnabledb_path the perl path for the runnabledb to be used. Again
+  this is discretionary and can be taken from BatchQueue if needed
+  -write whether test_RunnableDB should write its output to the database
+  -update_input_id_analysis whether test_RunnableDB should update the 
+  input_id_analysis table on sucessful completion of a job
+  -script_verbosity whether test_RunnableDB should have its verbose flag 
+  set
+
+details about custom command options
+ 
+  -command this option allows you to specify an alternative script to 
+  test_RunnableDB but you must specify the full alternatve commandline
+  on in quotes after this placing the word INPUT_ID in the position in
+  the commandline you wish the input_id to appear
+  -pre_exec_command if you wish a pre_exec_command to be used with a
+  custom commandline you must also specify the pre_exec on the 
+  commandline using this options
+
+Details about the input_ids to use
+
+  If you specify no options to do with input_ids it will just take 
+  all the input_ids from the input_id_analysis table with an appropriate
+  input_id_type as specified by the analysis object
+
+  -input_id_file this is a text file in the format input_id input_id_type
+  if used these are the only input_ids which are considered
+  -make_input_ids this indicates you want to use the InputIDFactory
+   to make the input_ids for you. If you specify this option it
+   makes you use force too so the rules are ignored as if the
+   analysis needs its input ids created it won't pass a rule check'
+ 
+  These are options needed for the manufacture of input ids
+
+  -slice  signals to insert slice type input ids using
+  the format 
+  coord_system:coord_system_version:seq_region_name:start:end:strand
+  -coord_system the coordinate system you want slices in
+  -coord_system_version the version of the coord system you want
+  -slice_size the size to make the slice ids
+  -slice_overlap the slice overlap (non-overlapping by default)
+  -file     if the input_ids are to be a list of filenames from a directory
+  -dir      the directory to read the filenames from
+  -file_regex a regex to impose on the filenames before using them
+  -single if you just want a single dummy input_id ie for genome wide 
+  analyses
+  -single_name , by default this is genome but you can specify something
+  different here, for example for protein annotation jobs which use the 
+  whole proteome this must be proteome
+  -translation_ids if you want your input ids to be translation ids
+  -verbose if you want more information about what the script is doing
+  -input_id_type if you want to specific an input_id_type not already
+  used by the analysis object
+  -insert_analysis if you want to insert an analysis object if it doesn't
+     already exist in the database'
+  -seq_level if you want the ids for the seq_level seq_regions, can
+  work with slice_size but the -slice options isn't required'
+  -top_level this will fetch all the non_redundant pieces in
+  the database this may produce ids which are a mixture of different
+  coordinate systems, if -coord_system_version is specified it will
+  be ignored
+
+example command lines can be found in the perl docs of the
+script
 
 
+all these scripts have -help and -perldoc options which will print out
+more information about the script
 
 monitor
 -------

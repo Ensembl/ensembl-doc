@@ -31,9 +31,9 @@ General Objectives
    EST genebuilding code
   Configuration
   SeqFetchers
-  Error string passing
 Bioperl
 Private cvs for specifc genomes config files
+Logging Module
 
 Introduction
 ------------
@@ -54,7 +54,9 @@ The pipeline cvs module will be split into two. The pipeline infrastructure
 code which deals creating and submitting jobs, handling dependancies etc
 will remain in ensembl-pipeline but the Runnable/RunnableDB code and
 the modules they use to run the various different analysis will move into
-a new cvs module called ensembl-run like bioperl.
+a new cvs module called ensembl-analysis. The convention will be that for
+ensembl-pipeline to work you should also have ensembl-analysis but ensembl
+analysis should have no dependancies back on ensembl-pipeline
 
 
 
@@ -76,6 +78,11 @@ General Objectives
  maintainable and people need to be encouraged to both run the tests and
  update the tests when new functionality is added to the pipeline.
 
+ The idea for the test system to to have a database setup which is easy
+ to produce so you know you can test any step individually or as a whole
+ and a system where the config and the reference set of analysis results
+ are easy to regenerate
+
  Core Code conventions
  #####################
 
@@ -84,6 +91,40 @@ General Objectives
  Bio::EnsEMBL::Utils::Exceptions code for throws, warning etc and try
  and use methods like info to introduce configurable levels of chattiness.
 
+ This is a list of core code conventions I was given
+
+ * Functions that return lists (especially potentially large ones) should
+   use pass by reference.
+
+ * Adaptor methods that return list references start with fetch_all
+
+ * Other functions that return list references start with get_all
+
+ * Adaptor methods that create objects begin with fetch, and adaptors
+   should only return objects of one type (e.g. the GeneAdaptor only 
+   creates Gene objects).
+
+ * The internal identifier of Objects is denoted by the mixed case 'dbID', 
+   even though the dbID is not an object. E.g. Gene::dbID, 
+   GeneAdaptor::fetch_by_dbID
+
+ * Adaptor methods that return lists of scalar values (not objects) start 
+   with 'list'.  E.g. GeneAdaptor::list_dbIDs
+
+ * Class names are always mixed case, with each word beginning with a 
+   capital letter. E.g. GeneAdaptor, ChainedAssemblyMapper
+
+ * Functions that return objects use mixed case for the object names, with 
+   the exception that functions never start with a capital letter.
+   E.g. Transcript::get_all_Exons, Transcript::translation
+
+ * SQL is only performed by ObjectAdaptors, never anywhere else in the 
+   code.
+
+ What follows are more conventions we should stick too
+
+ * If eval is used, every time an error is caught the error string MUST
+   be printed.
 
  Database connection and contention issues
  #########################################
@@ -95,6 +136,10 @@ General Objectives
  different databases are used as in the genebuild code. We need to find
  a sensible way to use this new functionality.
 
+ This is code which has already been implemented and is already used in
+ places but we need to make descisions about some of the genebuild modules
+ which have more database access than most to see where it is sensible
+ to have the code switched on and off
  
  Use strict and warnings
  #######################
@@ -119,17 +164,33 @@ General Objectives
    scripts rather than modules. The batchsubmission checks for awol and 
    pending job numbers can probably also be merged
 
+   This is already done for the most part but the scripts still need to
+   be optimized and tested in anger
+
+
    Configuration
    ************* 
  
    The Pipeline infrastructure configuration does work quite well but 
    it would be a a good idea to make sure most generic options are 
-   overridable using the command line.
+   overridable using the command line. 
+
+   The pipeline config currently consists of two modules BatchQueue.pm
+   and General.pm. I may alter this to Analysis.pm and RuleManager.pm
+   Analysis will contain most of what BatchQueue does now but some
+   of the rulemanager and batch submission system specific options
+   will move into RuleManager.pm. Any options which are to be defined
+   here.
  
    Dna database
    ************
 
    Give the runner script the possiblity of using a dna database
+   This would probably be configuration options which lies in Analysis.pm
+   If the dbargs for a dna database were defined two connections would
+   be established the defined dna database being attached to the standard
+   pipeline database. There would probably be some checking to make sure 
+   they aren't the same database
 
    VOID status
    ***********
@@ -137,8 +198,13 @@ General Objectives
    most Jobs which get marked as Void will probably just eventually get 
    added to the input_id_analysis table and the pipeline will continue
    It may be a good idea to make the string used when setting jobs to VOID
-   as configurable somewhere so you can just continue on with the piepline
-   without delay
+   as configurable somewhere so you can just continue on with the pipeline
+   without delay.
+
+   After deciding this in't the best solution any sequence which is found
+   to have no value context by the check in RunnableDB will be marked as
+   SUCCESSFUL but those which find context validty errors in the actual
+   blast run will still be marked as VOID 
 
   Analysis API changes
   ####################
@@ -154,6 +220,9 @@ General Objectives
    methods reduced down to base classes to make them more maintainable but 
    below specific things which we can do to certain sets of modules is 
    described.
+
+   The base classes have been spec'd out in RunnableDB.spec and 
+   Runnable.spec which should be found in this directory
 
      Blast
      ----- 
@@ -241,6 +310,20 @@ General Objectives
    general the configuration needs to be rationalised and redundancies 
    removed.
 
+   The principle is that any one RunnableDB/Runnable should only have to
+   include 3 config files. General.pm for general settings, Database.pm
+   for database settings and then an analysis specific file if required 
+   for any other analysis specific settings. If one analysis needs to know
+   config options for another analysis its config file such fetch these not
+   the RunnableDB itself    
+
+   For the cDNA/EST analysis we need a method of running multiple analysis
+   across different data sets at the same times. The two current proposals
+   include using a BatchQueue style module and array of hashes to contain
+   the data specific settings for the run keyed on say logic_name. The
+   other is to have high level runnabledbs which wrap the exonerate and 
+   estgenebuilder modules and the cdna/est specific config files but this
+   doesn't allow you to align multiple est or multipl cdna data sets
 
    Seqfetchers
    ***********
@@ -251,20 +334,11 @@ General Objectives
    resides in bioperl. We propose moving this code back inside EnsEMBL 
    to make it easier for us to maintain.
 
+   The OBDA module doesn't need fixing as it fails to fetch sequences which
+   are present in the index a significant proportion of the time and we
+   need to figure out why. This problem is particularly notable when
+   two indexes are being queried at the same time
 
-   Error string passing
-   ********************
-
-    Roy recently introduced some code into the Blast runnable which 
-    parsed the blast processes STDERR output and returns a more sensible
-    error message when certain errors are throw like VOID when no valid
-    sequence context is found or OUT OF MEMORY when we run out of memory.
-    This makes it easier to see some errors and take appropriate action
-    and I think if possibly it would be sensible to have similar code for
-    other analysis which are prone to similar errors like Exonerate, Pmatch
-    and Genewise. We also want to introduce a controlled vocabulary for
-    error messages to make it easier to assess what has gone wrong and if 
-    the errors are significant enough to need to stop the pipeline
 
 
 Bioperl
@@ -282,90 +356,105 @@ It would be a good idea to have a private cvs repository to keep
 copies of the site specific config files for each build so we have a record
 of what people used for future reference
 
-this would keep versions of all files found in Bio::EnsEMBL::Pipeline::Config
+this would keep versions of all files found in 
+Bio::EnsEMBL::Pipeline::Config
 and copies of the analysis.conf and rules.conf which could be generated
 from the analysis and rules tables using the analysis_setup and rules_setup
 scripts. Plus a dump of the different input_ids used
 
 
-===================================================================
-Specific areas of the pipeline that could be improved (dta 070504):
-===================================================================
-
-
-Error messages.  Runnable chattiness.
--------------------------------------
-
-* A controlled set of error messages would allow a set of decisions to
-be made by the runner as to whether to proceed, given some kind of
-error severity cut-off.
-
-* By default Runnables and RunnableDBs should be silent on STDERR and
-STDOUT and only make noise when something has gone awry.
-
-* The stderr and stdout of the runnable modules needs to be of
-controlled syntax to allow parsing of the success/failure/outcome of a
-job.  A reporting module could be constructed to simplify this.
-
-* If eval is used, every time an error is caught the error string MUST
-be printed - or you'll get the chair.
-
-
-Config Files.
+Logging module
 -------------
 
-* The cDNA database details currently have to be entered into the
-config files twice.  Once in the Config/GeneBuild/databases.pm file
-and once in the Config/cDNA_ESTs/EST_GeneBuilder.pm file.  This is a
-redundancy that could be removed.
+We need a module which is easy to use and easy to remember what the
+different levels of verbosity are. After various discussions I think we
+only need 3 levels of verbosity
 
-* It is impossible to run the EST and cDNA builds simultaneously,
-purely due to problems with the config files being the same.  This
-could do with a clever solution.
+0, this should be short terse messages which at least contain some
+of the controlled vocab so it can be easily parsed e.g
 
+COMMAND LINE: Repeatmasker sequence.fa
+PROBLEM: OUT OF MEMORY ERROR
 
-RuleManager and Job Control
----------------------------
+with level 0 stderr so be empty without any problems and stdout should
+only have standard progress messages like the commandline etc
 
-* RuleManager is very hard to run 'just quickly'.  Getting input ids
-for each cycle of the RuleManager run is glacially slow and makes this
-script a blunt tool for getting analyses run.
+1 this would be useful information when debug but should still be
+  relatively short
 
-* The time that RuleManager spends sleeping should be easily set
-through config files - quick jobs certainly don't want the RuleManager
-to sleep for 90 minutes if they exceed their pending limit.
+RepeatMasker produces 5 results
+validate_genes has thrown out 3 genes
 
-* The number of jobs running needs to be controlled somehow.
-Controlling the number of pending jobs is only indirectly controlling
-this.  Maybe the control could be shifted to the total number of
-submitted jobs (RUN + PEND + SUSP).
+2 this can be as verbose as you like print out all the information
+about genes right down to their supporting evidence etc
 
-* Where runnable execution is eval'd, there are many cases
-(e.g. SimilarityGeneWise) where one run out of many will fail.  It is
-impossible to simply rerun these as duplicate entries in the database
-will result.  It is important that an option exist that allows the
-user to specify what should be done when a runnable fails (ie. throw
-or warn).  In many cases a warning is not serious enough and leads to
-patchy data.  In these cases a throw before writing data would be all
-that is needed.
+There was also a suggestion that the logging was divided into 3 chunks 
+which could be configured indenpendantly the chunks would probably be
+Runnable/RunnableDBs utils modules/parsers like TranscriptUtils
+everything else
 
-* Jobs that are known to consume large amounts of memory need to be
-flagged as such in the documentation.  An internal check by the
-runnable of minimum memory available should also be performed.
+this would mean if you were debugging the Runnables and wanted them very
+chatty you wouldn't have to see everything. It would also probably
+pay to try and ensure the formatting of the prints is as easy to read
+as possible to make the messages actually useable
 
 
-Pipeline tables.
-----------------
 
-* It is hard to fill in the input_id_type_analysis table.  Currently
-needs manual (error prone) SQL entry.  The table filling-in scripts
-could be tweaked to include this table too.
+Error checking and error strings
+--------------------------------
 
-* The need to insert dummy analyses is not ideal - especially since
-there are eight to ten of them which don't really have set names.
-Some lateral new way of doing this, or some fancy coding, or a
-documented standard set of dummy analysis, could remove
-this minor annoyance.
+The main error string should always be part of the controlled vocabulary
+to allow for easy checking and potentially machine parsing
+
+Whether errors should stop a process entirely is a more difficult
+question. The default behavoir is that a throw should kill the running
+job leaving it will a FAILED status or something else appropriate but
+there are situations like in the Genewise runs where this isn't always
+sensible. 
+
+Data should be always validated before a write occurers to make sure 
+the objects have all the data the write is expecting them to have
+but a failed write shouldn't necessarily kill the whole process other
+wise you potentially lose 20hrs of computes for the sake of 1 gene.
+
+It should also be made clear which stages failed writes need investigating
+and cleaning up and which stages are allowed to have duplicate data
+
+
+
+
+
+LSF Documentation and useage
+----------------------------
+
+There should be clear docs somewhere which indicate which LSF options
+are appropriate to use in the context of the pipeline and which analysis
+should be run using options. The options we need docs for are memory 
+resources, specific archtectures and machine types, database limiting
+options and time limits. As far as memory goes whether it is sensible to 
+have the jobs themselves check memory usage aswell is another thing to 
+consider
+
+
+Input_id_analysis table
+-----------------------
+
+The pipeline infrastructure itself will not be developed in the next
+couple of months at least but the need for dummy analysis have been
+reduced if you use either the lsf_submission or the job_submission scripts
+as these can manfacture input_ids on the fly so at least for the first
+analysis in your chain you don't necessarily need dummies but it is still
+a good idea to add them anyway. A document could describe what is a 
+standard set of dummies but having a coded version I think removed some
+of the flexibilty the current system offers and won't work in situations
+like filenames really
+
+
+
+
+
+dtas comments not yet addressed
+-------------------------------
 
 
 Documentation.
@@ -434,3 +523,4 @@ doesn't really belong there
 *utility to check what proteins already have genes run on them, dnagling
 foreign keys etc before rerunning failed genewise jobs to try and reduce
 the amount of work you have to rerun
+
