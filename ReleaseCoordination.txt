@@ -95,15 +95,16 @@ Main steps in release coordination
   to ensembl-admin to ask everyone concerned to check the display of
   his/her data on the web.
 
-To set up a web server, you will have to do it as ***REMOVED*** unix user,
+To set up a web server, you need to be logged in as the ***REMOVED*** Unix user,
 if not already set up.
 The default machine and port to run it are ecs2d port 5000
 
-You will have to created a 
+It's customary to create a directory for each release, e.g. for
+release 24 use ensembl_24
 
 su ensembl
-mkdir /nfs/acari/websites/ensembl_ecs2d_port5000
-cd /nfs/acari/websites/ensembl_ecs2d_port5000
+mkdir /nfs/acari/websites/ensembl_24
+cd /nfs/acari/websites/ensembl_24
 cvs -d :ext:ensembl@cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co sanger-web
 cvs -d :ext:ensembl@cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co ensembl
 cvs -d :ext:ensembl@cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co ensembl-external
@@ -125,7 +126,7 @@ in conf/httpd.conf file)
 
 mkdir logs (needed for webserver logs)
 
-if /nfs/acari/websites/ensembl_ecs2d_port5000 already exists, running
+if /nfs/acari/websites/ensembl_24 already exists, running
 a cvs up -dP should be enough. The bioperl version already installed
 would work.
 
@@ -146,7 +147,8 @@ DEFAULTS.ini
 
 SiteDefs.pm
  update the following variables if not already done
- $ENSEMBL_SERVERROOT     = '/nfs/acari/websites/ensembl_ecs2d_port5000';
+ $ENSEMBL_SERVERROOT     = '/nfs/acari/websites/ensembl_24';
+ (or just leave this as dirname ($Bin) and it should work)
  $ENSEMBL_PORT           = '5000';
  $ENSEMBL_USER           = ***REMOVED***;
  $ENSEMBL_ERRORS_TO      = 'abel@ebi.ac.uk';
@@ -167,7 +169,9 @@ Homo_sapiens.ini
 ad so one for species to be served Mus_musculus.ini,
 Rattus_norvegicus.ini, etc...
 
-As Mart is not used, I use to comment 2 lines in perl.startup script
+At this stage you can also comment out the ENSEMBL_FASTA lines.
+
+As Mart is not used, the follownig 2 lines in perl.startup script can be commented out
 #use MartDefs;
 [...]
 # MartDefs->new();
@@ -180,23 +184,22 @@ in start_ensembl script
 change from 
  /ensweb/wwwdev/server/src/httpd -d /ensweb/wwwdev/server
 to
- /usr/local/ensembl/apache/bin/httpd -d /nfs/acari/websites/ensembl_ecs2d_port5000
+ /usr/local/ensembl/apache/bin/httpd -d /nfs/acari/websites/ensembl_24
 
 in stop_ensembl script
 change from 
  kill -TERM `cat /ensweb/wwwdev/server/logs/$HOSTNAME.httpd.pid`
 to
- kill -TERM `cat /nfs/acari/websites/ensembl_ecs2d_port5000/logs/$HOSTNAME.httpd.pid`
+ kill -TERM `cat /nfs/acari/websites/ensembl_24/logs/$HOSTNAME.httpd.pid`
 
 Then start the server
 
 ./start_ensembl
 
-That will go through all the conf files and created a
-conf/config.packed. The latter is used for quick start of the
-server. If you change a conf files, you will need to delete this file
-before the start of httpd. In this way, it will take in account the
-new changes.
+This will go through all the conf files and create the file
+conf/config.packed; this is used to speed up starting the server. If
+you change a config file, you will need to delete this file before you
+re-start the httpd, so that the changes will be taken into account.
 
 to stop it
 
