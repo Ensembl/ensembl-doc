@@ -378,6 +378,7 @@ H. Combine_Genewises_and_E2Gs
 
 This module combines the est2genome predictions from cDNAs with
 genewise protein-based predictions from the Targetted and Similarity
+
 Genewise stages of the gene build. It is formally part of the main
 gene build and is described in assembly_based_genebuild.txt rather than here.
 
@@ -387,3 +388,16 @@ I. Data delivery
 cDNA features/genomewise predictions are delivered as described in EST_analysis.txt
 
 Genes created from genewises with UTRs from cDNAs are now dealt with in the main GeneBuild - so from here go back to the assembly_based_genebuild docs.
+
+
+
+
+###############
+RefSeq Database
+###############
+
+
+We have to build an extra database with all the exons from exonerate_e2g genes that have been built from
+RefSeq sequences, written as features (in the same way we prepare the EST database with features from the
+exons written by Filter_Exonerate_and_E2G...
+

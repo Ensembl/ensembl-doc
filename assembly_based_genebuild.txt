@@ -554,6 +554,14 @@ H. Checking results before web handover
 
 This is described in ensembl-doc/post_genebuild_checks.txt
 
+
+I. Preparations of the Data before handing Over:
+------------------------------------------------
+
+########################
+Final GeneBuild Database
+########################
+
 Also, you'll need to make sure that the final database you hand over
 has dna, feature, repeat_feature etc tables populated. The way I do
 this is to re-use the interim database:
@@ -598,4 +606,19 @@ mysql > load data infile 'path/to/final_supporting_feature.file' into table supp
 5. Transfer the analysisprocess entry relevant to genes of type ensembl into the shiny new db.
 
 Once all your post-build checks are run, you're done!
+
+
+
+##################
+Prune the Features
+##################
+
+dump the feature table from the interim database into a file
+
+mysql> select * from feature into outfile 'path/to/interim_feature_before_pruning.file';
+
+parse the feature file and reject all those BLAST features (and only BLAST features) with score below 150.
+
+
+
 
