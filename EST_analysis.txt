@@ -182,7 +182,7 @@ and have to resplit and rerun the troublesome chunks.
 
 The spliting can be done by hand:
 
-    /work2/gs2/gs2/bin/fastasplit <fastapath> <outputdir> <chunknum>
+    /acari/work2/gs2/gs2/bin/fastasplit <fastapath> <outputdir> <chunknum>
  
  <fastapath> = the myltiple-entry fastA file with the ests
  <outputdir> = dir where we're going to put the chunks
