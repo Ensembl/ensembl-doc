@@ -2,12 +2,7 @@
 Running EST analysis in Ensembl
 -------------------------------
 
-Last modified: eae 07.02.2002
-Val Curwen 02.10.2001
-
-07.02.2002 this is all very much work in progress. Many scripts still
-in development so not yet checked in. If you need them urgently,
-contact us (vac@sanger.ac.uk, eae@sanger.ac.uk)
+(Contact: vac@sanger.ac.uk, eae@sanger.ac.uk)
 
 Overview
 --------
@@ -84,28 +79,79 @@ ensembl-pipeline
 ensembl-core
 ensembl-external
 
-2. You need to have 2 databases:
+2. DATABSES:
 
-main ensembl database - we call this "refdb" - holds dna sequences, static_golden_path, 
-pipeline results etc. We just use this as a source for dna sequence information. This is fairly common 
-in ensembl as it saves space - not every database has to have all the genomic DNA in it.
+the strategy with the databases has chaged:
+
+Since we have at the moment nearly 1000 available nodes for running
+and being about this number the limit of threads allowed in a given mysql instance,
+we need to avoid 'doubling' the number of connections per job to the same mysql instance. 
+Thus we will work with more databases, each one in a different mysql instance.
+All of these databases will need
+to have filled the static_golden_path, clone, contig, meta and analysis tables.
+
+* reference_db (or dba_db):
+holds dna sequences, static_golden_path, pipeline results etc.
 Specify details in ESTConf.pm:
 EST_REFDBHOST
 EST_REFDBNAME
 EST_REFDBUSER
 EST_REFDBPASS
 
-est database - usually referred to as "estdb" - here we store the est results in order to keep 
-table sizes under control, rather than adding millions of extra features into the main ensembl database 
-feature table. This database needs to have the clone, contig and static_golden_path 
-tables filled in - dump the data in these tables from refdb, and load it up into estdb.
+* exonerate est features
+this one contains the features loaded from the exonerate runs. It also contains
+a non-ensembl table called est, where the lengths of the ests are held.
 Specify details in ESTConf.pm:
-EST_DBNAME                
-EST_DBHOST                 
-EST_DBUSER                 
-EST_DBPASS                  
+EST_REFDBHOST
+EST_REFDBNAME
+EST_REFDBUSER
+EST_REFDBPASS
 
-Both databases also need to have an entry in the meta table giving the
+* est2genome transcripts
+this contains the genes/transcripts/exons/supporting_evidence produced after running 
+Filter_ESTs_and_E2G/pm (filter,blast,est2genome)
+on the exonerate results. It will contain translations but these are not real ones.
+Specify details in ESTConf.pm:
+EST_E2G_DBHOST
+EST_E2G_DBNAME
+EST_E2G_DBUSER
+EST_E2G_DBPASS
+
+* est_genes
+this contains the genes/transcripts/exons/translations(this time they are good)/supporting_evidence
+produced after running EST_GeneBuilder.pm(cluster_and_merge,genomewise) on the 
+transcripts from the previous database
+EST_GENE_DBHOST
+EST_GENE_DBNAME
+EST_GENE_DBUSER
+EST_GENE_DBPASS
+
+Diagram of jobs and databases:
+
+ ___________  
+|           |
+| EST_REFDB |
+|___________|
+      |                  | exonerate
+      |                  |                                 
+      |               ________	
+      |              |        | 
+      |              | EST_DB |
+      |              |________| 
+      |                  |
+      |------------------| filter ...
+      |             _____|______	
+      |            |            | 
+      |            | EST_E2G_DB |
+      |            |____________| 
+      |                  |
+       ------------------|  estgene ...    
+	           ______|______	
+                  |             | 
+                  | EST_GENE_DB |
+                  |_____________| 
+
+All databases also need to have an entry in the meta table giving the
 default assembly - it should look something like this:
 
 | meta_id | meta_key         | meta_value                 |
