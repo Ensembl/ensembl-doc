@@ -584,7 +584,8 @@ DEFAULT_CLEANUP     -
 
 QUEUE_CONFIG    an array of hashes, each element contains information 
 		about a particular analysis type (keyed in Job.pm 
-		on logicname).
+		on logicname). You need an entry in this array for each analysis you
+    intend to run 
 		{		
 		logic_name => 'CpG', logic name of a particular 
 		analysis, eg:CpG.

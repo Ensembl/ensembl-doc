@@ -354,11 +354,13 @@ farm
 2. Have you filled out all the config files, General.pm, Blast.pm, 
 BatchQueue.pm plus any analysis specific files like Fathom.pm
 
-3. Have you filled in the analysis table
+3. Does BatchQueue.pm contain entries for all the analyses you wish to run
 
-4. Have you filled in the rule tables
+4. Have you filled in the analysis table
 
-5. Are the appropriate dummy entries in the input_id_analysis table
+5. Have you filled in the rule tables
+
+6. Are the appropriate dummy entries in the input_id_analysis table
 
 If the answers to all these questions are yes you are probably read
 to set the RuleManager going
