@@ -10,7 +10,7 @@ database with sequence loaded (see loading_sequence_into_ensembl.txt).
 
 If you have any questions please contact ensembl-dev@ebi.ac.uk
 
-Document last updated (19/06/2003)
+Document last updated (10/11/2003)
 
 
 
@@ -49,13 +49,29 @@ job
 This contains information about specific jobs, what input_id they are
 using, what analysis they are running, where their stdout and stderr are
 being redirected, how many times the job has been retried and the id from
-whichever submission system has been used.
+whichever submission system has been used. It also now stores the
+host the job is being executed on and some temp_dir info from the
+submission system
 
 job_status
 ----------
 This contains the record of the various statuses a particular job has,
 the current_status has a y flag in the is_current column and the
 time records when the entry was made.
+
+Jobs can have 8 possible different statuses. 
+CREATED, the job has been created inside the rulemanager
+SUBMITTED, the job has been submitted to the batchsubmission system
+WAITING, the job has been run inside a batch and while the batch is running
+         that particular job
+READING, the fetch_input method of the RunnableDB is being called
+RUNNING, the run method of the RunnableDB is being called
+WRITING, the write_output method of the RunnableDB is being called
+FAILED, the job has failed for some reason and stopped running
+KILLED, the job has been running for too long and the RuleManager has
+	killed it
+VOID, A blast job is being run the the sequence has too many masked bases
+      to effectively run blast over 
 
 rule_goal
 ---------
@@ -167,38 +183,29 @@ D. Dependencies which do not use the same input id type. This is a new
 
 This diagram illustrates an example of flow rules
 
+
  SubmitContig      SubmitChromosome   SubmitGenome     	SubmitSlice
-    CONTIG           CHROMOSOME         GENOME            SLICE
- A   ^               A   ^                 ^                ^
-     |                   |                 |		    |
- RepeatMask            Pmatch		   |		    |
-   CONTIG            CHROMOSOME		   |		    |
- B   ^			 ^		   |		    |
-     |		     C 	 |		   |		    |
-     |			 |	 	   |		    |
-   Swall              Best_Wait		  /		    |
-   CONTIG	     ACCUMULATOR     	/		    |
- C   ^			 ^	      /			    |
-     |			 |	    /			    |
-     |			 |	  /			    /
-  Blast_Wait          BestPmatch/			  /
-  ACCUMULATOR	        GENOME			        /
-     ^			 ^			      /
-     |		      C	 |			    /
-     |			 |			  /
-     |                Pmatch_Wait	        /
-     |                ACCUMULATOR	      /
-     |		         ^		    /
-     |			 |		  /
-     |			 |	        /
-       \	     TargettedGenewise/
-	 \		 SLICE
-	   \ 		 ^
-	     \		 |
-	       \	 |
-		 \	 |
-                   \SimilarityGenewise
-  			  SLICE
+   CONTIG           CHROMOSOME         GENOME            SLICE
+      ^                 ^                 ^                 ^
+  A   |             A   |              A  |              A  |
+  RepeatMask          Pmatch              |                /         
+    CONTIG          CHROMOSOME            |              /    
+      ^                 ^                 |            /      
+  B   |             C   |                /           /        
+    Swall            Best_Wait         /           /         
+   CONTIG           ACCUMULATOR      /           /            
+      ^                 ^          /           /              
+  C   |             D   |        /           /               
+  Blast_Wait         BestPmatch/           /                
+ ACCUMULATOR           GENOME            /                 
+      ^                 ^              /                 
+      |                 |            /               
+      |           TargettedGenewise/                  
+      |               SLICE
+      |                 ^
+    D |             B   |
+      |___________SimilarityGenewise
+                      SLICE     
 
 
 The flow between rules are arrows labeled with either A, B or C  
@@ -225,15 +232,46 @@ follows, and how setup those analyses in the rule flow described above.
   < ensembl-pipeline/sql/table.sql
 
 2. Then fill in the analysis table which is part of the core schema
-   using this script:
+   
 
-  ensembl-pipeline/scripts/add_Analysis
+There are two ways to fill in an analysis table. 
 
-This has options to specify all the fields in the analysis table
-as well as an input_type to go in the input_id_type_analysis.
+The script:
 
-Running the script with the -help option gives more information.
+ensembl-pipeline/scripts/add_analysis
 
+This will allow you to add individual lines to an analysis table. This
+script depends on the database already having the pipeline tables included
+
+The second method will fill the analysis table and input_id_type_analysis 
+table all at once. This method takes a conf file which has this format
+
+[RepeatMask]
+db=repbase
+db_version=020713
+db_file=repbase
+program=RepeatMasker
+program_version=1
+program_file=RepeatMasker
+parameters=-low, -lib, /acari/work5a/lec/briggsae.lib 
+module=RepeatMasker
+module_version=1
+gff_source=RepeatMasker
+gff_feature=Repeat
+type=CONTIG
+
+each entry in the analysis table should have one of these in the file. The
+header is the logic_name and the other key value pairs are for the other 
+columns in the analysis table and one pair for the input_id_type_analysis
+table
+
+This script can also be pointed at a complete database to produce a config
+file
+
+this script can also be told not to expect pipeline tables
+
+Both these script have a -help option which should print out the 
+documentation from the script
 
 The fields in the analysis table
 --------------------------------
@@ -414,13 +452,26 @@ rule_goal.rule_id = rule_conditions.rule_id order by rule_id;
 4. Filling in the input_id_analysis table
 -----------------------------------------
 
-Any dummy entries in the analysis table need entries in the input_id
-analysis table in my rule flow example the dummy entries which require
+To start the pipeline a series of entries are required in the 
+input_id_analysis table. These entries fulfil two functions. First
+they fulfil conditions which exist in the rule_condition table but
+which don't actually match an analysis which needs to be run. Secondly
+They provide a list of input ids each associated with a type which 
+the RuleManager can check against the rules to see what to run.
+The 'fake' conditions in the rule table as matched with 'dummy'
+analyses in the analysis table. The dummy analyses generally have names
+like SubmitContig or SubmitSlice but they can be called anything. These
+analyses act as conditions for analysis which don't depend on anything
+like Repeatmasker or Pmatch. Each different type of input_id
+needs a different dummy analysis object in order to start its chain
+of dependancy. The entries for these dummy analyses can be filled
+in to the input_id_analysis table using the make_input_ids script
+which lives n  ensembl-pipeline/scripts/
+
+In my rule flow example the dummy entries which require
 entries in the analysis table before the pipeline was started are
 SubmitContig, SubmitChromosome, SubmitAll and SubmitSlice.
 
-A script can be used to load the table:
- ensembl-pipeline/scripts/make_input_ids
 
 This script currently lets you generate 5 different types of input_ids
 
@@ -484,6 +535,19 @@ this is set up in RunnableI and as default will be /tmp/.
 PIPELINE_RUNNER_SCRIPT is the location of the script to run the pipeline 
 and is usually: ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/runner.pl.
 
+MAX_JOB_TIME this is the maximum length of time the RuleManager will
+let a job have the status running for. For this method to work the
+BatchSubmission module being used has to of implemented the get_job_time
+method. This is implemented in the LSF module. If this method isn't 
+implemented this functionalilty will never be used.
+
+KILLED_INPUT_IDS, this is the path to a file where the input_id, logic_name
+and module of a killed job is written. The status of a job which is killed
+is also set to KILLED
+
+Both MAX_JOB_TIME and KILLED_INPUT_IDS can be overided in RuleManager
+on the commandline
+
 
 BatchQueue.pm
 -------------
@@ -520,7 +584,8 @@ DEFAULT_CLEANUP     -
 
 QUEUE_CONFIG    an array of hashes, each element contains information 
 		about a particular analysis type (keyed in Job.pm 
-		on logicname).
+		on logicname). You need an entry in this array for each analysis you
+    intend to run 
 		{		
 		logic_name => 'CpG', logic name of a particular 
 		analysis, eg:CpG.
@@ -640,8 +705,11 @@ also need to be included.
  -shuffle         before running though the loop shuffle the order of the
                   input ids
  -analysis        only run with these analyses objects, can be 
-		  logic_names or analysis ids, this option can appear in
-		  the commandline multiple times
+		              logic_names or analysis ids, this option can appear in
+		              the commandline multiple times
+ -skip_analysis  don't run with these analyses objects, like -analysis can
+                 be logic_names or dbIDs and can appear in the commandline
+                 multiple times                 
  -v               verbose mode
  -dbsanity        peform some db sanity checks, can be switched of with 
 		  -nodbsanity
@@ -657,6 +725,11 @@ also need to be included.
  -killed_file     overides the path to the $KILLED_INPUT_IDS file in 
 		  General.pm
  -queue_manager   overides the $QUEUE_MANAGER in General.pm
+ 
+ -rename_on_retry, this means any output already produced will be 
+		   deleted before a job is retried, this defaults to off 
+		   currently, it was put in as LSF appends output and error 
+		   files and sometimes you don't want this
  -h or -help      print out the help 
 
 Examples
@@ -676,6 +749,18 @@ Examples
   To run RepeatMask analysis locally:
    perl RuleManager3.pl -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ensembl 
     -dbname rat_Jun03_mk2 -shuffle -idlist_file id_list
+
+
+as a note RuleManager is relatively light on the CPU and is can also be
+quite verbose even without the verbose flag so it is generally best to
+run it in the background and redirect the output into a file. Also
+a RuleManager script will not actually stop itself running unless
+it is passed the -once flag. If it isn't it will continue running
+ad infinitum untill it is stop manually. If the script recieves a sigterm
+though in the form of ^C or a kill command it will stop cleanly but
+you do need to remember Your RuleManager will continue running if you
+don't stop it
+
 
 
 monitor
@@ -736,6 +821,34 @@ Example commandlines
    -nohits dna_align_feature:20
 
 
+The pipeline needs access to a BatchSubmission system to run
+in anything other than -local mode
+
+The are modules written for two batch submission systems current
+LSF, which we use internally at the sanger and GridEngine which is
+freely availible from Sun
+
+Any implemented BatchSubmission modules should inherit from
+Bio::EnsEMBL::Pipeline::BatchSubmission and should implement these 4 
+methods
+
+
+construct_commandline, this is the method called in Job which
+builds the commandline which needs to be issued to the system
+
+open_commandline, this is a method which is also called in Job
+which opens the above commandline submitting the job to the system
+and reporting some ID which the Submission system as assigned to the
+job
+
+copy_output, this method is called in the runner to copy the output from 
+the temporary location the submission system keeps it to where you want
+the output saved if you want it saved 
+
+delete_output, this method deletes the output from the temporary place
+the submission system was storing it
+-----------------------------------------------------------------------
+
 As previouly mentioned these are generic intructions about running the
 pipeline. There are 4 types sets of analyses which we use the pipeline
 to run here at Ensembl these are
@@ -754,8 +867,7 @@ predicted by genewise on the basis of protein alignments. The
 complete process takes alignments of both proteins and cdnas to the
 genome and collapses them down to produce a non redundant set of 
 transcripts which can have utrs (added by cdnas), a description of this
-process can be found in both running_the_pmatches.txt and 
-running_the_genebuild.txt
+process can be found in  running_the_genebuild.txt
 
 The est genebuild, this is where ests are aligned to the genome and are
 used to produce a non redundant set of transcripts. These analyses

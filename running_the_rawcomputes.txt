@@ -1,5 +1,9 @@
 The following document describe the resources needed and how to set up
-and run the ensembl pipeline for raw computes
+and run the ensembl pipeline for raw computes. 
+
+The raw computes are a set of analyses which tend to get run across all 
+the contigs in a database or across pieces of the assembly to generate 
+some base feature on a genome before anything else is run
 
 
 What you need 
@@ -33,7 +37,6 @@ dust for low complexity masking
 
 some of these are freely availible on the web, other need licenses
 
-
 An ensembl core database with the pipeline tables added
 (ensembl-pipeline/sql/table.sql)
 
@@ -44,537 +47,142 @@ is also code with in the pipeline for using Suns Gridengine
 The rest of this document will also assume you have a database which
 contains sequence and if desired an assembly 
 (see loading_sequence_into_ensembl.txt)  and will describe how 
-to configure and run the pipeline
+to configure and run the raw computes. The generic parts of the pipeline
+which are used are documented in using_the_ensembl_pipeline.txt
 
 
-Configuration 
+
+Before you start the pipeline
+=============================
+
+Before you can start the pipeline you need to setup a few things first.
+
+You need to make sure you database contains the pipeline tables.
+
+You need to decide which analyses you are going to run. 
+
+You need to make sure you database contains sequence and possibly an 
+assembly if you wish to run on pieces of chromosomes. 
+
+Lastly you need to fill in both the analysis table, the rule tables 
+and the configuration.
+
+(The pipeline schema and tools to fill the analysis and rule tables
+are described in using_the_ensembl_pipeline.txt. How to load sequence
+into a core ensembl database is described in 
+loading_sequence_into_ensembl.txt)   
+
+
+Pipeline database tables
+========================
+
+These table definitions can be found in ensembl-pipeline/table.sql and 
+the tools used to fill them in are described in 
+using_the_ensembl_pipeline.txt. 
+
+The analysis and input_id_type_analysis tables need entries to describe 
+all the analyses you wish to run. The rule tables need entries to 
+describe the dependancies which exist within the pipeline (a diagram 
+further down the document should describe a typical set of dependancies)
+The input_id_analysis table should contain entries for all input_ids
+you analysis need to run against. For the raw computes this is likely
+to be contig names and 1M slice names.
+
+
+
+Configuration
 =============
 
-There are a series of configuration files which need filling out for
-the pipeline to run
+To run the raw computes there are only three configuration files which 
+you need to fill in. These files all live in 
+Bio::EnsEMBL::Pipeline::Config and are called General.pm, BatchQueue.pm
+and Blast.pm. In the cvs checkout these will all be appended with a
+.example which will need removing
 
-These files are all found in
+This files all contain generic pipeline options which are explained
+in using_the_ensembl_pipeline.txt
 
-ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/Config
+General.pm also contains some raw_compute specific settings
 
+SLICE_INPUT_ID_REGEX, this is the regex used to parse the input ids
+		      which represent slices so the correct piece
+		      can be fetched from the database. 
+		      A standard slice input_id looks like this
+		      1.1-1000000, the regex used to parse this would 
+		      look like this (\S+)\.(\d+)-(\d+) and the 3 values
+		      it would produce would represent chromosome name,
+		      start and end
 
-the files present in the intial checkout will be appended with a
-.example but you need to rename the file
+PIPELINE_REPEAT_MASKING This is an array which indicated if repeatmasked
+			sequence should be fetched and what type of 
+			repeats should be masked. If you want all repeats
+			in you repeat_feature table to be masked the 
+			array needs to look like this  ['']. If you want
+			specific repeats to be masked you need the array
+			to look like this ['RepeatMask', 'Dust'] and 
+			contain the logic_names of the repeats you want 
+			masked. If you want no repeats to be masked you 
+			need the array to look like this [].
 
-e.g General.pm.example should become General.pm
 
-There are 3 files which need filling out
 
-General.pm
-----------
 
-General.pm contains general settings for the pipeline
+Running the Pipeline
+====================
 
+The Pipeline is run using a script called RuleManager3.pl, which is 
+located in enembl-pipeline/modules/Bio/EnsEMBL/Pipeline/
 
-BIN_DIR, DATA_DIR, LIB_DIR should be the directories where most of the
-binaries/data files/lib files live for the analyses you wish to run
+This script is explained in using_the_ensembl_pipeline.txt. The script
+also has a -help options which is used should print out its documentation
 
-These variables are then used to locate programs or data files when
-they are to be run
+Here are some example command lines of how to run the script to
+get the Raw computes run
 
+perl RuleManager3.pl -dbhost myhost -dbuser admin -dbpass **** 
+     -dbname my_pipeline_db -shuffle
 
-PIPELINE_WORK_DIR this is the directory where analyses will be run,
-this is set up in RunnableI and as default will be /tmp/
 
+this will just run the pipeline. Any jobs which can be run will be run
+and the RuleManager will continue to loop through the rules ad infinitum
+untill it is killed
 
-PIPELINE_RUNNER_SCRIPT location of the runner script to run the
-pipeline normally ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/runner.pl is used
 
-SLICE_INPUT_ID_REGEX if you are running any of you analyses on pieces
-of dna which are bigger than contigs the object used to generate these
-pieces will be called a Slice. The input_id used will be the slices
-name which follows the format chr_name.start-end In this variable you
-must specify how to parse that input id into chr_name, start and end.
-Most ids look like this 1.1-10000 and would use the input_id_regex
-which is given in the example
+It is generally a good idea to test the Pipeline before setting the 
+RuleManager lose across the whole Rule table. This can be done in a 
+number of ways.
 
-PIPELINE_REPEAT_MASKING this is the annoymous array which is passed to
-the get_repeatmasked sequence call it should either contain the ['']
-which would mean all repeats would be masked out or ['RepeatMask']
-which would be the specific logic_names of the type of repeat_features
-which you want masked out or [] if you want no masking to take place
+The once flag means the RuleManager will only loop through its id set
+once then stop. This will allow you to recognise is any immediate
+setup is incorrect.
 
+The idlist_file flag makes the RuleManager only run on a list of ids
+provided in a file which limits what the RuleManager can do
 
-BatchQueue.pm
--------------
+The -analysis flag makes the RuleManager run on a specified analysis
+again limiting its actions
 
-BatchQueue.pm contains settings for the job object and 
-the batch submission system
+The progress of the pipeline can be watched by using the monitor script.
+This script lives in ensembl-pipeline/scripts. It is also documented
+in using_the_ensembl_pipeline.txt and has a -help options. A common 
+useage in the pipeline here at sanger is this
 
 
+ 
+./monitor -dbhost myhost -dbuser admin -dbpass **** -dbname mypipelinedb
+-current -current_summary -finished
 
-QUEUE_MANAGER, this is the name of the module which should be used
-submit jobs to you batch submission system, These modules all live
-under Bio::EnsEMBL::Pipeline::BatchSubmission, there are currently two
-modules LSF which will submit jobs to an LSF system and GridEngine
-which uses Suns Gridengine If you wanted to use a different submission
-system the you would need to implement a module which inherits from
-Bio::EnsEMBL::Pipeline::BatchSubmission and implements two methods,
-construct_command_line and open_command_line which are used by the Job
-to submit the analysis
-
-
-MAX_PENDING_JOBS this is the maximum number of pending jobs allowed
-before the RuleManager script will stop submitting more jobs to the
-farm
-
-AUTO_JOB_UPDATE this being true (ie = 1) means when a jobs status is
-changed it get automatically updated if its set to 0 this won't happen
-generally its better to have it set to 1
-
-Next there are a series of default values and an array of hashes which
-contain specific values for each analysis type(keyed in Job.pm on
-logicname), The values which have default settings are all of which are
-prefixed with the word DEFAULT these are used if you don't have an
-entry for an analysis logic name that you are running
-
-batch_size this is how many jobs the batchsubmission system will run in
-one command on one know, for long jobs this is best left at 1 but for
-short jobs for more efficient use of compute its good to set this to
-around 10
-
-retries this is the number of times that the script will resubmit a job
-when its hass failed
-
-output_dir this is where the stderr and stdout get written
-
-batch_queue this is the queue in your batchsubmission system that the
-job will get submitted to, If your system doesn't use queues this can
-probably be left blank
-
-the array of hashs also have a few other arguments which are used by
-job to help construct the correct commandline
-
-logic_name is the logic name of a particular analysis this must be
-filled in
-
-resource is any resource requirements which need to be passed to your
-batch submission for example at sanger we have a mixed os architecture
-farm so here you can specify either alpha or linux if you analysis runs
-better on one or the other
-
-sub_args are any other commandline arguments your job submission system
-might need
-
-resource and sub_args args are used to pass information into the
-batchsubmission object when it is created. In theory you could use them
-to pass in any information you wanted provided your
-construct_command_line method knew how to utilise that information,
-their function above relates to how we use them in the LSF module these
-are both optional
-
-runner is if you want to use a different runner script for a particular
-analysis type than the one specified in General.pm
-
-Blast.pm
---------
-
-Blast.pm for blast specific settings
-
-This contains an array of hashes which contain specific settings for
-each blast database you want to run against
-
-these are
-
-name this should be the entry in the db_file column of the analysis
-table
-
-type this is whether the blast is agains dna or protein to ensure the
-correct type of AlignFeature is created
-
-header this is the regex to be used to parse the correct id out of the
-fasta header for a particular hit
-
-flavour this can be ncbi or wu as these require slightly different
-command line construction
-
-ungapped if this is defined you will get the ungapped pieces or each
-hit as feature pairs if the data is to be stored in a standard ensembl
-database this should be set to 0 as the blast features are stored as
-align features with cigar strings which describe how the coordinates
-can be split to produce the individual features which make up the
-alignment
-
-refilter is this is set then the an internal filtering method will be
-used rather than the FeatureFilter runnable
-
-min_unmasked this is the minimum number of consectutive unmasked bases 
-which must be present before a blast will be run, as default we use 10
-for blastn and 15 for blastx
-
-Database setup 
---------------
-
-for the pipeline to work you also need a few things setup in the
-database
-
-Analysis table 
-==============
-
-the analysis table need to contain entries for all the different
-analysis you want to run and dummy entries for the pipeline to work
-
-the dummy entries just need a logic name, these are used when butting
-intial entires in the input_id_analysis table and as the condition for
-rules which don't rely on other analyses
-
-the lines which specify analyses you want to carry out mostly need more
-information
-
-logic name this is a name for your analysis, we try and make them
-informative
-
-db this is a name for the database your database, 
-db_version the version of your database db_file a path to a database 
-file or matrix file needed by the program for blast the path needs to 
-be from whatever you set to be the environment variable BLASTDB for 
-example if you BLASTDB is /data/blastdb and you want to use the 
-database in /data/blastdb/Ensembl/swall Ensembl/swall would be what 
-to put in the db_file column
-
-program this is the name for the program 
-program_version version of program 
-program_file this is the file for the program if the program is
-located in the directory specified in BIN_DIR in General.pm you only
-need give the program name otherwise it is best to specify the full
-path
-
-parameters this is any commandline parameters your program might need,
-the format should be a comma delimited list, if the option is just a
-commandline flag e.g -gi or -low that is what should appear but if it
-is a flag and a value the entry should look like this 
-'-lib => /path/to/library_file' for example the parameters string 
-'-low, -lib => /ecs2/work1/lec/briggsae.lib' would be parsed to 
-produce a command line like this 
-/usr/local/ensembl/bin/RepeatMasker  -low -lib /ecs2/work1/lec/briggsae.lib AC091216.24470.32005.2980374.seq
-
-
-module this should either be the name of the module which is located in
-Bio::EnsEMBL::Pipeline::RunnableDB or if the module isn't located there
-it should be the full name of the module 
-module_version version of module
-
-gff_source the source or program which produces these results
-gff_feature the type of feature e.g repeat, homology or gene
-
-
-you can load the analysis table using the add_Analysis script in
-ensembl-pipeline/scripts
-
-here is an example command_line
-
-./add_Analysis -host ecs2a -port 3306 -user ***REMOVED*** -pass ***** 
- -dbname pipeline_db -logic_name RepeatMask -database database_name
--database_version 1 -database_file path/to/database -program RepeatMasker
--program_version 1 -program_file path/to/RepeatMasker 
--parameters '-low -lib /ecs2/work1/lec/briggsae.lib' -module RepeatMasker
--module_version 1 -gff_source RepeatMasker -gff_feature Repeat
-
-Rule tables 
-===========
-
-there are two rule tables
-
-rule_goal and rule_condition
-
-rule_goal contains a numeric rule_id and a goal which is the numeric
-analysis id of a particular analysis object which you would want
-completed when this rule was carried out
-
-rule_condition this contains a numeric rule_id and a condition which is
-the logic_name of a analysis which must be complete before an
-analysis/rule can be carried out
-
-examples
-
-rule_goal
-
- rule_id | goal |  logicname of goal 
-+---------+------+ 
-|       2 | 2    |  RepeatMask 
-|       3 | 3    |  Genefinder 
-|       4 | 5    |  Wormpep (blastx against wormpep) 
-|       5 | 10   |  Swall (blastx against swall) 
-|       6 | 11   |      Elegans_EST (blastn against elegans ests) 
-|       7 | 12          Elegans_mRNAs (blastn against elegans mrnas)
-
-
- rule_id | condition    | 
-+---------+--------------+ 
-|       2 | SubmitContig | 
-|       3 | RepeatMask   | 
-|       4 | RepeatMask   |
-|       5 | RepeatMask   | 
-|       6 | RepeatMask   | 
-|       7 | RepeatMask
-
-
-SubmitContig a dummy analysis used inorder to get the pipeline started
-
-you can add rules using the RuleHandler.pl script in 
-ensembl-pipeline/scripts
-
-an example commandline
-
-./RuleHandler.pl -host ecs2a -port 3306 -user ***REMOVED*** -pass ***** 
- -dbname pipeline_db -insert -goal RepeatMask -condition SubmitContig
-
-you can also use this flag to delete Rules using the -delete flag and 
-specifying a -ruleID 
-
-the script can also show the rules and the analyses with the flags
--analyses and -rules
-
-input_id_analysis table 
-=======================
-
-this is where entries are written for analysis which have already
-finished
-
-this table has four columns
-
-input_id #this is normally some sort of sequence name 
-analysis_id #this is the analysis_id of the analysis which has 
-             been completed sucessfully 
-created # the time at which the entry was created 
-result # in theory values could be placed here to indicate whether 
-         results were found etc but it isn't currently used for anything
-
-Intially entries must be written here for the dummy analysis object for
-a specific input_id format, each different input_id format currently
-needs a different dummy analysis type
-
-Some of the sequence loading scripts also put entries in the
-input_id_analysis for each contig which is loaded for more information
-about loading sequence into an ensembl database see the document called
-loading_sequence_into_ensembl.txt
-
-alternatively you can use this script
-
-ensembl-pipeline/scripts/make_input_ids
-
-this script takes several arguments
-
-the first four must always be present
-
--dbname -host -user -pass
-
-as these provide information about which database to insert the
-input_ids into
-
-
-the other options are
-
--contig which must be following by the logic name of the dummy analysis
-which is to represent contig input_ids 
-
--slice which must be following
-by the logic name of the dummy analysis which is to represent slice
-input_ids
-
-one of these two options must be specified otherwise the script won't
-do anything
-
--size after which you specify what size of slice you want to generate
-input_ids for
-
-if you specify slice but no size again the script won't work as the
-script won't know what size slices to generate
-
-here is an example of the commandline you would use
-
-for contigs
-
-./populate_input_id_analysis.pl -dbname pipeline_genebuild_050303
--dbhost ecs2b -dbuser ***REMOVED*** -dbpass ***** -contig SubmitContig
-
-this uses the contig names as input_ids and produces entries like this
-
-| input_id           | analysis_id | created             | result |
-+--------------------+-------------+---------------------+--------+ 
-| c011601284.1.6205  |           1 | 2003-03-10 14:45:23 |      0 | 
-| c011601266.1.4316  |           1 | 2003-03-10 14:45:23 |      0 | 
-| c011601254.1.17394 |           1 | 2003-03-10 14:45:23 |      0 | 
-| c011601247.1.3097  |           1 | 2003-03-10 14:45:23 |      0 | 
-| c011601187.1.2005  |           1 | 2003-03-10 14:45:23 |      0 | 
-| c011601185.1.2030  |           1 | 2003-03-10 14:45:23 |      0 | 
-| c011601180.1.19582 |           1 | 2003-03-10 14:45:23 |      0 | 
-| c011601175.1.22689 |           1 | 2003-03-10 14:45:23 |      0 | 
-| c011601167.1.1953  |           1 | 2003-03-10 14:45:23 |      0 | 
-| c011601162.1.20829 |           1 | 2003-03-10 14:45:23 |      0
-
-
-where 1 is the analysis_id of the SubmitContig analysis object
-
-you can also populate the input_id_analysis table for contigs using a
-line of sql
-
-insert into input_id_analysis(input_id, analysis_id, created) select
-name, 1, now() from contig;
-
-where the number is the analysis_id of the dummy object
-
-for slices though you have to do it using some sort of script as the
-input_ids don't currently exist anywhere
-
-the command line would look like this
-
-
-./populate_input_id_analysis.pl -dbname pipeline_genebuild_050303
--dbhost ecs2b -dbuser ***REMOVED*** -dbpass ***** -slice SubmitSlice -size
-1000000
-
-this would produce entries like this
-
-input_id           | analysis_id | created             | result |
-+--------------------+-------------+---------------------+--------+
-| c011601284.1.6205  |           1 | 2003-03-10 14:45:23 |      0 |
-| c011601266.1.4316  |           1 | 2003-03-10 14:45:23 |      0 |
-| c011601254.1.17394 |           1 | 2003-03-10 14:45:23 |      0 |
-| c011601247.1.3097  |           1 | 2003-03-10 14:45:23 |      0 |
-| c011601187.1.2005  |           1 | 2003-03-10 14:45:23 |      0 |
-| c011601185.1.2030  |           1 | 2003-03-10 14:45:23 |      0 |
-| c011601180.1.19582 |           1 | 2003-03-10 14:45:23 |      0 |
-| c011601175.1.22689 |           1 | 2003-03-10 14:45:23 |      0 |
-| c011601167.1.1953  |           1 | 2003-03-10 14:45:23 |      0 |
-| c011601162.1.20829 |           1 | 2003-03-10 14:45:23 |      0 
-
-the input_ids follow the format chr_name.start-end and should fit the
-regular expression specified in General.pm
-
-this are examples from a briggsae database, for briggsae there where no
-chromosome maps so super contigs were used instead most of the
-superctgs were less than 1MB long so the coords of the whole chromosome
-was simply used this also means in the case of briggsae the chr_names
-are a bit long for human and most organisms they are generally just
-numbers so you get 1.1-100000
-
-if you wanted to run across whole chromosomes you need to make sure the
-size specifed is longer than the longest chromosome then the coords
-used will always default to the start and end of the chromosome
-
-
-
-
-Running the analyses 
-=====================
-
-In order to run the pipeline a script called RuleManager3.pl is used
-and this lives in ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/
-
-this script takes several commandline options and  this is what a
-relativly standard comand line looks like
-
-
-perl RuleManager3.pl -dbname pipeline_genebuild_050303 -dbhost ecs2b
--dbuser ***REMOVED*** -dbpass ***** -start_from 2 -once -shuffle
-
-the -db options are used to create the database connecttion, they are
-passed in the commandline so you can run more that one pipeline against
-different databases at the same time although more than one script
-can't run a pipeline against the same database at once
-
--start_from is an importan option which there always must be at least
-on present in the command line the number is an analysis id and it
-should point to an analysis which already has been completed for your
-sequences (hence the presence of a dummy analysis in the analysis table
-and in the input_id_analysis) The script assumes this analysis is
-complete so if it isn't or if nothing depends on that analysis then
-nothing will run
-
-other flags that can be used are
-
--local this will mean the jobs run on the machine the script is running
-on rather than using the batch submission system
-
--idlist this should be a file of input_ids, each id on a separate line
-is directs the script to only check and run on those ids rather than
-everything in the input_id_analysis table
-
--runner  this should be the path to a runner script it you don't want
-to use the one in config
-
--output_dir this should be the path to a output dir it you don't want
-to use the one in config
-
--once this makes the script only check each input_id once rather than
-looping over them consistently so it means failed jobs won't be rerun
-and jobs which depend on analysis which haven't ben run but will be
-completed in the first loop also won't be submitted, this flag is good
-to use if you are just going to test you have your setup correct or
-that the jobs work but if you want everything to run you need to leave
-the script running and continually looping over the input_ids
-
--shuffle this randomises the input_id list each time it is to loop over
-it so it won't check the ids in the same order each time
-
--analysis this is another flag which can be present several times in
-the command line each flag should specify an analysis_id which should
-be run it means the script will only check if it can run those
-analysese and not any otherwise, this does mean you have to snrue any
-conditions placed on those analyses are fulfilled otherwise nothing
-will run
-
--v this is the verbose flag which will make the script a lot more
-chatty
-
-
-You can monitor the progress of your jobs using the monitor script
-which is located here ensembl-pipeline/scripts/monitor
-
-it takes several command line options which affect what it displays for
-you
-
-the 4 options which are required are -dbname, -host, -pass, -user as
-these provide the database connection
-
-you must then specify other options inorder for the script to display
-information
-
-these are all flags which you just need to specify on the command line
-they don't need any values
-
--current tell you what is currently runnning by status and logic_name
-
--current_summary tells you the total number of jobs with each status
-
--finished tell you what is finshed by logic_name
-
--analysis give a summary of the analysis table
-
--rules gives you a summary of the rule_goal table
-
--conditions tells you what rule and analyses depend other analyses
-
-the last flag
-
--status_analysis does require a value this is in the format
-status:logicname and then shows a summary of the job table for that
-status and logic name for example -status_analysis failed:RepeatMask
-would show you information about RepeatMask jobs which had failed
-
-here is an example command line and output
-
-ecs2a[lec]183: ./../../../../scripts/monitor -dbname
-pipeline_genebuild_050303 -host ecs2b -user ensro -pass ***** -current
--current_summary -finished
-
-Pipeline current status [ecs2b pipeline_genebuild_050303]
+and this might produce output like this
 
 Name            Status   Count
- ----            ------   -----
-Briggsae_ESTs   FAILED   55 
-Briggsae_ESTs   VOID     45 
-Briggsae_mRNAs  FAILED   55 
-Briggsae_mRNAs  VOID     45 
-Elegans_ESTs    FAILED   55
-Elegans_ESTs    VOID     45 
-Elegans_mRNAs   FAILED   55 
+----            ------  -----
+Briggsae_ESTs   RUNNING   55 
+Briggsae_ESTs   READING   45 
+Briggsae_mRNAs  RUNNING   55 
+Briggsae_mRNAs  READING   45 
+Elegans_ESTs    RUNNING   55
+Elegans_ESTs    READING   45 
+Elegans_mRNAs   RUNNING   55 
 
 
 
@@ -582,9 +190,8 @@ Pipeline status summary [ecs2b pipeline_genebuild_050303]
 
 Status   Count 
 ------   ----- 
-FAILED   522 
-RUNNING  3 
-VOID     405
+RUNNING   522 
+READING   405
 
 
 Finished job summary [ecs2b pipeline_genebuild_050303]
@@ -598,29 +205,11 @@ Count Name            Id
 5482  Swall           10 
 5505  Elegans_ESTs    11 
 
-this information is all derived from the job tables
+this script gets all its information from the job tables.
 
-there are two job tables which come from the pipeline sql
-they are job and job_status
-
-job contains information about the location of stdout and stderr files
-and the number of times a job has been retries the id from the job 
-submission system
-
-job_status contains a record of the status of any particular job
-it has 4 columns job_id, status, time and is_current
-
-job_id is the dbId from the job table
-status can be created, 
-              submitted 
-              running
-              failed
-	      sucessfull
-              void, a job's status is set to void by blast if it 
-                    contains two few unmasked bases
 
 Now follows a description of some of the analyses which we run as part
-of our pipeline or can be run as part of the pipeline
+of our pipeline or can be run as part of the pipeline. 
 
 
 Repeat Features 
@@ -720,3 +309,58 @@ genomes such as anopheles and briggsae we blast against raw sequence
 
 
 
+Here is an example of the dependancies which will exist in a standard
+raw compute pipeline
+
+
+   SubmitContig	          SubmitSlice		          SubmitChromosome 
+      CONTIG                 SLICE		               CHROMOSOME
+     /  |  \                  /  \                    /     \    
+    /   |   \                /    \                  /       \
+   /    |    \              /      \                /         \
+ TRF    |     tRNAScan    Eponine  Marker          CpG        Dust      
+CONTIG  |      CONTIG      SLICE   SLICE        CHROMOSOME CHROMOSOME
+        |
+        |
+     RepeatMask
+       CONTIG
+        |
+        |
+        |
+      Genscan
+       CONTIG
+      /  |   \
+    /    |    \ 
+Swall  VertRNA Unigene
+CONTIG CONTIG   CONTIG
+ 
+The Genscan depends on RepeatMask as we generally run ab initio gene
+predictors on repeat masked sequence. Swall, VertRNA and Unigene are all
+blasts and they depend on Genscan as they are run using 
+BlastGenscanPep/DNA. All the other analyses produce either simple or 
+repeat features and don't depend on any other analysis
+
+
+Checklist
+=========
+
+When running the raw computes it is worth checking these things out
+before you hit go
+
+1. Do you have all the executables, blast databases, matrix/data files the
+analysis you want to run will need? are they push out across you compute 
+farm
+
+2. Have you filled out all the config files, General.pm, Blast.pm, 
+BatchQueue.pm plus any analysis specific files like Fathom.pm
+
+3. Does BatchQueue.pm contain entries for all the analyses you wish to run
+
+4. Have you filled in the analysis table
+
+5. Have you filled in the rule tables
+
+6. Are the appropriate dummy entries in the input_id_analysis table
+
+If the answers to all these questions are yes you are probably read
+to set the RuleManager going
