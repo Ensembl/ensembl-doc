@@ -29,10 +29,10 @@ IV-How to run the mapping
 	prepare the fasta file for pmatching.
 	
 
-	c-Run get_Xmappin.pl (perl get_Xmapping.pl), this will map the
+	c-Run get_Xmapping.pl (perl get_Xmapping.pl), this will map the
 	curated databases to other databases
 
-	d-Run pmatch.pl: perl pmatch.pl -scd -p perc_id 
+	d-Run pmatch.pl: perl pmatch.pl 
 			 You have to give the threshold after the -p
 			 option. This will be used to cut off under a
 			 certain percentage of identity.
