@@ -101,6 +101,27 @@ they don't overlap with protein based predictions or they can also add
 new alternative transcripts to existing genes.
 
 
+The size of the pieces of chromosomes you should run these various analyses
+on does some what depend on your genome, how much information you already
+have about your genome and how much memory you compute systems have 
+availible. It is best to run them on as large as pieces as possible that 
+will run in a reasonable time (generally less than 24 hrs) and a reasonable
+amount of memory
+
+Stage A the pmatches are run on whole chromosomes, then the complete
+results set . The subsequent stages B, C and D are generally run intiailly
+on either 5MB or 1MB pieces or the largest size which can be managed if 
+your scaffolds are smaller than that. These are the processes which are
+particular time and memory intensive. The similarity stage is generally 
+the worse and methods to deal with that are discussed later on. Stages
+E and F are good to run on whole chromosomes if possible. E, the 
+genebuilder stage may need to be run on smaller pieces if you are including
+ab intio transcripts in thoses which can be added to the final gene set
+as including those can significanly increase the runtime of the
+genebuilder stage.
+
+
+
 3. General preparation
 ######################
 
@@ -118,6 +139,8 @@ setup the databases
 this is a diagram of all databases you require
 
 
+This are the names found in 
+Bio::EnsEMBL::Pipeline::Config::GeneBuild::Databases
  _______  
 |       |   pmatches
 | GB_DB |   features 
@@ -144,11 +167,19 @@ similarity genewise
       |                  |
        -----------------\|  
 	            genebuilder
-	            _____|______	
+	                  _____|______	
                    |            | 
                    | GB_FINALDB |
                    |____________| 
-
+                         |         
+                         |
+                    _____________
+                   |             |
+                   | FINAL_DB    |
+                   |_____________|        
+                    
+FINAL_DB is currently defined in 
+Bio::EnsEMBL::Pipeline::Config::GeneBuild::GeneCombiner
 
 they all need to contain the core schema and these tables need to be
 filled in clone, contig, assembly, analysis, meta, chromosome
@@ -277,8 +308,7 @@ GB_KILL_LIST, this is the path to a file which cotains a list of
 
 
 GB_PROTEOME_FILES, this is used in the new_prepare_proteome.pl script
-		   and its function is described in 
-		   running_pmatches.txt
+		   
 
 There are more options in this file but they are involved with the 
 old way of running the genebuild and shouldn't be needed
@@ -509,7 +539,11 @@ Running the Pmatches
 The pmatches are run with the RuleManager like all parts of the pipeline.
 It is a good idea to test the system first by running a single job.
 The easiet way to do this is to run the RuleManager with the -id_listfile
-flag and pass in a file in the format input_id   input_id_type
+flag and pass in a file in the format input_id  input_id_type
+
+The First pmatch stage is generally run on full chromosomes and the second
+best in genome filter runs on the entire results set so its input id 
+doesn't really matter but we generally set it to Genome
 
 Once you test job has run sucessfully you should beable to start
 the pipeline running.
@@ -554,6 +588,7 @@ in further stages of the genebuild
 This is where the best in genome exact mapping of proteins to the 
 genome sequence produced in the pmatch stage are used to seed genewise
 alignments to produce gene structures.
+
 
 Before Starting
 ---------------
@@ -745,3 +780,47 @@ complete
 
 
 
+================
+=E. Genebuilder=
+================
+
+The fifth analysis runs an set of heuristics which collapses down all the
+predicted transcripts into a non redundant set genes and transcripts
+
+Before Starting
+---------------
+
+You need to make sure all your databases are set up, you will need another
+where the final genes can be written, all your config has been filled out
+
+We Generally run this stage on full chromosome so you may want an 
+accumulator stage between the UTR addition and this one as the input id
+type will be changing
+
+Running the Genebuilder
+-----------------------
+
+Again test a couple of runs first before running everything and also 
+remember to check the output for any strange errors
+
+
+
+=================
+=F. GeneCombiner=
+=================
+
+
+The sixth analysis is where the cdna genes built in the cdna analysis are
+used to fill gaps in the protein based gene build and also potentially
+add extra transcripts to already existing genes.
+
+Here is it best to use same species cdnas are more distantly related cdnas
+can results is very odd looking genes.
+
+
+Before Starting
+---------------
+
+Again you need all you databases and config setup. Currently genecombiner
+only uses the config found in 
+Bio::EnsEMBL::Pipeline::Config::GeneBuild::GeneCombiner
