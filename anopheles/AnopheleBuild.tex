@@ -14,7 +14,7 @@
 
 
 \bf{File last updated: August 2003}
-The goal is to provide a written help on how to run the the \textit{A. gambiae} automatic annotation. This should actually be usable for most of the 'virgin genomes'. This documentation for processes which are common with other genomes, references are given to files present in the ensembl CVS repository called ensembl-doc. These files should be updated as the processes and code change. All of this documentation is written for people working at EBI/Sanger. Please update this documentation if needed. 
+The goal is to provide a written help on how to run the the \textit{A. gambiae} automatic annotation. This should actually be usable for most of the 'virgin genomes'. This documentation for processes which are common with other genomes, references are given to files present in the ensembl CVS repository called ensembl-doc. These files should be updated as the processes and code change. All of this documentation is written for people working at EBI/Sanger. Please update this documentation if needed. In this file when a reference to release 3 is made (third anopheles annotation by Ensembl) this actually refer to the Ensembl release labbeled 2a (still second assembly but third annotation).
 
 \section{Raw computes}
 Running raw computes for \textit{A. gambiae} is pretty similar than for other genomes only few details change.
@@ -30,20 +30,19 @@ Here are the raw computes which have been run for the release 3:
 \item Dros pep blastX hits
 \item Swall blastX hits
 \item Snap genes
-\item Genscan (using the arabidopsis matrix)
 \end{itemize}
 
 \textbf{Particularities}\\
-\textbf{RepeatMasker} is ran with a customed library (which need to be placed on the following directory: XXXX). The parameter used should be the following: \--lib anopheles.\\
-\textbf{Genscan} is not worth to be reran. This gave pretty bad gene structure. Does not bring any useful information.\\
-\textbf{Snap} (another \textit{ab initio} gene predictor) trained with anopheles specific ESTs (see section on how to train SNAP) gives much better result. In many regions it seems to get the right exon prediction, it does not tend to overpredict too much. However the transcript structure is not always right. Snap is used in the last part of the gene build and some SNAP genes (about 2000) will be elevated to the status of ***REMOVED*** gene.\\
+\textbf{RepeatMasker} is ran with a customed library (in the latest RepeatMastker directory there /usr/local/ensembl/lib/). The parameter used should be the following: \--lib anopheles.\\
+\textbf{Genscan} has been tried with the arabidopsis matrix on Anopheles but gave pretty bad results. It is not worth rerunning again unless you an anopheles specific matrix has been created.
+\textbf{Snap} (another \textit{ab initio} gene predictor) trained with anopheles specific ESTs (see section on how to train SNAP) gives much better result. In many regions it seems to get the right exon prediction, it does not tend to overpredict too much. However the transcript structure is not always right. Snap is used in the last part of the gene build and some SNAP genes (about 2000) will be elevated to the status of ***REMOVED*** gene (more details bellow on these genes).\\
 \textbf{BlastX} is ran with two different datasets. The first one (and maybe the most important one) is the protein dataset containing all of the sequences from flybase. The second one is Swall.\\
 
 NB: Make sure that the logic names in the analysis table. Please check with the web team.\\
 The whole pipeline process (setting up the database and running it) should take about 3 days. On of the thing to do to get the analysis and rule tables right is to copy the ones from the previous release and have a critical look at them.
 
 \section{Gene Build}
-Gene build is perhaps the most tricky part of the process. Here are some of the reasons:
+Gene build is perhaps the most tricky part of the process. Here are some of the reasons (I know they are obvious):
 \begin{itemize}
 \item No close annotated organism
 \item Really few genes annotated (Immunity, odorant receptors, ...)
@@ -63,15 +62,15 @@ Here are the main issues, genebuilding on \textit{An. gambiae}:
 \subsection{Gene build by similarity}
 The score of the blast hits used to build similarity gene is much lower than for other organisms. We used a score down to 125 (lower than that seems to only bring noise, higer should obviously reduce the noise but some edges exons may be missed).
 \\
-NB: Blast hit filter has absolutely to be turned on whereas the similarity jobs would take too long or never finish.
+NB: In the Blast conf file, there is an option to filter the blast hits. This has to be turned or too many blast hits would be stored in the database.
 
 \subsubsection{Targetted}
-Taregetted process is undertaken with 3 dataset:
+Targetted process is undertaken with 3 dataset:
 \begin{enumerate}
 \item \textit{An. gambiae} genes in Swiss-Prot and SPTrEMBL.
-\item Submitted genes to the gene name submission database. (a script exists in the script section of the anopheles-genename cvs repository). If a cDNA has been submitted, the script will dump the longuest open reading frame.
+\item Submitted genes to the gene name submission database. (a script exists in the script section of the ensembl-genename cvs repository). use the script (/script in the ensembl-genename CVS repository) dump_translation.pl to get protein sequence out of the genename submission database. Don't forget to use the latest version of the databae. Ask the web team.
 %get the name of the script
-\item Protein available for the latest \textit{D. melanogaster} genome. (usually dump them from the Ensembl version of Drosophila. This will allow to predict the drosophila orthologs.
+\item Protein available for the latest \textit{D. melanogaster} genome. (usually dump them from the Ensembl version of Drosophila.) This will allow to predict the drosophila orthologs. This has not been done already but since Drosophila is used this may be worth trying with all dipteran genes available, but check it it does not creat to much noise.
 \end{enumerate}
 
 Here is an example of the conf file used for the last release (release 3).%add conf file here
@@ -90,12 +89,10 @@ Here is an example of the conf file used for the last release (release 3).%add c
   GB_TARGETTED_MIN_SPLIT_COVERAGE       => '95',
   
   # genetype for Targetted_GeneWise
-  GB_TARGETTED_GW_GENETYPE              => 'TGE_gw',	   
+  GB_TARGETTED_GW_GENETYPE              => 'TGE_gw',       
   GB_TARGETTED_MASKING => ['RepeatMask', 'Dust'],
-  #the above setting will lead no features being 
-  #masked out, if is used no masking will take 
-  #place, if [''] is used all repeats in the 
-  #table will be masked out
+  # [] no features being masked out
+  # [''] all repeats being used 
   #if only some of the sets of repeats wants 
   #to be masked out put logic names of the 
   #analyses in the array 
@@ -113,14 +110,14 @@ Here is an example of the conf file used for the last release (release 3).%add c
 \end{itemize}
 
 \subsubsection{Similarity}
-The similarity process uses both blast hits from Swall and Drosophila blastX hits. With the blast filtering code on (see example of the conf file) all of the jobs should be finished after 24h (on the farm if not too loaded).
+The similarity process uses both blast hits from Swall and Drosophila blastX hits. With the blast filtering code on (see example of the conf file, GB_SIMILARITY_BLAST_FILTER) all of the jobs should be finished after 24h (on the farm if not too loaded). This Blast filtering code is different than the one used at the Blast step. This option with filter only useful blast hits before running genewise cutting down the processing time by 10 folds.
 \\
 Here si an example of hte configuration file used for the last anopheles release for the similarity process:
 
 \begin{verbatim}
 
   GB_SIMILARITY_DATABASES => [
-    {				  
+    {                             
       'type'       => 'Swall',
       'threshold'  => '125',
       'index'      => '/data/blastdb/Ensembl/swall_030604',
@@ -187,7 +184,8 @@ Here si an example of hte configuration file used for the last anopheles release
 \end{itemize}
 
 \subsubsection{Combine with cDNAs}
-This process will combine the cDNAs to the similarity genes to add UTRs where possible. The process used here is the same than for human. The only difference is (see EST gene build section) that we don't do separate EST gene build and cDNA gene build, thus all of the data available (EST + cDNA mapped) are used for this step.
+This process will combine the cDNAs to the similarity genes to add UTRs where possible. The process used here is the same than for human. The only difference is (see EST gene build section) that we don't do separate EST gene build and cDNA gene build, thus all of the data available (EST + cDNA mapped) are used for this step. These ESTs and cDNA are mapped at the first step of the EST Gene build (see bellow, Exonerate step)
+NB: Both Similarity gene build and EST gene build can be ran at the same time. Only the last steps (Gene combiner and gene builder requires to have both builds and obviously this combine step to have ESTs/cDNA mapped).
 
 \subsection{EST Gene build}
 \subsubsection{Exonerate and the EST gene builder}
@@ -200,12 +198,12 @@ Here is the configuration file used to run the Exonerate step (mapping of the ES
 \begin{verbatim}
   EST_INPUTID_REGEX => '(\S+)\.(\d+)-(\d+)',
   EST_RUNNER        => 'pipeline-new/
-                        scripts/EST/run_exonerate.pl', 	   
+                        scripts/EST/run_exonerate.pl',     
   # path to pipeline-new/scripts/EST
   EST_SCRIPTDIR     => 'pipeline-new/scripts/EST/',
-	      
-  # where the result-directories are going to go	
-  EST_TMPDIR        => 'est_build/',	      
+              
+  # where the result-directories are going to go        
+  EST_TMPDIR        => 'est_build/',          
   # job-queue in the farm
   LSF_OPTIONS       => '-q acari -C0',
   
@@ -221,8 +219,8 @@ Here is the configuration file used to run the Exonerate step (mapping of the ES
   # how many chunks?
   # for NCBI_28 we have 3690891 ests, at approx. 
   #350 ests per chunk, we estimate
-  EST_CHUNKNUMBER             => 550, 	 
-  	      
+  EST_CHUNKNUMBER             => 550,    
+              
   # full path fo the dir where we have 
   #the masked-dusted chromosomes
   EST_GENOMIC                 => 'mosquito/genome/',
@@ -250,7 +248,7 @@ Here is the configuration file used to run the Exonerate step (mapping of the ES
   EST_MIN_PERCENT_ID          => 97,
   
 
-  EST_USE_DENORM_GENES	=> 0,
+  EST_USE_DENORM_GENES  => 0,
   
   ############################################################
   # each runnable has an analysis
@@ -378,8 +376,8 @@ ID mapping is usually ran by Craig (craig@ebi.ac.uk). Give them the old database
 
 \subsection{Known gene mapping}
 Running the known gene mapping, don't forget to specify that you are running it for anopheles (organism option). For the known gene mapping, will be use: SPTR file for \textit{Anopheles gambiae} in fasta and Swiss-Prot format. A dump of the translations of the gene name submited sequences (you can find the script to dump these translations in \texttt{ensembl-genename/scripts/dump\_translation.pl}). NB: The mapping of the submitted genes is done at the transcript level, thus if a gene has been submitted with many spliced variants, we will map Ensembl genes to the sliced variants names (which is usually the gene name followed by incremental letters or numbers).
-We still need to map the celera accession numbers which have been used in the science paper.
-%Add more about it here.
+The celera accession numbers (the ones used in the science issue) are automatically mapped (see the mapping configuration file). 
+NB: Genes submitted by Ensembl to Genbank end up in SPTREMBL, these are predictions. These genes are labelled in the mapping process as prediction_SPTREMBL and are not considered as known genes.
 
 \subsection{Moving data around}
 Don't forget about the EST genes database. This is is useful from the user point of view. However we don't need a specific EST database, thus dna\_align\_features from the EST gene database should be copied to the core database (also don't forget to copy the protein\_align\_feature if needed). Finally make sure that the analysis table is fine and if you have new logic names, let the web team know.
