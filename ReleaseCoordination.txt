@@ -42,7 +42,7 @@ Database naming convention
 ==========================
 
 The schema version number changes if there are any core or compara
-schema changes.  
+schema changes, or if there are any significant API changes.  
 The assembly version number changes if there is a new
 assembly (or has a letter appended if there is a patch or some other
 change).
@@ -63,13 +63,15 @@ Main steps in release coordination
   Drop from ecs2d all the old databases when allowed.
   (use drop database command in a MySQL client, never do a rm -rf as
   mysqlens user). Do not delete databases like ensembl_% and with
-  %_expression_% in their name.
+  %_expression_% in their name. Check with compara and mart people to see 
+  if ensembl_compara_* and ensembl_mart_* can be dropped.
 
 * C - Based on the synthesis of what is new coming, you can decide what are
   the databases that will not change, and can copy their latest version
-  from ecs3d using ensembl/scripts/CopyDBoverServer.pl scripts, -h gives
+  from ecs3:3307 using ensembl/scripts/CopyDBoverServer.pl scripts, -h gives
   you an idea how to use it.
   You have to run it as mysqlens user.
+  Must be run on the destination host.
 
 * D - keep a tight contact with the persons involved in the production of
   new data, i.e.
@@ -82,12 +84,12 @@ Main steps in release coordination
   Vivek for honeybee,
   Abel/Cara for compara/family...
 
-Send them a mail from time to time, to see how things are going.
+  Send them a mail from time to time, to see how things are going.
 
-From time to time ask James Smith to run lite in the corresponding 
+  From time to time ask James Smith to run lite in the corresponding 
 
 * E - On the Genebuild handover date all dbs but compara/family are expected 
-to be ready and copied over to ecs2d.
+  to be ready and copied over to ecs2d.
 
 * F - Set up a web test server on ecs2d port 5000. When done, send a mail
   to ensembl-admin to ask everyone concerned to check the display of
@@ -202,18 +204,18 @@ to stop it
 
 
 * G - Ask the release core assistant to run health check suite and to
-  update schema if needed. To advertise any inconsistancy in the dbs,
+  update schema if needed. Advertise any inconsistency in the dbs,
   and fix or arrange someone to fix them. 
 
 * H - Run a healthcheck again just before handover (checking things
   we had done before plus new things that have been added during the data
   shakedown) - if possible of course
 
-* I - By the Core/Compara handover date if everything is fine, send a mail to
-hand-over the dbs, listing all dbs, specifying what are the new data coming in,
-the schema changes, and a summary of mart translation (that can be
-obtained from the martians). Mention there that the mart db is
-expected 3 working days after the handover.
+* I - By the Core/Compara handover date if everything is fine, send a
+  mail to hand-over the dbs, listing all dbs, specifying what are the
+  new data coming in, the schema changes, and a summary of mart
+  translation (that can be obtained from the martians). Mention there
+  that the mart db is expected 3 working days after the handover.
 
 Here is an example,
 
