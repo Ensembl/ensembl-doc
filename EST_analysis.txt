@@ -192,6 +192,40 @@ The index can be made by hand:
 
     /usr/local/ensembl/bin/makeseqindex human.ests > ! human.ests.jidx
 
+
+Another index system: INDICATE (by Steve Searle)
+
+	First of all you need to be able to use some libraries:
+	setenv LD_LIBRARY_PATH /nfs/acari/searle/progs/local2/lib:${LD_LIBRARY_PATH} 
+
+	There is a program:
+	/nfs/acari/searle/progs/ensembl/ensembl-nci/src/bioglib/program/indicate
+
+	which creates the OBDA indexes.
+
+	Example usage
+
+	1. Make a directory for the index
+	mkdir dbSTS
+
+	2. Run:
+
+	/nfs/acari/searle/progs/ensembl/ensembl-nci/src/bioglib/program/indicate
+	--data_dir /data/blastdb/Ensembl --file_prefix dbSTS- --index dbSTS
+	--parser dbParser
+
+	Where:
+	--data_dir is directory contain fasta files to index
+	--file_prefix is prefix of files to index (all files beginning with
+	  prefix and ending in a number will be indexed). If you want to index a single
+	  fasta file you can write here just the name of that file
+	--index directory created in step 1
+	--parser parser function to use (dbParser for db* databases,
+	  swallParser for swall, rikenParser for riken,... )
+
+	The seqfetcher to use with this index is Bio::EnsEMBL::Pipeline::SeeFetcher::OBDAIndexSeqFetcher.pm
+	make sure that it is correctly defined in your Runnables
+
 3. distribute the (multiple-entry fasta) EST seqfile and the index file across farm where they
 can be see from all running nodes, and specify its location in ESTConf: 
 EST_FILE and EST_INDEX.
@@ -246,7 +280,7 @@ c. split contig file into smaller chunks (for human we use 4000
    chunks) using eg fastasplit and put these in the directory
    contig_chunks, eg:
 
-	/work2/gs2/gs2/bin/fastasplit <fastapath> <outputdir> <chunknum>	
+	/acari/work2/gs2/gs2/bin/fastasplit <fastapath> <outputdir> <chunknum>	
    where 
  
    <fastapath> = the myltiple-entry fastA file with the contigs
