@@ -8,6 +8,13 @@ these directories
 ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable and
 ensembl-analysis/modules/Bio/EnsEMBL/Analysis/RunnableDB
 
+If you don't want to put your Runnable/RunnableDB in these spaces
+you can place them elsewhere but you must then either specify
+in the module column of the analysis table the perl path to the 
+module or in Bio::EnsEMBL::Pipeline::Config::BatchQueue under the
+hashelement runnabledb_path where the runnabledb for that analysis
+lives
+
 ========================================================================
 
 First I will talk about Runnables. Runnables are modules which are meant
