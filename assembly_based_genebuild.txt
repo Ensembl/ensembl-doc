@@ -25,7 +25,7 @@ golden path, entries in contig, clone and dna tables, and have
 completed any raw computes you plan to do.
 
 The instructions are written from the point of view of human
-sequence. The general points should be applicable to ant assembled
+sequence. The general points should be applicable to any assembled
 genome.
 
 The modules that need to be run are contained in Bio::EnsEMBL::Pipeline::RunnableDB and are:
@@ -40,7 +40,14 @@ The modules that need to be run are contained in Bio::EnsEMBL::Pipeline::Runnabl
 2. FPC_BlastMiniGenewise
 
    Depends on the genscan peptides having already been blasted against
-   sptr during the pipeline run.
+   sptr during the pipeline run. Feature names in the database we use for the build are typically:
+   
+   +-----------+
+   | genscan   |	
+   | wublastx  |
+   | wutblastn |
+   | wublastp  |
+   +-----------+
 
    For a given golden path region, finds all the blast hits from
    genescan peptides to entries in sptr and filters out those that
@@ -93,12 +100,12 @@ mkdir /scratch4/ensembl/vac/GeneBuild
 5. make sure ensembl-pipeline/scripts/GeneBuild is in your PATH, or be
 prepared to qualify the names of the various scripts.
 
-6. cvs checkout rd-utils, or make sure you have access to a pmatch executable.
+6. cvs checkout rd-utils (and run make pmatch), or make sure you have access to a pmatch executable.
 
 7. The scripts for running the pre-genebuild are in ensembl-pipeline/scripts/GeneBuild
 
 8. There is a configuration file specific to the genebuild in
-ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/GB_conf.pl, which needs
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/GeneConf.pm, which needs
 to be filled in with details relevant to your directory setup. The
 fields to be filled in should be self explanatory.
 
@@ -134,6 +141,10 @@ C. TargettedGenewise build
 
     perl -e 'while(<>){next unless /^(\S+)\s+(\d+)\s+(\d+)/; $command = "/work2/vac/ensembl-pipeline/dump_vc_seq.pl -chrname $1 -start $2 -end $3 -outfile $1.fa"; system("$command"); print "$command\n"}' < names_and_coords
 
+Create one directory per chromosome underneath the directory Gene_Conf::GB_FPCDIR, and into each
+of those move the fasta file(s) with the appropropriate genomic sequence in fasta format. eg for chr1, make a directory called 1, and place the file 1.fa into it.
+
+
 2. download proteome data
 
 TargettedGeneE2G needs as input protein ids and corresponding cDNA ids
@@ -145,17 +156,25 @@ mkdir /work2/vac/GeneBuild/Apr_gp/human_proteome
 cd /work2/vac/GeneBuild/Apr_gp/human_proteome
 
 #downloading swissprot files:
-ftp.ebi.ac.uk
+ftp ftp.ebi.ac.uk
 ftp>cd pub/databases/SPproteomes
+# for human
 ftp>get fasta_files/proteomes/9606.FASTAC
 ftp>get swissprot_files/proteomes/9606.FASTAC
+# for mouse
+ftp>get fasta_files/proteomes/10090.FASTAC   
+ftp>get swissprot_files/proteomes/10090.SPC
 ftp> bye
 mv 9606.FASTAC sptr.fa
 
 # downloading refseq files:
 ftp ftp.ncbi.nlm.nih.gov
+# for human
 ftp>cd refseq/H_sapiens/mRNA_Prot/
 ftp>get hs.faa.gz 
+# for mouse
+ftp>cd refseq/M_musculus/mRNA_Prot/
+ftp>get mouse.faa.gz 
 ftp>bye
 gunzip hs.faa.gz
 mv hs.fsa refseq.fa
@@ -167,15 +186,42 @@ sptr and refseq files, prepares a single proteome file and runs a test
 pmatch to make sure there are no sequences that will cause pmatch to
 loop.
 
-all you need to do, assuming you have filled in GB_conf.pl properly, is type:
+all you need to do, assuming you have filled in GeneConf.pm properly, is type:
 
 prepare_proteome.pl
 
 remove sequences containing polyX from your input fasta files if
 prompted to do so. This script should be done in minutes.
+For non-human proteins, since PolyX tract proteins are not classified yet,
+this will have to be done manually.
 
+We've seen so far:
+in refseq:
+>gi|10946888|ref|NP_067457.1| (NM_021482) synaptogyrin 4; synaptogyrin 4 protein [Mus musculus]
+in sptr:
+>FINC_MOUSE (P11276) Fibronectin precursor (FN) (Fragments)
+>SNG4_MOUSE (Q9Z1L2) Synaptogyrin 4
+>Q9JLP4 (Q9JLP4) Aryl-hydrocarbon interacting-protein like-1 (Fragment)
+>Q62021 (Q62021) 89 kDa protein (Fragment)
+>Q9CRG9 (Q9CRG9) 2410041F14Rik protein (Fragment)
 
-4. run the pmatches
+4. index the seqfile using, for example, makeseqindex. You can use whatever 
+sequence indexing/fetching setup you like as long as the ensembl modules know how to use
+it. Look at ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/SeqFetcher/*
+for inspiration.
+
+With makeseqindex, it is important to make sure that the .jidx file
+doesn't have hard-coded path information in it. SO:
+
+     cd to the directory where your GeneConf::GB_PFASTA file is - this is the proteom file you have just produced
+     /path/to/makeseqindex proteome_file > proteome_file.jidx
+
+Copy proteome_file and proteome_file.jidx to the place you have
+specified in GeneConf::GB_TARGETTED_PROTEIN_INDEX and rdist across the
+farm - this is important when you come to run the Targetted build
+jobs.
+
+5. run the pmatches
 
 We use pmatch to compare all the human protein sequences to the golden
 path sequence to try to find the best match for each protein in the
@@ -199,33 +245,39 @@ processing:
     .
     pm_filter.pl -chr UL -protfile protein_filename
 
+    (each job will create an output file chr_name.pm.out in GeneConf::GB_PM_OUTPUT)
+
     cat *.pm.out > all.pm.out
     pm_bestmatch.pl < all.pm.out
 
-for some assemblies you may need to split the protein file up into
+    (this will create a file pm_best.out in GeneConf::GB_PM_OUTPUT)
+
+For some assemblies you may need to split the protein file up into
 pieces and run pm_filter.pl on each chromosome with each piece - keep
 an eye on how big the script gets and split up the file as necessary.
 
-5. Create tables in database to hold the pmatch results
+6. Create tables in database to hold the pmatch results
 mysql -uuser -ppasswd -hhost dbname < ensembl-pipeline/sql/pmatch.sql
 
-6. Load up pmatch results into the database using pmatch_feature_loader
+7. Load up pmatch results into the database using pmatch_feature_loader. This script will directly
+read from pm_best.out
 
-run FPC_Targetted_Gene_E2G on (5MB) regions
+Run FPC_Targetted_Gene_E2G on (5MB) regions
 
-7. make bsub lines for submitting jobs
+8. make bsub lines for submitting jobs
 
-The length based runnable you need is called FPC_TargettedGeneE2G so enter this in the GB_conf.pl file and run
+The *length* based runnable you need is called FPC_TargettedGeneE2G so enter this in GeneConf.pm (in length_runnables, NOT targetted_runnables!!) and run
 
 make_bsubs.pl
 
-The jobs to be run are in 
+The jobs to be run are in FPC_TargettedGeneE2G.jobs.dat
+in the directory you specified in GeneConf::GB_TMPDIR
 
-Also, look in your tmpdir (what you specified in GB_conf.pl) - all the
+Also, look in your tmpdir (what you specified in GeneConf.pm) - all the
 output directories needed for collecting the bsub out & err files are
 made if they didn't already exist
 
-8. Run FPC_TargettedGeneE2G jobs
+9. Run FPC_TargettedGeneE2G jobs 
 
 This is as easy as typing submit.pl < FPC_TargettedGeneE2G.jobs BUT WAIT!
 
@@ -244,7 +296,7 @@ You can submit jobs using
 ensembl-pipeline/scripts/GeneBuild/submit.pl, adjusting the number of
 seconds in the sleep statement as required.
 
-9. Check for errors
+10. Check for errors
 
 Sadly, there's no easy way to do this yet. I grep through the err
 files from bsub commands for "EXCE" and look to see what the errors
@@ -265,12 +317,29 @@ this will tell you which files have EXCE in them but not "gap contigs" so you ca
 
 Error checking often takes as much time as setting up to run the jobs in the first place ...
 
+Common errors in the Targetted jobs: look for things like:
+'EXCE' - all exceptions will be reported like this
+'Problem fetching sequence' -  this means you need to look at your sequence index and rerun those jobs that failed.
+'abort' (in out files) - Jobs that have aborted can be rerun.
+'memory' - f you see jobs that have run out of memory, the thing to do is to split the vcontig into smaller chunks and rerun them.
+'lost' (use case insensitive search) -  If you have jobs that lost their database connection, first check the mysql parameters to make sure you don't have a ludicrously short connection  timeout (these jobs can take HOURS to run), and resubmit them.
+Also look for gapcontig, gap contig ( in gaps it won't be able to remap the gene ) - there's not much to be done about these - we need to make a fix in the code.
+
+Look also for exceptions which do not fall into these categories - they might be new bugs that need fixing!
+
+In some cases, some runs on certain proteins fail for other reasons e.g. blast cannot open a file  
+You can find these by grepping for uncommon exit codes in the err files eg  EXIT CODE 8, 18... 
+Then you can rerun these individual protein jobs, e.g.:
+.../ensembl-pipeline/scripts/run_GeneBuild_RunnableDB -runnable Bio::EnsEMBL::Pipeline::RunnableDB::TargettedGeneE2G  -input_id 3:156380770,156456450:P01132: -write
+
+It's ok if genes get written twice at this stage, as this will be dealt with later on by GeneBuilder.
+
 D. Similarity Genewise build
 ----------------------------
 
 Don't start this stage until all the Targetted jobs are finished and checked.
 
-1. Edit GB_conf.pl and set length_runnables to be FPC_BlastMiniGenewise
+1. Edit GeneConf.pm and set length_runnables to be FPC_BlastMiniGenewise
 
 2. run make_bsubs.pl - output will go into FPC_BlastMiniGenewise.jobs
 in the directory from which make_bsubs.pl was run
@@ -302,9 +371,9 @@ F. Adding UTRs to genewise predictions
 
 The module that does this for you is called Combine_Genewises_and_E2Gs
 
-Don't start this stage until all the Similarity jobs are finished and checked.
+Don't start this stage until all the Similarity jobs are finished and checked, and you have run the cDNA analysis.
 
-1. Edit GB_conf.pl and set length_runnables to be Combine_Genewises_and_E2Gs
+1. Edit GeneConf.pm and set length_runnables to be Combine_Genewises_and_E2Gs
 
 2. run make_bsubs.pl - output will go into Combine_Genewises_and_E2Gs.jobs
 in the directory from which make_bsubs.pl was run
@@ -321,7 +390,7 @@ The module that does this for you is called Gene_Builder
 
 You will be writing the final ensembl genes to a separate
 database. The name and host of this database are specified in
-GB_conf.pl as finaldbname and finaldbhost. Make sure this database
+GeneConf.pm as finaldbname and finaldbhost. Make sure this database
 exists, has a schema (!) and has the same entries in clone, contig, static_golden_path
 and analysisprocess tables as the one you have been using. eg:
 
@@ -341,7 +410,7 @@ mysql> quit
 
 Don't start this stage until all the Similarity jobs are finished and checked.
 
-1. Edit GB_conf.pl and set length_runnables to be Gene_Builder
+1. Edit GeneConf.pm and set length_runnables to be Gene_Builder
 
 2. run make_bsubs.pl - output will go into Gene_Builder.jobs
 in the directory from which make_bsubs.pl was run
