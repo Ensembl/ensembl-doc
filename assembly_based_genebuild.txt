@@ -194,7 +194,7 @@ ftp ftp.ebi.ac.uk
 ftp>cd pub/databases/SPproteomes
 # for human
 ftp>get fasta_files/proteomes/9606.FASTAC
-ftp>get swissprot_files/proteomes/9606.FASTAC
+ftp>get swissprot_files/proteomes/9606.SPC
 # for mouse
 ftp>get fasta_files/proteomes/10090.FASTAC   
 ftp>get swissprot_files/proteomes/10090.SPC
@@ -202,7 +202,7 @@ ftp> bye
 mv 9606.FASTAC sptr.fa
 
 # downloading refseq files:
-ftp ftp.ncbi.nlm.nih.gov
+ftp ftp.ncbi.nih.gov
 # for human
 ftp>cd refseq/H_sapiens/mRNA_Prot/
 ftp>get hs.faa.gz 

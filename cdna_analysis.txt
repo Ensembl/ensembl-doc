@@ -121,8 +121,15 @@ B. Preparing cDNA sequences
 
 0. get the mRNA sequences:
 
-for refseq you have to go to the NCBI website:
-www.ncbi.nlm.nih.gov, go to ftp site, select refseq, h.sapiens, 
+for refseq you can get them from the NCBI ftp site:
+ftp ftp.ncbi.nih.gov
+# for human
+ftp>cd refseq/H_sapiens/mRNA_Prot/
+ftp>get hs.fna.gz 
+# for mouse
+ftp>cd refseq/M_musculus/mRNA_Prot/
+ftp>get mouse.fna.gz 
+ftp>bye
 
 If you have troubles getting there, try this mirror site:
 ftp://bio-mirror.net/biomirror/refseq/cumulative
