@@ -66,6 +66,8 @@ User description (should this go elsewhere?):
 # second time I've been asked about it.  I'll get a working getz on acari,
 # it will fit into next week's todo list.
 
+# Alternatively, get the srs file from someone else (like Paul Kersey
+# <pkersey@ebi.ac.uk> :-)
 
 # ------------------------------------------------------------------------
 # get the EnsEMBL data
@@ -131,7 +133,8 @@ User description (should this go elsewhere?):
 
     cd $work/blast
 
-chopper  -n 400  $work/srs/$thedate.pep  # see also -h
+    chopper  -n 400  $work/srs/$thedate.pep  # see also -h
+
 # splits data into $work/blast/seq/
 
 # ------------------------------------------------------------------------
@@ -311,18 +314,21 @@ mkdir ../families
 # This may fail if the database or tables already exist, or if you have
 # access problems. If so, just leave out -C $tablesql (which creates the
 # database and tables). Creating the new family database + tables (when not
-# available) may be easier with a mysqladmin -u ***REMOVED*** -pSECRET create
-# DATABASENAME; mysql -u ***REMOVED*** -pSECRET DATABASENAME < $tablesql
+# available) may be easier by hand, with 
 
+  mysqladmin -u ***REMOVED*** -pSECRET create DATABASENAME; 
+  mysql -u ***REMOVED*** -pSECRET DATABASENAME < $tablesql
+
+#
 # Very occasionally, you get one protein ending up in two families. This is
 # rare, and harmless. If this happens, this is notified by family-input.pl,
 # and the first one is taken, the rest ignored. 
 # 
 # The family-input.pl script tries to be careful with going from peptides
-# (which the clusters contain) to genes (which are 'added' to the
-# clusters). Occasionally, two peptides/transcripts from one gene end up in
-# two different clusters. In that case, the family (and therefore
-# description) having the best description is given  precedence. This is all
+# (which the clusters contain) to genes (which are 'added' to the clusters by
+# family-input.pl). Occasionally, two peptides/transcripts from one gene end
+# up in two different clusters. In that case, the family (and therefore
+# description) having the best description is given precedence. This is all
 # written about to stderr, which is analyzed in the next step.
 # 
 #
@@ -360,14 +366,13 @@ mkdir ../families
 # Families with 0 members are OK: we're only looking at the ENSPEPT members
 # in this figure. 
 #
-# If the gene-descriptions (see ensembl-doc/gene-descriptions.txt) have not
-# been done
-# yet, do them, then run the script 
+# If the gene-descriptions have not been done yet, do them first, then run
+# the script
 
     ensembl/scripts/desc-from-fam.sh coreDB MUSG -h host -u user famDB
 
 # and replace the existing gene-description table with the new one (which is
-# created in famDB.
+# created in famDB.  See also ensembl-doc/gene-descriptions.txt
 
 # ------------------------------------------------------------------------
 
@@ -379,8 +384,8 @@ mkdir ../families
      -new 'user=ensro;host=ensrv1;dbname=homo_sapiens_family_120' \
    > family.map 2>log.map
 
-# This may take a while (do a tail -f on the log file). Look at the log file
-# to get an idea. the larger families (>= 10) should be fine. 
+# This will take long, something like 6 hours last time I did it. Do a 
+#   `tail -f log.map' to see the progress.
 # 
 # The output is in TAB-delimited format.  Currently the mappings are from ENSF
 # to ENSF; it may be better to use internal_id's at some point, but that is
@@ -421,5 +426,16 @@ mkdir ../families
 # 
 # 
 # ------------------------------------------------------------------------
-
-# alignments: to come.
+#
+# Alignments: not fully documented yet. Family.pm has untested code for
+# alignments, and there is no web code for it yet. 
+# 
+# To obtain the alignments, run 
+# run-clustals.pl; to input them, run alignment-input.pl.
+# 
+# 
+# ------------------------------------------------------------------------
+# AltaVista indexing:
+# 
+# run fam-fulltext.sh
+# 
