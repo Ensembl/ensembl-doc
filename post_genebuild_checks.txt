@@ -46,7 +46,7 @@ where x is the assembly number
 
 1. check for duplicate exons
 
-     select e1.exon_id as exon1, e2.exon_id as exon2 from exon e1, exon e2 where e1.seq_start = e2.seq_start and e1.seq_end=e2.seq_end and e1.strand=e2.strand and e1.phase=e2.phase and e1.end_phase=e2.end_phase and e1.exon_id != e2.exon_id;
+     select e1.exon_id as exon1, e2.exon_id as exon2 from exon e1, exon e2 where e1.contig_start = e2.contig_start and e1.contig_end=e2.contig_end and e1.contig_strand=e2.contig_strand and e1.phase=e2.phase and e1.end_phase=e2.end_phase and e1.exon_id != e2.exon_id;
 
      note that there may be exons that are identical but as a part of a sticky-exon: Two exons with different ids may
      have the same entries but be the sticky_rank 2, say, of two different sticky exons.
