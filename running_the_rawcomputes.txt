@@ -35,7 +35,7 @@ An ensembl core database with the pipeline tables added (ensembl-pipeline/sql/ta
 
 you also need access to some sort of batch submission system in order to submit you analysis to your compute. At ensembl we use LSF and there is also code with in the pipeline for using Suns Gridengine 
 
-The rest of this document will assume you have a database which contains sequence and if desired an assembly and will describe how to configure and run the pipeline
+The rest of this document will also assume you have a database which contains sequence and if desired an assembly (see loading_sequence_into_ensembl.txt) and will describe how to configure and run the pipeline
 
 
 Configuration
@@ -108,7 +108,7 @@ OUTPUT_DIR this is where the stderr and stdout get written
 BATCH_QUEUE this is the queue in your batchsubmission system that the job will get submitted to, If your system doesn't use queues this 
 can probably be left blank
 
-the array of hashs also have a few other arguements
+the array of hashs also have a few other arguments
 
 logic_name is the logic name of a particular analysis
 
@@ -231,7 +231,7 @@ Intially entries must be written here for the dummy analysis object for a specif
 currently needs a different dummy analysis type
 
 Some of the sequence loading scripts also put entries in the input_id_analysis for each contig which is loaded for more information 
-about loading sequence into an ensembl database see the document called loading_sequence_into_ensembl.txt (not yet written lec 11/03/03)
+about loading sequence into an ensembl database see the document called loading_sequence_into_ensembl.txt
 
 alternatively you can use this script
 
@@ -327,5 +327,195 @@ always default to the start and end of the chromosome
 Running the analyses
 ===================== 
 
-Here are descriptions of the various analyses we actually run as part of the standard ensembl raw compute pipeline 
-plus others which there are runnables for
+In order to run the pipeline a script called RuleManager3.pl is used and this lives in ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/
+
+this script takes several commandline options and  this is what a relativly standard comand line looks like
+
+
+perl RuleManager3.pl -dbname pipeline_genebuild_050303 -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ***** -start_from 2 -once -shuffle
+
+the -db options are used to create the database connecttion, they are passed in the commandline so you can run more that one pipeline against different
+databases at the same time although more than one script can't run a pipeline against the same database at once
+
+-start_from is an importan option which there always must be at least on present in the command line
+the number is an analysis id and it should point to an analysis which already has been completed for your sequences 
+(hence the presence of a dummy analysis in the analysis table and in the input_id_analysis) 
+The script assumes this analysis is complete so if it isn't or if nothing depends on that analysis then nothing will run
+
+other flags that can be used are
+
+-local this will mean the jobs run on the machine the script is running on rather than using the batch submission system
+
+-idlist this should be a file of input_ids, each id on a separate line  is directs the script to only check and run on those ids rather 
+than everything in the input_id_analysis table 
+
+-runner  this should be the path to a runner script it you don't want to use the one in config
+
+-output_dir this should be the path to a output dir it you don't want to use the one in config
+
+-once this makes the script only check each input_id once rather than looping over them consistently so it means failed jobs won't be rerun 
+and jobs which depend on analysis which haven't ben run but will be completed in the first loop also won't be submitted, this flag is good to 
+use if you are just going to test you have your setup correct or that the jobs work but if you want everything to run you need to leave the script
+running and continually looping over the input_ids
+
+-shuffle this randomises the input_id list each time it is to loop over it so it won't check the ids in the same order each time
+
+-analysis this is another flag which can be present several times in the command line each flag should specify an analysis_id which should be run
+it means the script will only check if it can run those analysese and not any otherwise, this does mean you have to snrue any conditions placed 
+on those analyses are fulfilled otherwise nothing will run
+
+-v this is the verbose falg which will make the script a lot more chatty
+
+
+You can monitor the progress of your jobs using the monitor script whichis located here ensembl-pipeline/scripts/monitor
+
+it takes several command line options which affect what it displays for you
+
+the 4 options which are required are -dbname, -host, -pass, -user as these provide the database connection
+
+youmust then specify other options inorder for the script to display information
+
+these are all flags which you just need to specify on the command line they don't need any values
+ 
+-current tell you what is currently runnning by status and logic_name
+
+-current_summary tells you the total number of jobs with each status
+
+-finished tell you what is finshed by logic_name
+
+-analysis give a summary of the analysis table
+
+-rules gives you a summary of the rule_goal table
+
+-conditions tells you what rule and analyses depend other analyses
+
+the last flag
+
+-status_analysis does require a value this is in the format status:logicname and then shows a summary of the job table for that status and logic name
+for example -status_analysis failed:RepeatMask would show you information about RepeatMask jobs which had failed
+
+here is an example command line and output
+
+ecs2a[lec]183: ./../../../../scripts/monitor -dbname pipeline_genebuild_050303 -host ecs2b -user ensro -pass ***** -current -current_summary -finished
+
+Pipeline current status [ecs2b pipeline_genebuild_050303]
+
+Name            Status   Count
+----            ------   -----
+Briggsae_ESTs   FAILED   55 
+Briggsae_ESTs   VOID     45 
+Briggsae_mRNAs  FAILED   55 
+Briggsae_mRNAs  VOID     45 
+Elegans_ESTs    FAILED   55 
+Elegans_ESTs    VOID     45 
+Elegans_mRNAs   FAILED   55 
+Elegans_mRNAs   VOID     45 
+Human_ESTs      FAILED   55 
+Human_ESTs      VOID     45 
+Mouse_ESTs      FAILED   55 
+Mouse_ESTs      VOID     45 
+Other_ESTs      FAILED   55 
+Other_ESTs      VOID     45 
+Swall           FAILED   75 
+Swall           RUNNING  3  
+Swall           VOID     45 
+WormPep         FAILED   62 
+WormPep         VOID     45 
+
+
+Pipeline status summary [ecs2b pipeline_genebuild_050303]
+
+Status   Count
+------   -----
+FAILED   522 
+RUNNING  3   
+VOID     405 
+
+
+Finished job summary [ecs2b pipeline_genebuild_050303]
+
+Count Name            Id  
+----- ----            --  
+5605  SubmitContig    1   
+5605  RepeatMask      2   
+5605  Genefinder      3   
+5498  WormPep         5   
+5482  Swall           10  
+5505  Elegans_ESTs    11  
+5505  Elegans_mRNAs   12  
+5505  Briggsae_mRNAs  13  
+5505  Briggsae_ESTs   14  
+5505  Human_ESTs      15  
+5505  Mouse_ESTs      16  
+5505  Other_ESTs      17  
+5605  CPG             18  
+5605  tRNA            19  
+5605  TRF             21  
+378   SubmitSlice     126 
+
+
+
+Now follows a description of some of the analyses which we run as part of our pipeline or can be run as part of the pipeline
+
+
+Repeat Features
+===============
+
+RepeatMasker this uses libaries to identify repeat sequences in you dna which allows you to mask them out when running other analyses, 
+for a academic/non comercail version of this produce contact asmit@nootka.mbt.washington.edu with the subject RepeatMasker request
+for a commercial license contact swxfr@u.washington.edu
+
+TRF a tandem repeat finder the binaries are availible from here
+    http://c3.biomath.mssm.edu/trf.download.html
+
+Dust a low complexity repeat finder the binaries and source are availble from here
+     ftp://ftp.ncbi.nih.gov/pub/tatusov/dust/
+
+these are all used as part of the standard ensembl pipeline
+
+Ab Intitio gene prediction
+==========================
+
+Genscan GENSCAN is freely available for academic use. Executables are currently available for the following Unix platforms: Sun/Solaris, SGI/Irix, DEC/Tru64 and Intel/Linux. Platforms not listed are not currently available.
+
+to get genscan for academic use go here http://genes.mit.edu/license.html
+Save the license agreement web page as a text file called 'license.txt' (e.g., if running Netscape use File > Save As... > Text).
+Edit the file license.txt to include your name and complete mailing address (not email) using a simple text editor such as SimpleText, emacs, vi, jot, etc. (if you must use Word or WordPerfect, please save the resulting file as ASCII text).
+Send the edited license.txt file by email to Chris Burge (cburge@mit.edu). In your email please specify which platform you intend to run Genscan on (Sun, SGI, DEC or Intel/Linux) - I cannot process requests without this information.
+Wait for a couple of days to receive the Genscan distribution by email. You should receive a response within one week except during holidays - if you do not, please resend the license.txt file.
+
+Fgenesh is now product of softberry contact details softberry@softberry.com
+
+Genefinder is a species specific gene prediction tool. It uses maximum likelihood estimation to predict gene structure. It can be configured for a variety of species.
+Genefinder is an unpublished work of Colin Wilson, LaDeana Hilyer, and Phil Green. The source code is freely available for research and educational purposes. ftp://ftp.genome.washington.edu/src (Please contact Colin Wilson if you are unable to access the ftp site colin@u.washington.edu).
+
+Genscan is the only program run as standard in the ensembl-pipeline
+
+Simple Features
+===============
+
+tRNAscan-SE predicts the location of tRNA genes the source and binaries are availible here under the GPL http://www.genetics.wustl.edu/eddy/software/ 
+
+CpG predicts the location of cpg islands the source is availble here ftp://ftp.sanger.ac.uk/pub/gos/analysis/src/
+
+Eponine predicts transcription start sites the jar file is availble here  http://www.sanger.ac.uk/Software/analysis/eponine/ under the LGPL
+
+Marker and ePCR ftp://ftp.ncbi.nih.gov/pub/schuler/e-PCR this places pcr markers in the sequence 
+
+these are all run as part of the standard ensembl pipeline
+
+Blast
+=====
+
+In the ensembl pipeline we normally use WU-blast which is availible under license from Washington State http://blast.wustl.edu/blast/README.html#Licensing
+NCBI Blast can also be used and it freely availble from NCBI ftp://ftp.ncbi.nih.gov/blast/
+
+BlastGenscanPep
+BlastGenscanDNA 
+
+These both take sequences of ab initio predicted genes then use those to blast against the databases, this is done for two reasons, one for speed as to blast the whole of a human sized genome(~3GB)  against a blast database such as swall or dbest would take to long. The other is to allow use to find protein and dna evidence which supports these genes so potentially they can be used further down the line to contribute to our genebuild
+
+Normally we run BlastGenscanPep and BlastGenscanDna but for small genomes such as anopheles and briggsae we blast against raw sequence
+
+
+
