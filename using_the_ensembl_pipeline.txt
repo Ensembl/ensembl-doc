@@ -613,15 +613,160 @@ min_unmasked this is the minimum number of consectutive unmasked bases
 which must be present before a blast will be run, as default we use 10
 for blastn and 15 for blastx
 
-Once you have all this set up you are ready to run the pipeline see specific
-documents on how to run the pipeline for specific analysis
+Once you have all this set up you are ready to run the pipeline see s
+pecific documents on how to run the pipeline for specific analysis
 
 running_the_rawcomputes.txt
 running_the_pmatches.txt
 running_the_genebuild.txt
 
+every pipeline though is run using one script RuleManager3.pl and 
+monitored using another monitor
 
 
+RuleManager3.pl
+---------------
+
+The RuleManager script is found in 
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/RuleManager3.pl
+
+it is run by giving it several command line options
+
+-dbhost     The host where the pipeline database is.
+-dbport     The port.
+-dbuser     The user to connect as.
+-dbpass     The password to use.
+-dbname   The database name.
+
+dbhost, dbuser and dbname are obligatory options which you must provide
+if your dbuser needs a password you will also have to provide that and if
+your dbconnection needs to be set up on a port which isn't 3306 that will
+also need to be passed in
+
+these are optional options
+
+   -local run the pipeline locally and not using the batch submission 
+    system
+   -idlist_file a path to a file containing a list of input ids to use
+   -runner path to a runner script (if you want to overide the setting
+				    in BatchQueue.pm)
+   -output_dir path to a output dir (if you want to overide the 
+				     setting in BatchQueue.pm)
+   -once only run through the RuleManager loop once
+   -shuffle before running though the loop shuffle the order of the 
+    input ids
+   -analysis only run with these analyses objects, can be logic_names or
+    analysis ids, this option can appear in the commandline multiple 
+    times
+   -v verbose mode
+   -dbsanity peform some db sanity checks, can be switched of with 
+    -nodbsanity
+   -input_id_types, which input id types to run the RuleManager with,
+    this option can also appear in the commandline multiple times
+   -start_from, this is which analysis to use to gather the input ids
+    which will be checked by the RuleManagers central loop
+   -accumulators, this flag switches the accumulators on, the 
+    accumulators are on by default but can be swtiched on with the 
+    -noaccumulators flag
+   -max_job_time, can overide the $MAX_JOB_TIME value from General.pm
+    with this flag
+   -killed_file can overide the path to the $KILLED_INPUT_IDS file from
+    General.pm
+   -queue_manager can overide the $QUEUE_MANAGER from General.pm
+    		    
+   
+-h or -help will print out the help again
+
+examples
+
+a standard run of the pipeline would look like this
 
 
+perl RuleManager3.pl -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ****
+ -dbname pipeline_db -shuffle
 
+if you wished to specify specific analysis to 
+
+perl RuleManager3.pl -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ****
+ -dbname pipeline_db -analysis RepeatMask -analysis Swall
+
+this would only run the RepeatMask and Swall analyses
+
+perl RuleManager3.pl -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ****
+ -dbname pipeline_db -analysis RepeatMask -local
+
+this would only run the RepeatMask analysis locally
+
+obviously when specific analyses are specified their conditions must be 
+met otherwise they still won't be run'
+
+
+monitor
+-------
+
+monitor is found in ensembl-pipeline/scripts
+
+the script will display information about a pipeline
+
+it takes standard db connection options of -host, -port, -user, -pass and
+-dbname
+
+it also has several commandline options for what information about the 
+pipeline to display
+
+
+-current               shows the jobs currently in the database, the data
+is grouped by both analyses and status
+
+-current_summary       shows the jobs in the database grouped by status
+
+-finished              shows the finished jobs in the database grouped
+by analysis
+
+-analysis              shows the analysis table
+
+-rules                 shows the rule_goal table
+
+-conditions            shows the rule_conditions table
+
+-status_analysis S:LN  shows the jobs with Status:Logic_Name
+
+-unfinished            shows the unfinished input_ids & analyses in the 
+database.
+
+-nohits FT:ANAID       shows clones with no hits in:with 
+Feature_Table:Analysis_ID
+   
+-assembly TYPE         shows unfinished input_ids & analyses in the 
+assembly of TYPE
+   
+-input_id INPUT_ID     shows unfinished analyses for INPUT_ID
+
+-lock                  prints information about the pipeline.lock
+
+there is also a -help options which will print out the perl docs for the
+script
+
+this script is general used to see the progress of the pipeline and the
+jobs in it. The three most commonly used options are -current,
+-current_summary and -finished
+
+here are example commandlines
+
+To display the current summary of the pipeline
+ S<./monitor -host ecs2b -port 3306 -user ensro -dbname -current_summary>
+ 
+To display ALL the input_id analysis combinations
+ S<./monitor -host ecs2b -port 3306 -user ensro -dbname -unfinished>
+ 
+To limit this to an assembly
+ S<./monitor -host ecs2b -port 3306 -user ensro -dbname -assembly ChrX>
+
+To limit it to an input_id
+ S<./monitor -host ecs2b -port 3306 -user ensro -dbname -input_id 
+ AL321765.1.1.100009>
+
+To get the list of contigs B<WITHOUT> hits in the dna_align_feature table
+for the  analysis with ID 20 
+ S<./monitor -host ecs2b -port 3306 -user ensro -dbname -nohits 
+ dna_align_feature:20>
