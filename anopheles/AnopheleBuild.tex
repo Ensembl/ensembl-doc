@@ -13,7 +13,8 @@
 \maketitle
 
 
-The goal is to provide a written help on how to run the the \textit{A. gambiae} automatic annotation. This should actually be usable for most of the 'virgin genomes'. This documentation for processes which are common with other genomes, references are given to files present in the ensembl CVS repository called ensembl-doc. These files should be updated as the processes and code change. All of this documentation is written for people working at EBI/Sanger.
+\bf{File last updated: August 2003}
+The goal is to provide a written help on how to run the the \textit{A. gambiae} automatic annotation. This should actually be usable for most of the 'virgin genomes'. This documentation for processes which are common with other genomes, references are given to files present in the ensembl CVS repository called ensembl-doc. These files should be updated as the processes and code change. All of this documentation is written for people working at EBI/Sanger. Please update this documentation if needed. 
 
 \section{Raw computes}
 Running raw computes for \textit{A. gambiae} is pretty similar than for other genomes only few details change.
@@ -179,7 +180,7 @@ This process will combine the cDNAs to the similarity genes to add UTRs where po
 
 \subsection{EST Gene build}
 \subsubsection{Exonerate and the EST gene builder}
-
+\paragraph{Exonerate}
 The EST gene build is ran without much adaptation to the process (for more detaisl see the conf files). As the number of ESTs anopheles remains relatively low (less than 200 000) and that they are of pretty good quality, we treat these data as cDNAs. For the last release all of the \textit{An. gambiae} sequences labelled as RNA have been used for the gene build. 
 To map the EST to the genome, only exonerate has been used.
 
@@ -253,10 +254,97 @@ Here is the configuration file used to run the Exonerate step (mapping of the ES
   
 \end{verbatim}
 
-\subsubsection{GeneCombiner (merging EST genes with the similarity build}
+\paragraph{EST Gene builder}
+The configuration file for the EST gene build is pretty complex. The best is to chat with eduardo (eae@sanger.ac.uk) because there is a lot of development being undertaken and the following conf file may be outdated in a month 
 
-\section{Issues}
+\begin{verbatim}
+  ############################################################
+  # EST_GeneBuilder
+  ############################################################
+  
+  EST_GENEBUILDER_CHUNKSIZE        => 1000000,      #  we use 1000000 (ie 1MB) chunks
+  
+  EST_GENEBUILDER_INPUT_GENETYPE => 'RNA',
+  EST_GENOMEWISE_GENETYPE        => 'genomewise_final',
+  
+  # if this is set to TRUE it will reject ests that do not
+  # have all splice sites correct
+  CHECK_SPLICE_SITES => 1,
+  
+  # if set to a number, it will reject single exon ests that are shorter that this
+  FILTER_ON_SINGLETON_SIZE => 500,
+  
+  # if set to a number, it will reject single exon ests that have score smaller than this
+  RAISE_SINGLETON_COVERAGE => 97,
+  
+  ## you must choose one type of merging for cdnas/ests: 2 and 3 are the common ones
+  EST_GENEBUILDER_COMPARISON_LEVEL => 2,
+  
+  # for details see documentation 
+  # in Bio::EnsEMBL::Pipeline::GeneComparison::TranscriptComparator
+  # 1 --> strict: exact exon matching (unrealistic). 
+  # 2 --> allow edge exon mismatches
+  # 3 --> allow internal mismatches
+  # 4---> allow intron mismatches
+  # 5---> loose mode - consecutive exon overlap - allows intron mismatches
+  
+  # you can alow a mismatch in the splice sites
+  EST_GENEBUILDER_SPLICE_MISMATCH  => 40,
+  
+  # you can allow matches over small introns 
+  EST_GENEBUILDER_INTRON_MISMATCH => 20,
+  
+  # you can bridge over small introns: we difuse the small intron into one exon
+  # if set to false transcripts with small introns will be rejected
+  BRIDGE_OVER_SMALL_INTRONS => 0,
+  
+  # the maximum size of introns to bridge over
+  EST_MIN_INTRON_SIZE  => 20,
+  
+  
+  # you can choose whether you only want tw ests/cdnas to merge if
+  # they have the same number of exons
+  EST_GENEBUILDER_EXON_MATCH     => 0,
+  
+  # how much discontinuity we allow in the supporting evidence
+  # this might be correlated with the 2-to-1 merges, so we
+  # usually put it =  EST_GENEBUILDER_INTRON_MISMATCH for ESTs
+  EST_MAX_EVIDENCE_DISCONTINUITY  => 2,
+  REJECT_SINGLE_EXON_TRANSCRIPTS  => 0,
+  GENOMEWISE_SMELL                => 0,
+  
+  # exons smaller than this will not be include in the merging algorithm
+  EST_MIN_EXON_SIZE               => 10,
+  
+  # ests with intron bigger than this will not be incuded either
+  EST_MAX_INTRON_SIZE             => 50000,
+  
+  # this says to ClusterMerge what's the minimum
+  # number of ESTs/cDNAs that must be 'included' into a
+  # final transcript
+  CLUSTERMERGE_MIN_EVIDENCE_NUMBER => 1,
+  
+  # maximum number of transcripts allowed to 
+  # be in a gene. Even by tuning the other parameteres
+  # to keep this low, there will be always cases with more 20 even 50 isoforms
+  # which, unless what you're doing is really targetted
+  # to a known case or with very good quality ests/cdnas, it
+  # is not very reliable.
+  MAX_TRANSCRIPTS_PER_GENE => 8,
+  
+  # If using denormalised gene table, set this option to 1.
+  EST_USE_DENORM_GENES => 0,
+            
+\end{verbatim}
 
+\bf{NB:} One of the most important option of the configuration is the genebuilder comparison level. For the Anopheles EST gene build release 3 we used level 2. See the configuration file above or even better Eduardo's Cluster Merge paper to get a better idea of the comparison levels.
+
+\subsubsection{GeneCombiner (merging EST genes with the similarity build)}
+The gene combiner will combine EST genes with similarity genes. This will add EST genes where no similarity genes have been predicted and add spliced variants to similarity genes.
+%add more here on the details of the combination and the raised issues
+
+\section{General issues}
+Most of the issues have been treated in the above sections...
 \section{Post Compute}
 \subsection{Protein Annotation}
 \subsection{Known gene mapping}
