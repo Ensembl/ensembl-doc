@@ -1,0 +1,86 @@
+EMBL and Sanger gene processing HOW-TO
+
+TH (July '01)
+
+
+A) Overview
+
+The objective is to populate an external ensembl database with
+annotated genes in EMBL entries.  The database created is a full one,
+not an external feature factory as it contains the full wack: exons,
+transcripts, translations, genes.
+
+The script works by looping over the set of clones in a current core
+ensembl database and for all clones which are 'finished' (i.e. a
+single contig) it uses efetch to read the appropriate embl file.  If
+this file has the same sequence version then it is parsed for genes.
+
+Annotation connecting the genes to other databases (such as db_xref
+and protein_id) are parsed and entered into the Xref tables under
+"Transcript".
+
+B) Scripts
+
+The embl database is built by a single script.
+
+    $ENSROOT/misc-scripts/embl_annotation/extract_curated.pl
+
+The current script has the following defects as of 10/7/01:
+
+    - the genes constructed are only from CDS lines (mRNA's are ignored)
+
+    - genes that are spread over multiple clones are split
+
+Another source of data other than EMBL files are Sanger AceDB
+databases: there are clones reannotated by the human annotation group
+that are not submitted to EMBL since the clones in question were not
+sequenced at Sanger.
+
+C) Files
+
+No files are required, but log files are generated:
+
+   extract_curated.processed.lis - list of all clones that did not generate genes
+   extract_curated.log.err	 - exception for clones where embl parsing failed
+   extract_curated.log		 - normal log file
+
+The directory where I last ran this is:
+
+/work2/th/work/embl_annotation/
+
+D) Database
+
+Substitute database names and hosts into commands below.  A new
+database should be created for embl [emblXXX] (last time was embl110
+on ecs1f).  Any database with a full set of clones can be used to get
+a list of clones for input list [ensemblYYY] (readonly)
+
+E) Procedure
+
+1. create an empty database
+
+   login on node to hold database
+   mysqladmin -u root create emblXXX
+   mysql -u root emblXXX < /work2/th/src/trunk/ensembl/sql/table.sql
+
+2. run script
+
+   $ENSROOT/misc-scripts/embl_annotation/extract_curated.pl
+                        -ohost HOSTXXX -odbname emblXXX 
+			-ihost HOSTYYY -idbname ensemblYYY 
+			-l -w >& ! extract_curated.log &
+
+F) Mouse
+
+This script can also be run for mouse.  I'm going to run this on a
+continous basis for the live mouse database (ecs1a:mouse)
+
+1. run script
+
+   cd /work2/th/work/embl_annotation/mouse
+   $ENSROOT/misc-scripts/embl_annotation/extract_curated.pl
+                        -ohost HOSTXXX -odbname emblXXX 
+			-ihost HOSTYYY -idbname ensemblYYY 
+			-l -w >& ! extract_curated.log &
+
+2001/07/10: 15 finished clones with annotation; 37 genes
