@@ -268,8 +268,8 @@ User description (should this go elsewhere?):
 # ------------------------------------------------------------------------
 # 
 # run clustering algorithm on the matrix:
-
-  nice mcl $release.mci -I 3.0 -t 8 -P 1000 -progress 100 -o $release.mcl
+ 
+  nice mcl $release.mci -I 5.0 -t 8 -P 1000 -R 500 -pct 95 -progress 100 -o $release.mcl
 
 # takes an hour or so (longer if -P is higher) 15 - 1500 min or so, depending
 # on the P value (and of course set size).
@@ -292,10 +292,10 @@ User description (should this go elsewhere?):
 
 ## Further optimization stragegies, in case it's too slow:
 #
-#    -P 1000 -M 1000 -pct 90
-#    -P 2000 -M 1500 -pct 90
-#    -P 2000 -M 1500 --adapt -pct 90
-#    -P 3000 -M 2000 --adapt -pct 90
+#    -P 1000  -pct 90
+#    -P 2000  -pct 90
+#    -P 2000 --adapt -pct 90
+#    -P 3000 --adapt -pct 90
 
 # Note added after doing the (test) ID mapping from 110 to 120 : it turns out
 # that there is some 'chaining' due to the addition, as of 120, of the mouse
