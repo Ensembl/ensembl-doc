@@ -54,7 +54,7 @@ where x is the assembly number
 2. check for sane exon coords
      select * from exon where contig_start < 1;
      select * from exon where contig_start > contig_end;
-     select exon_id from exon, contig where exon.contig_id =contig.contig_id and exon.contig_end > contig.length;
+     select exon_id from exon, contig where exon.contig_id =contig.contig_id and exon.contig_end > contig.length;	  
 
      note that until we have a better way of storing genewise frameshifts we will have very small exons ( < 10bases ) so not much point in testing seq_start=seq_end. 
 
@@ -79,18 +79,13 @@ where x is the assembly number
 
 6. If you want to print the chromosome where those exons fall:
 
-     select distinct(e.exon_id), c.name, a.chr_start, a.chr_end from chromosome c, assembly a, exon e left join supporting_feature on e.exon_id=supporting_feature.exon_id where supporting_feature.exon_id is NULL and e.contig_id = a.contig_id and c.chromosome_id = a.chromosome_idq
+     select distinct(e.exon_id), c.name, a.chr_start, a.chr_end from chromosome c, assembly a, exon e left join supporting_feature on e.exon_id=supporting_feature.exon_id where supporting_feature.exon_id is NULL and e.contig_id = a.contig_id and c.chromosome_id = a.chromosome_id;
 
 
 
 ###################
 # checks on genes #
 ###################
-
-
-Note: The checks done in the object layer are in script form in 
-ensembl-pipeline/scripts/post_GeneBuild/post_GeneBuild_checks_denormalised.pl
-although this script is specialised for mouse, where do far we are using a denormalised assembly.
 
 
 1. all genes have transcripts
@@ -101,7 +96,7 @@ although this script is specialised for mouse, where do far we are using a denor
 
 5. check that there are no too-long single exon genes (>50kb)
      start with 
-     select exon_id from exon where seq_end -seq_start > 50000; 
+  select exon_id,  (contig_end - contig_start +1 ) as length  from exon having length > 50000; 
      and pick out those that are single exon genes - should not be any.
 
 6. you can also have a look at how many single-exon genes there are
@@ -117,6 +112,19 @@ although this script is specialised for mouse, where do far we are using a denor
    (check that no translation has stop codons in it)
 
 3. check for short translation.  Have a look to those very short ones, let's say < 10 aa, and see whether they look real.
+
+
+4. check that all transcripts have a translation      
+     select count(gene.gene_id) from gene left join transcript on gene.gene_id=transcript.gene_id where transcript.gene_id is NULL;
+
+    select count(t.transcript_id) from transcript t left join translation tr on t.transcript_id = tr.translation_id where t.translation_id is NULL;
+   
+
+4. check that if the start and end of translation is on the same exon, that start < end:
+
+   select count(translation_id) from translation where start_exon_id = end_exon_id and seq_start > seq_end;
+
+
 
 
 #####################
