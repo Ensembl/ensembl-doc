@@ -252,12 +252,14 @@ all its ensembl introns are in fact frameshifts, that is, genewise got around th
 by introducing small introns (size < 10bp).
 
 On the other hand, as recent processed pseudogenes have been created independently in different genomes, we expect 
-
+that they will not be conserved across species. In the checks there is an alignment check which basically
+reports the transcript alignment on a homologous region on a closely related genome.
 
 So our first definition could be:
-1) transcripts which are based on evidence which is spliced elsewhere in the genome and any intron is a frameshit:
+1) transcripts which are based on evidence which is spliced elsewhere in the genome, where any intron is a frameshit and
+there is no homology to two closely related genomes:
 
-   > cat pseudogene_label.out | grep "frameshift:1" | grep -v "spliced_elsewhere:0" | grep "real_introns:0" > pseudogenes1
+   > cat pseudogene_label.out | grep "frameshift:1" | grep -v "spliced_elsewhere:0" | grep "real_introns:0" | grep "homology1:0" | grep "homology2:0" > pseudogenes1
 
 
 Processed pseudogenes can also have insertions of repeat elements. This will appear as a transcript with a
@@ -265,9 +267,9 @@ real intron, bu the intron is covered by a repeat in more than 80%.
 So another set of pseudogenes could be obtained as:
 
 2) transcripts which are based on evidence which is spliced elsewhere in the genome 
-and 80% of the (real) intron sequence contain repeats:
+and 80% of the (real) intron sequence contain repeats, and there is no homology to other genomes:
 
-   > cat pseudogene_label.out | grep -v "spliced_elsewhere:0" | perl -lane '$F[3]=~/:(\d+)/; $a=$1; $F[11]=~/:(\d+)/; $b=$1; next unless ( $a !=0 && $a=$b ); print $_' > pseudogenes2
+   > cat pseudogene_label.out | grep -v "spliced_elsewhere:0" | | grep "homology1:0" | grep "homology2:0" | perl -lane '$F[3]=~/:(\d+)/; $a=$1; $F[11]=~/:(\d+)/; $b=$1; next unless ( $a !=0 && $a=$b ); print $_' > pseudogenes2
 
 
 Processed pseudogenes may have a polyA tail downstream, reminiscent of the reinserted cDNA, although this might be mutated beyond
@@ -282,6 +284,15 @@ the pseudogene is likely to lack a starting methionine (M). This is in fact a ve
 code on annotated pseudogenes. In general, a subset of the pseudogenes found by doing 1) will lack a starting M.
 You can in general add the check for this to 1) to restrict your set.
    
- > cat pseudogene_label.out | grep "frameshift:1" | grep -v "spliced_elsewhere:0" | grep "real_introns:0" | grep "Met:0" > subset_of_pseudogenes1
+ > cat pseudogene_label.out | grep "frameshift:1" | grep -v "spliced_elsewhere:0" | grep "real_introns:0" | grep "homology1:0" | grep "homology2:0" | grep "Met:0" > subset_of_pseudogenes1
 
 
+You can relax some of the conditions and see whether the selected set increases or not.
+
+As an extra check for your selected set of candidate pseudogenes, you can see whether they are
+part of single-transcript genes. It is perhaps unlikely that a peudogene shares exons
+with a functional transcript:
+
+> cat your_peudogenes | grep -v "trans_count:1"
+
+this will be as well a way of recognizing possible annotation problems.
