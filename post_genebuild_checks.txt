@@ -155,6 +155,13 @@ where x is the assembly number
 
 3. check analysisprocesses - there must be no features with an invalid analysis id!
 
+     select analysis_id, logic-name from analsyis;
+     select analysis_id, count(*) from dna_align_feature;
+     select analysis_id, count(*) from protein_align_feature;
+     select analysis_id, count(*) from protein_feature;
+     select analysis_id, count(*) from simple_feature;
+     select analysis_id, count(*) from gene;
+  
 4. check that all features map to analysisprocess. All analyses have a 'db'. Logic names should be stable. 
 
 5. check for sane feature coordinates
@@ -188,11 +195,9 @@ where x is the assembly number
   shell> sort -u -k 2 feature_filename
   in the files and then upload the results. This is also faster if split the features (maybe by analysis, or by its origin: pipeline, interim genebuild, cdna_features) and you do it independently for each set
 
-
 ###########################
 # Finally, Make a backup! #
 ###########################
-
 
 
 
