@@ -647,6 +647,43 @@ This requires to make sure that we have a proper analysisprocess table,
 and that every feature load (or to be loaded) has an analysis correctly assigned and
 present in the analysisprocess table.
 
+We need to convert the entries from the supporting_feature table originally in the interim database,
+which should have been saved as above in 'interim_supporting_feature.file'.
+
+We need to do the following conversion in the name, according to the origin of the evidence
+
+if name = 'TGE_gw'		 ---> name = 'mouse_refseq'  ( if hid =~ /NP/ )
+				 ---> name = 'mouse_swall'  ( otherwise ) 
+
+if name = 'similarity_genewise'  ---> name = 'other_swall'
+
+if name = 'combined_gw_e2g'      ---> we reject these ones. This information is available as a combination pf
+                                      the above one plus the info from the cDNA analysis
+
+
+
+We also need to convert the supporting_feature table in the database where we have done the cDNA analysis
+into features, again splitting by the origin of the cDNA, thus
+
+if hid =~ /NP/                   ---> name = 'refseq_cdna'
+otherwise                        ---> name = 'embl_vertrna'
+
+
+Each of these features will have to have a proper analysis associated in the analysisprocess table.
+Make sure that the analysis ID put in the conversion from supporting_feature to feature is the right one.
+In this sense it helps to construct first the analysisprocess table. It should have the following entries added:
+
+15  2002-03-07 14:28:46	mouse_swall  mouse_swall  1	\N	TGE_gw	 1	\N	\N	TargettedGeneE2G	\N	TGE_gw	gene
+16	2002-03-07 14:28:46	mouse_refseq	mouse_refseq	1	\N	TGE_gw			1	\N	\N	TargettedGeneE2G	\N	TGE_gw	gene      
+17	2002-03-11 17:37:23	other_swall	other_swall	1	\N	similarity_genewise	1	\N	\N	FPC_BlastMiniGenewise	\N	similarity_genewise	gene
+18      2002-03-07 14:28:46	refseq_cdna	refseq_cdna     1	\N	exonerate_e2g	      	1	\N	\N	FilterESTs_and_E2G	\N	exonerate_e2g	       	gene      
+19      2002-03-07 14:28:46	embl_vertrna	embl_vertrna	1	\N	exonerate_e2g		1	\N	\N	FilterESTs_and_E2G	\N	exonerate_e2g	       	gene      
+
+
+
+
+
+
 
 #######################
 Remove redundant tables
@@ -654,7 +691,6 @@ Remove redundant tables
 
 Remove tables pmatch_feature and protein, used in the pmatch analysis.
 Make a back-up of this data somewhere before hand.
-
 
 
 

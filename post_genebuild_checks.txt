@@ -104,4 +104,21 @@ $vc->get_all_SimilarityFeatures_above_score('embl_vertrna',80);
 @features  =  $vc->get_all_SimilarityFeatures_above_score('swall',1);
 @features  =  $vc->get_all_SimilarityFeatures_above_score('human_mrna',1);
 
-8. Make a backup!
+
+8. check for sane feature coordinates
+     select * from feature where seq_start < 1;
+     select feature.id from feature, contig where feature.contig = contig.internal_id and feature.seq_end > contig.length;
+     select * from feature where seq_start > seq_end;
+
+9. check for duplicate features:
+
+     select f1.id as feature1, f2.id as feature2 from feature f1, feature f2 where f1.contig = f2.contig and f1.seq_start = f2.seq_start and f1.seq_end = f2.seq_end and f1.strand = f2.strand and f1.analysis = f2.analysis and f1.name = f2.name and f1.hstart = f2.hstart and f1.hend = f2.hend
+          
+
+You can try also to check for f1.score = f2.score
+
+
+
+
+
+Finally, Make a backup!

@@ -161,6 +161,9 @@ fasta file, avoid giving it a name that contains swall, humanest or
 EST, or you'll end up using the wrong parsing method and be unable to
 fetch any sequences.run get_human_ests.pl against (sections of) dbEST
 
+Note: the indexing of the ESTs is necessary for the Filter_Exonerate_E2G jobs but not for the Exonerate jobs.
+So Exonerate jobs can be run before the index is pushed across the farm. The masked dusted genomic sequence
+must be pushed before though.
 
 2. run prepare_ests.pl
 all options are set in ESTConf.pm,
@@ -356,6 +359,11 @@ The script make_bsubs.pl also creates the directories for the out and err files,
 
 E. ExonerateEST
 ---------------
+
+Note: the indexing of the ESTs is necessary for the FilterESTs_and_E2G jobs but not for the Exonerate jobs.
+So Exonerate jobs can be run before the index is pushed across the farm. The masked dusted genomic sequence
+must be pushed before though.
+
 
 1. check that the bsub commands look something like:
 
@@ -639,7 +647,16 @@ H. EST-data delivery
 
 Final checks on the features:
 
+* check that there are features in most of the contigs
+	select count(distinct contig) from feature;
 * check that there are features in both strands
+	select count(*) from feature where strand=-1;
+* check coordinate sanity
+	select * from feature where seq_start < 1;
+	select feature.id from feature, contig where feature.contig = contig.internal_id and feature.seq_end > contig.length;
+	select * from feature where seq_start > seq_end;
+
+
 * check that the features have the right analysis_ID ( check analysisprocess table )
 
 This database then is ready to be delivered for release.
@@ -655,7 +672,7 @@ will be the first time we present the gene-predictions on the Web.
 For the following release we'll combine these genes with the rest of the
 gene-build.
 
-Create a fourth database, where you'll put contig, clone and sgp as the prvious ds's.
+Create a fourth database, where you'll put contig, clone and sgp as the previous ds's.
 Copy gene, exon, exon_transcript and translation tables relevant to
 the genomewise genes into this new db, e.g.:
 
@@ -680,6 +697,9 @@ for the 'similarity' entry, e.g.:
 
 analysisId = 1 will be for the genes, and
 analysisId = 2 will be for the supporting features that we are going store as features in this database
+
+
+For this database you should do the same checks as in the genebuild, as described in post_genebuild checks.txt
 
 
 the data is then ready for delivery.
