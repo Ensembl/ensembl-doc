@@ -153,6 +153,12 @@ SiteDefs.pm
  $ENSEMBL_USER           = ***REMOVED***;
  $ENSEMBL_ERRORS_TO      = 'abel@ebi.ac.uk';
 
+Note if there are new species you'll need to create a new .ini file
+and add the relevant entry to the $ENSEMBL_SPECIES_ALIASES hash in
+SiteDefs.pm. Also there won't be a static index page for it yet so
+you'll need to point people directly at the mapview page e.g.
+http://ecs2d:5000/Tetraodon_nigroviridis/mapview
+
 Homo_sapiens.ini
  update the following variables if not already done
  ENSEMBL_GOLDEN_PATH     = NCBI31
