@@ -2,7 +2,7 @@
 Fugu-Specific Gene Build Details
 =================================
                                                                                                        
-Last major update of this document : 1.06.2004 by Kevin Howe
+Last major update of this document : 040601 by Kevin Howe
                                                                                                        
 Contents
 ========
@@ -40,14 +40,14 @@ from the JGI:
 http://genome.jgi-psf.org/fugu6/fugu6.download.ftp.html
 
 [note: when I downloaded it at the start of the 2004, there were some garbage
-lines which need to be removed]
+lines at the end which need to be removed]
 
 Protein
 -------
 
 Only proteins in Swall were used for the build. For the targetted
 build, all fugu proteins in Swall were extracted. As well as the
-sequences themselves, we also need the ful descriptive entries for
+sequences themselves, we also need the full descriptive entries for
 xref association stage at the end of the gene build:
 
 getz '[swall-org:Takifugu rubripes]! [swall-ogn:Mitochondrion]' \
@@ -78,10 +78,11 @@ getz '[embl-org:Takifugu rubripes]&[embl-mol:mRNA]&[embl-div:VRT]' \
   | xargs pfetch -l100 > fugu_mRNAs.fa
 
 
-I experimented with using cDNAs from other fish species-groups, using taxonomy, 
-but found that only fugu cDNAs align with high coverage and identity. There may 
-be yardage in dropping the required coverage and identity as you move up the tree; 
-this wasn't explored rigourously for this gene-build.
+I experimented with using cDNAs from other fish species-groups, progessively
+moving up the taxonmic tree, but found that only fugu cDNAs align with high 
+coverage and identity. There may be yardage in dropping the required coverage 
+and identity as you move up the tree; this wasn't explored rigourously for this 
+gene-build.
 
 
 EST
@@ -127,13 +128,19 @@ search of the genome against Swall (wublasx) was performed. This
 search was used to find additional seeds for the similarity build
 below. To save on space, only the top-scoring exon from each hit is
 stored, and we used fast parameters because it is only necessary to
-match one exon of the gene at this stage. The BLAST options used were:
+match one exon of the gene at this stage. I realised afterwards that
+in the presence of the complex BLAST feature-filter, this may not
+always be the correct thing to to. Feature filtering for the gene-build
+as a whole is an area that needs to be looked at. 
+
+The BLAST options used were:
 
 -spoutmax 1 -hitdist 40 W=4 T=16 V=700000 B=700000 Y=365000000 Z=500000000
 
 Y and Z are used to force the query and target sequence lengths that 
-BLAST uses to calculate significance. Standardiing these values makes
-E-values between differenct searches comparable. 
+BLAST uses to calculate significance. Standardising these values in
+theory makes the E-values of searches with a 2kb scaffold directly
+comparable to those of a 1Mb scaffold (for example).
 
 
 Similarity build
@@ -141,7 +148,7 @@ Similarity build
 
 The way in which the similarity build was run for fugu is so different
 to that for other genomes that it has a section to itself. It suffices
-to say here that the general settins are as usual (i.e. coverage 
+to say here that the general settings are as usual (i.e. coverage 
 cut-offs of 70% for multi-exon genes and 90% for single-exon genes). 
 Three important differences are:
 
@@ -152,12 +159,12 @@ GB_SIMILARITY_MAX_LOW_COMPLEXITY => 1000,
 These ensure that introns > 50000bp always result in the gene being
 split into 2-pieces (the "1000" for GB_SIMILARITY_MIN_SPLIT_COVERAGE
 ensures that this splitting is performed regardless of the coverage
-of the putative transcript). It is necessary to do this, because 
-Genewise prodices many gene predictions with high coverage but
+of the putative transcript). It is necessary to do this, because in
+fugu Genewise produces many gene predictions with high coverage but
 ridiculously long introns). 
 
 Other changes relate to the iterative manner in which the similarity
-build is run, explained below.
+build was run, explained below.
 
 Pseudogenes
 -----------
@@ -170,16 +177,16 @@ this up should be on our to-do list). Ignoring synteny, we used the
 following definition of a pseudogene, which was achieved by parsing 
 the output of the Pseudogene code in the appropriate way:
 
-Any transcript where
+Any transcript which
  
-(i)   has introns and
-(ii)  all introns are frameshifts and
+(i)   has introns AND
+(ii)  all introns are frameshifts AND
 (ii)  has evidence spliced elsewhere
  
 OR
  
 (i)   has no introns AND
-(ii)  has evidence spliced elsewhere and
+(ii)  has evidence spliced elsewhere AND
 (iii) does not start with a Met
 
 
@@ -194,7 +201,7 @@ C. Running the Similarity Build
 ===============================
 
 
-For fugu, by far and away the most important part of the build.
+For fugu, this is by far and away the most important part of the build.
 Due to paucity of Fugu-specific proteins and cDNAs, the overwhelming
 majority of genes arise from this step. It is also the only step
 for which the way in which it is run differs markedly from other
@@ -207,7 +214,7 @@ genome sequence, so distributing the work by splitting on sequence
 will results in many jobs running quickly but a small few that take 
 forever (and therefore hold everything up). The second is that 
 standard Genscan-based way of seeding the Genewises results in 
-a gene-count that is probably too low (~15000 on this assembly 
+a gene-count that is probably too low (~15000 on the assembly 
 and the dataset used for this build). 
 
 Input Id generation
@@ -248,7 +255,7 @@ BLAST hits are then used to build genes in gaps left by the
 first, Genscan-based similarity build. 
 
 To get this to work in practice, it is necessary to change
-certain config attributes config file in between iterations. 
+certain attributes in config file in between iterations. 
 This needs cleaning up, and will be, but for now I will outline 
 what needs to be done with the current working system. 
 
@@ -311,7 +318,7 @@ GB_SIMILARITY_POST_EXONMASK => 1,
 # resulting genes that overlap genes from any previous stage are rejected
 
 With hind-sight, it would probably have been sufficient to perform just one
-(rather that two) gapfill build with a bit-score cutoff of 100.  
+(rather than two) gapfill step with a bit-score cutoff of 100.  
 
 
 D. Miscellaneous
