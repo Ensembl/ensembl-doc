@@ -13,7 +13,7 @@
 \maketitle
 
 
-\bf{File last updated: August 2003}
+\bf{File last updated: E.Mongin Oct 2003; M.Hammond March 04}
 The goal is to provide a written help on how to run the the \textit{A. gambiae} automatic annotation. This should actually be usable for most of the 'virgin genomes'. This documentation for processes which are common with other genomes, references are given to files present in the ensembl CVS repository called ensembl-doc. These files should be updated as the processes and code change. All of this documentation is written for people working at EBI/Sanger. Please update this documentation if needed. In this file when a reference to release 3 is made (third anopheles annotation by Ensembl) this actually refer to the Ensembl release labbeled 2a (still second assembly but third annotation).\\
 \bf{Please update this file when it is needed.}
 
@@ -372,17 +372,20 @@ Also check the number of submitted genes predicted. This is really important to 
 \subsection{Protein Annotation}
 Protein annotation is similar to any other genome. \\Look in \texttt{ensembl-doc/running\_protein\_annotation.txt}. Don't forget to copy the interpro (in interpro) and the intepro description (in Xref).
 
-\subsection{ID mapping}
-ID mapping is usually ran by Craig (craig@ebi.ac.uk). Give them the old database and the new one. Have a look at the results, they give a pretty good idea at the quality of the gene build.
-
 \subsection{Known gene mapping}
 Running the known gene mapping, don't forget to specify that you are running it for anopheles (organism option). For the known gene mapping, will be use: SPTR file for \textit{Anopheles gambiae} in fasta and Swiss-Prot format. A dump of the translations of the gene name submited sequences (you can find the script to dump these translations in \texttt{ensembl-genename/scripts/dump\_translation.pl}). NB: The mapping of the submitted genes is done at the transcript level, thus if a gene has been submitted with many spliced variants, we will map Ensembl genes to the sliced variants names (which is usually the gene name followed by incremental letters or numbers).
 The celera accession numbers (the ones used in the science issue) are automatically mapped (see the mapping configuration file). 
 NB: Genes submitted by Ensembl to Genbank end up in SPTREMBL, these are predictions. These genes are labelled in the mapping process as prediction\_SPTREMBL and are not considered as known genes.
 
 \subsection{Bacterial contamination}
-It seems that the assembly contains some contigs and scaffolds that derive from bacterial DNA in the original DNA preparation used to make libraries.  These may be chance bacterial occupants of the gut but could possibly include interesting symbionts. Ensembl transcript predictions may get built on such scaffolds (most likely via bacterial entries from SwissProt/SPTrEMBL and SNAP ab initio predictions). Several hendred possible bacterial contaminants were tagged as such in the initial annotation deposited in GenBank, but this step was misssed in the first Ensembl annotation.  The second Ensembl annotation (2a) also originally omitted this tagging.  A list of probable bacterial transcript predictions was supplied by Pier Bork.  346 proteins (343 genes) on scaffolds not mapped to a chromosome arm were removed from the protein set (but left as genes/transcripts tagged 'bacterial\_contaminant') to produce a revised 2b set. A script to carry out the removal (including consequent id mapping) is here:
+It seems that the assembly contains some contigs and scaffolds that derive from bacterial DNA in the original DNA preparation used to make libraries.  These may be chance bacterial occupants of the gut but could possibly include interesting symbionts. Ensembl transcript predictions may get built on such scaffolds (most likely via bacterial entries from SwissProt/SPTrEMBL and SNAP ab initio predictions). Several hendred possible bacterial contaminants were tagged as such in the initial annotation deposited in GenBank, but this step was misssed in the first Ensembl annotation.  The second Ensembl annotation (2a) also originally omitted this tagging.  A list of probable bacterial transcript predictions was supplied by Pier Bork.  346 proteins (343 genes) on scaffolds not mapped to a chromosome arm were removed from the protein set (but left as genes/transcripts tagged 'bacterial\_contaminant') to produce a revised 2b set. A script to carry out the removal (including consequent id mapping) is here:\\
  \texttt{ensembl/misc-scripts/anopheles\_scripts/remove\_proteins\_from\_db.pl}.
+
+\subsection{Transcripts built on >1 scaffold}
+Consider whether to delete transcripts that cross scaffold boundaries (I think this was done in build 2 but not in 2a).  Those on the 'UNKN chromosome' especially are not going to be real. However, these predictions could include parts of 'real' transcripts, which would be lost with simple removal.
+
+\subsection{ID mapping}
+ID mapping is usually run by Craig (craig@ebi.ac.uk). Give them the old database and the new one. Have a look at the results, they give a pretty good idea at the quality of the gene build.
 
 \subsection{Moving data around}
 Don't forget about the EST genes database. This is is useful from the user point of view. However we don't need a specific EST database, thus dna\_align\_features from the EST gene database should be copied to the core database (also don't forget to copy the protein\_align\_feature if needed). Finally make sure that the analysis table is fine and if you have new logic names, let the web team know.
