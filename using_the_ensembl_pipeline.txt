@@ -504,11 +504,14 @@ entries in the analysis table before the pipeline was started are
 SubmitContig, SubmitChromosome, SubmitAll and SubmitSlice.
 
 
-This script currently lets you generate 5 different types of input_ids
+This script currently lets you generate 4 different types of input_ids
 
-contig- this uses contig names.
 
-slice- creates slice names in the format chr_name.start-end.
+slice- creates slice names in the format 
+  coord_system_name:coord_system_version:seq_region_name:start:end:strand.
+  As specified by Bio::EnsEMBL::Slice->name
+  this also expects coord system name and slice size. If no size is 
+  specified complete seq regions are used
 
 file- takes a directory and uses the files in that directory as
       input_ids, a regex can also be specified so only a subset of 
@@ -522,19 +525,8 @@ translation_ids- this is for the protein annotation analysis which run
 
 An example commandline could look like:
 
- ./make_input_ids -dbhost ecs1a -pass *** -user ***REMOVED*** 
- -dbname pipeline_db -slice -slice_size 1000000
-
-Producing a list of input_ids such as:
-
- 1.1-1000000
- 1.1000001-2000000
- 2.1-1000000
- 2.1000001-1543529
-
-If you want your slice ids to cover whole chromosomes you need to make
-your slice length longer than the longest chromosome as the code will not
-make slices longer than the length of the current chromosome.
+./make_input_ids -dbhost host -dbuser user -dbpass *** -dbport 3306 
+-dbname my_database -contig
 
 
 Configuration
