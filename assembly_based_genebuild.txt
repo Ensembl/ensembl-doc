@@ -34,6 +34,8 @@ The modules that need to be run are contained in Bio::EnsEMBL::Pipeline::Runnabl
 
    Uses genewise to build a gene by comparing an input protein (id)
    with a region of the golden path.
+   Alternatively, one could use FPC_TargettedGeneE2G which uses proteins and their corresponding cDNAs 
+   together with a golden path (fpc contig) location to which that protein matches. 
 
 2. FPC_BlastMiniGenewise
 
@@ -174,14 +176,18 @@ GB_cDNA_DBUSER
 GB_cDNA_DBPASS
 
 * combined genes db
-This db will have the genes/... built by combining the cdnas from GB_cDNA with the genewise genes from GB_GW_DB.
+This db will have the genes/... built by combining the cdnas from GB_cDNA with the genewise genes.
+Before running the combining code (Combine_Genewises_and_E2Gs), you should copy all genewise genes (plus translations,etc...) 
+into this database from GB_GW_DB. In this way we assure that combined_genes will get different internal
+ids, which will be less confusing during the GeneBuilder analysis.
 GB_COMB_DBHOST             
 GB_COMB_DBNAME
 GB_COMB_DBUSER
 GB_COMB_DBPASS
 
 * final genes db
-This database will have the genes built by GeneBuilder from the genewise genes in GB_GW_DB 
+This database will have the genes built by GeneBuilder from the genewise and combined genes
+in GB_COMB_DB and the genescan prediction in GB_DB. 
 GB_FINALDBHOST
 GB_FINALDBNAME
 
@@ -237,7 +243,7 @@ C. TargettedGenewise build
 
     perl -e 'while(<>){next unless /^(\S+)\s+(\d+)\s+(\d+)/; $command = "/path/to/ensembl-pipeline/scripts/GeneBuild/dump_vc_seq.pl -chrname $1 -start $2 -end $3 -outfile $1.fa"; system("$command"); print "$command\n"}' < names_and_coords
 
-Create one directory per chromosome underneath the directory Gene_Conf::GB_FPCDIR, and into each
+Create one directory per chromosome underneath the directory $GB_FPCDIR, and into each
 of those move the fasta file(s) with the appropropriate genomic sequence in fasta format. eg for chr1, make a directory called 1, and place the file 1.fa into it.
 
 You can also put several files under the same directory
@@ -248,44 +254,72 @@ GB_FPCDIR  Directory which will contain one directory per chromosome.
 2. download proteome data
 
 TargettedGeneE2G needs as input protein ids and corresponding cDNA ids
-together with a golden path (fpc contig) location to which that
-protein matches. The first stage is downloading human protein
-sequences from SwissProt/TrEMBL and Refseq. 
+ together with a golden path (fpc contig) location to which that
+ protein matches. The first stage is downloading human protein
+ sequences from SwissProt/TrEMBL and Refseq. 
 
 TargettedGeneWise needs as input protein ids 
-together with a golden path (fpc contig) 
-location to which that
-protein matches. The first stage is downloading human protein
-sequences from SwissProt/TrEMBL and Refseq. 
+ together with a golden path (fpc contig) 
+ location to which that
+ protein matches. The first stage is downloading human protein
+ sequences from SwissProt/TrEMBL and Refseq. 
 
-mkdir /work2/vac/GeneBuild/Apr_gp/human_proteome
-cd /work2/vac/GeneBuild/Apr_gp/human_proteome
+example:
+mkdir .../GeneBuild/NCBI_30/human_proteome
+cd .../GeneBuild/NCBI_30/human_proteome
+
+Note: SPproteomes ( non redundant Sptr peptide set ) and alternative peptide products:
+SPproteomes (fasta format) will contain just one peptide per gene-entry. 
+There are exceptions: Two variants for a gene might be in different entries if 
+the peptides are very different, but this is rare.
+To get an 'expanded' SPproteome  you can do two things:
+1) ask  Paul Kersey <pkersey@ebi.ac.uk> to generate one for you, or
+2) generate one yourself: 
+the program is a perl program and can be found at
+/ebi/ftp/pub/software/swissprot/varsplic/varsplicExapnd.pl.
+
+the program has a horrible choice of options, but the following syntax
+
+perl varsplic.pl -input "filename" -fasta "output_file_name" -which full -uniqids
+
+will probably get you what you want.
+
+the program requires the use of SWISSKNIFE, a perl library for parsing
+SWISS-PROT.  It is also on the ftp site /ebi/ftp/pub/software/swissprot/swissknife, 
+but from the EBI alphas (e.g. ice) you can use it simply by adding /ebi/sp/pro3/shared/lib/perl
+to your @INC.
+
+3) Paul Kersey also produces an expanded version of all human or mouse SPTr entries each week.
+You can ask him to point you to the files . But this is not an expanded version of the non-redundant SPTr sets.
+
 
 ftp: username: anonymous, passwd is your email address
-
 #downloading swissprot files:
-ftp ftp.ebi.ac.uk
-ftp>cd pub/databases/SPproteomes
+ ftp ftp.ebi.ac.uk
+ ftp>cd pub/databases/SPproteomes
+
 # for human
-ftp>get fasta_files/proteomes/9606.FASTAC
-ftp>get swissprot_files/proteomes/9606.SPC
+ ftp>get fasta_files/proteomes/9606.FASTAC
+ ftp>get swissprot_files/proteomes/9606.SPC
+
 # for mouse
-ftp>get fasta_files/proteomes/10090.FASTAC   
-ftp>get swissprot_files/proteomes/10090.SPC
-ftp> bye
-mv 9606.FASTAC sptr.fa
+ ftp>get fasta_files/proteomes/10090.FASTAC   
+ ftp>get swissprot_files/proteomes/10090.SPC
+ ftp> bye
+ mv 9606.FASTAC sptr.fa
 
 # downloading refseq files:
-ftp ftp.ncbi.nih.gov
-# for human
-ftp>cd refseq/H_sapiens/mRNA_Prot/
-ftp>get hs.faa.gz 
+ ftp ftp.ncbi.nih.gov
+ # for human
+ ftp>cd refseq/H_sapiens/mRNA_Prot/
+ ftp>get hs.faa.gz 
+
 # for mouse
-ftp>cd refseq/M_musculus/mRNA_Prot/
-ftp>get mouse.faa.gz 
-ftp>bye
-gunzip hs.faa.gz
-mv hs.fsa refseq.fa
+ ftp>cd refseq/M_musculus/mRNA_Prot/
+ ftp>get mouse.faa.gz 
+ ftp>bye
+ gunzip hs.faa.gz
+ mv hs.fsa refseq.fa
 
 3. prepare_proteome data
 
@@ -293,6 +327,9 @@ ensembl-pipeline/scripts/GeneBuild/prepare_proteome.pl cleans up the
 sptr and refseq files, prepares a single proteome file and runs a test
 pmatch to make sure there are no sequences that will cause pmatch to
 loop.
+
+You can do this manually. Simply check for long runs of XXX's (undetermined aminoacid)
+and delete those entries. You can also parse the headers and put them all in a single-field format.
 
 all you need to do, assuming you have filled in GeneConf.pm properly, is type:
 
