@@ -73,7 +73,7 @@ been properly documented yet. But the first bits are:
    table:
 
      gene-descriptions.pl sp-descriptions.dat ens-sptr-mapping.dat \
-       > sptr-descriptions.dat
+       > gene-descriptions.txt
 
    Have a look at this file; if it contains too much junk  (like the
    2900010M17Rik cruft), filter it. It's easiest to do this inside the
@@ -81,7 +81,7 @@ been properly documented yet. But the first bits are:
 
  - Load gene-descriptions.dat into a into an ensembl database, e.g. as
 
-     echo "load data infile '`pwd`/gene-descriptions.dat' \
+     echo "load data infile '`pwd`/gene-descriptions.txt' \
              into table gene_description;" | mysql -u user -host databasename
 
  - (preceeding steps should be integrated with the peptide mapping pipeline)
