@@ -27,7 +27,7 @@ there are 6 Config files which need at least partially filling out before you ca
 
 4 of the config files can be found in 
 
-ensembl-pipeline/modules/Bio/EnsEMBL/Config/GeneBuild/
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/Config/GeneBuild/
 
 Pmatch.pm, this contains pmatch specific settings all of which need to be set to somethings
 
