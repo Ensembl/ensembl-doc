@@ -1,3 +1,6 @@
+For maintainer description, see below. 
+User description (should this go elsewhere?):
+
 Gene descriptions are intended to give rough idea of what the function of a
 gene might be; they are generated automatically as follows. EnsEMBL has a
 mapping from predicted peptides to a number of databases, SWISS-PROT and
@@ -41,3 +44,39 @@ Occasionally, peptides from one gene fall into different families. In these
 cases, the same ranking as described above for multiple SP-TrEMBL mappings is
 used to choose a description.
 
+------------------------------------------------------------------------
+
+Maintainer description:
+
+This is incomplete, since it needs the family database as well, which hasn't
+been properly documented yet. But the first bits are:
+
+ - make sure the peptide mapping has been done
+
+ - get hold of the swissprot/trembl file used for the peptide mapping (it can
+   be big and can contain the swissprot internal bits, like {}
+
+ - assuming ensembl/scripts is in your $PATH, do:
+
+     sp-descriptions.pl < swiss-prot-flatfile  > sp-descriptions.dat
+
+   This produces a summary of sp/trembl -> descriptions
+
+ - next, on the database that has the peptide mapping, do:
+ 
+     sp-mapping-dump.sh -h host -u user database
+
+   This produces a file mapping.dat (and .log), containing the ENSG ->
+   sp/trembl accnos mapping
+
+ - Produce the tab-delimited data file to be loaded into the gene-description
+   table:
+
+     gene-descriptions.pl sp-descriptions.dat mapping.dat > gene-descriptions.dat
+
+ - Load it into a into an ensembl database, e.g. as
+
+     echo "load data infile '`pwd`/gene-descriptions' \
+             into table gene_description;" | mysql -u user -host databasename
+
+ - The next step is adding the family additions; to be described.
