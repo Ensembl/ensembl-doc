@@ -1,0 +1,18 @@
+A. Data sources:
+----------------
+
+Protein: 
+Swissprot mouse set (includes Rikens)
+
+Refseq mouse set
+
+cDNA:
+embl-vertrna mouse subset (includes Rikens)
+
+Refseq mouse set
+
+EST:
+dbEST mouse entries
+
+B. Problems with past builds:
+-----------------------------

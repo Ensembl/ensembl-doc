@@ -1,0 +1,14 @@
+A. Data sources:
+----------------
+
+Protein: 
+
+
+cDNA:
+
+
+EST:
+
+
+B. Problems with past builds:
+-----------------------------

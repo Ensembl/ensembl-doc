@@ -1,0 +1,18 @@
+A. Data sources:
+----------------
+
+Protein: 
+Swissprot human set
+
+Refseq human set
+
+cDNA:
+embl-vertrna human subset
+
+Refseq human set
+
+EST:
+dbEST human entries
+
+B. Problems with past builds:
+-----------------------------
