@@ -408,7 +408,7 @@ When the data are about to be released and are in their final state, it is time 
 \item{Dump all of the data using\\ 
 \texttt{ensembl/misc-scripts/anopheles\_scripts/dump\_genebank.pl} script. You need to give to the scripts the database to connect to, the output directory and tree different mapping files (currently hardcoded). This file will dump a .fsa (fasta sequence of the scaffold) and a .tbl (annotation) for each scaffolds.}
 \item{Then create an asn file for each scaffold using tbl2asn2 (you can find documentation there:\\ 
-\texttt{http://www.ncbi.nlm.nih.gov/Sequin/tbl2asn2.html}. This script will read the master file, .fsa and .tbl file and create .sqn files (in asn format) in the same directory than where .fsa and .tbl files are located. Here is an example of command line: \texttt{/tbl2asn -t master.sqn -f output/}. The directory can then be tared and gziped to be sent to genbank (after data checks obviously)}
+\texttt{http://www.ncbi.nlm.nih.gov/Sequin/tbl2asn2.html}. This script will read the master file, .fsa and .tbl file and create .sqn files (in asn format) in the same directory than where .fsa and .tbl files are located. Here is an example of command line: \texttt{/tbl2asn -t master.sqn -p output/}. The directory can then be tared and gziped to be sent to genbank (after data checks obviously)}
 \item{Data checks. .snp file produced by tbl2asn2 can be red by sequin. Submission can then be visualized graphically or in various formats as Genbank, EMBL. Finally you also can use the program asn2gb to produce genbank or embl flat files and do checks these data with what is stored in the database over the whole genome.}
 \item{Submit your data to NCBI. Contact email:\\ Karen Clark (kclark@ncbi.nlm.nih.gov)}
 \end{itemize}
