@@ -1,3 +1,6 @@
+Please see the documents in ensembl-doc/anopheles for documentation about Anopheles pipeline and gene building, and submission of annotation to GenBank.
+
+
 A. Data sources:
 ----------------
 
