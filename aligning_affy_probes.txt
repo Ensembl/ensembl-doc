@@ -1,0 +1,513 @@
+1. INTRODUCTION
+---------------
+---------------
+
+This document was last updated on 4 March 2005 by vvi.
+
+Affymetrix probes are short (25bp), species-specific dna sequences. 
+We align these probes (when available) to our genomes using exonerate. The alignments
+must be exact (or miss at most by 1 bp).
+
+The process has two parts:
+1. The probes supplied by affy are 'collapsed', since there are duplicates in 
+the inbound set, to a non-redundant set of probes (a single probe can belong to
+multiple probesets). 
+The input to this step is the complete set of probes. 
+The output is a set of probes written into affy_array, affy_probe tables and
+a fasta file of non-redundant affy probe sequences:
+The headers are the affy_probe_id internal ids in the table.
+
+This step will take a lot of memory, so you want to run it on a head-node (eg ecs4).
+
+2. The actual alignment step: This takes inputs
+-- the fasta file of non-redundant affy probes generated in the last step
+-- the target genomic sequence files in softmasked-dusted fasta format.
+
+This step is usually parallelised on the farm - each little farm job tries to
+align a subset (say 100) of all affy probes onto the entire genome.
+The output of this step is a set of affy features located on the input genome, 
+correctly attached to the affy probes from step1.
+
+2. EXTERNAL DATA
+---------------------
+---------------------
+
+Make sure your affy probesets are current.
+
+Affy probes are available here:
+
+http://www.affymetrix.com/support/technical/byproduct.affx?cat=arrays&Human
+-- in the links under the heading 'Human Genome Arrays'
+
+For homo sapiens, these are the sets downloaded / used at time of writing:
+
+HG-Focus Probe sequences (HG-Focus_probe_fasta), 6 June 2003
+HG-U133A Probe sequences (June 2003)
+HG-U133B Probe sequences (June 2003)
+HG-U133-Plus2 Probe sequences (October 2003)
+HG U133A Plus 2 Probe sequences (October 2003)
+HG U95 (Av2, B, C, D, E) Probe sequences (March 2003)
+HG X3P Probe sequences (Feb 2004)
+
+Here are the exact probeset names downloaded:
+
+HG-Focus_probe_fasta
+HG-U133A_2_probe_fasta
+HG-U133A_probe_fasta
+HG-U133B_probe_fasta
+HG-U133_Plus_2_probe_fasta
+HG-U95Av2_probe_fasta
+HG-U95B_probe_fasta
+HG-U95C_probe_fasta
+HG-U95D_probe_fasta
+HG-U95E_probe_fasta
+U133_X3P_probe_fasta
+
+3. CODE
+-------
+-------
+
+You need to check out the following ensembl modules:
+
+ensembl (branch-ensembl-29 at time of writing) -- access to the db
+	cvs -d cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co -r branch-ensembl-29 ensembl
+
+ensembl-analysis (HEAD) -- where the actual RunnableDBs/Runnables live
+	cvs -d cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co ensembl-analysis
+
+ensembl-analysis (HEAD) -- where the actual RunnableDBs/Runnables live
+	cvs -d cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co ensembl-analysis
+
+ensembl-hive (to administer the farm in step 2)
+	cvs -d cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co ensembl-hive
+
+ensembl-pipeline (HEAD) -- this is because the Hive code relies on this somewhat,
+and I must admit I'm a bit puzzled about that.
+	cvs -d cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co ensembl-pipline
+
+bioperl:
+
+You probably also need a bioperl distribution (used by stuff inside ensembl-analysis)
+so get a tarball of bioperl-live from www.bioperl.org and unpack it into a separate 
+directory. The bioperl version I'm running with is version 1.1
+
+Now amend your PERL5LIB to point to the roots of the module-trees for all this stuff.
+Just for fun, here's my PERL5LIB right now:
+{$AFFYROOT}/code/bioperl:
+{$AFFYROOT}/code/ensembl/ensembl/modules/:
+{$AFFYROOT}/code/ensembl/ensembl-hive/modules:
+{$AFFYROOT}/code/ensembl/ensembl-analysis/modules/:
+{$AFFYROOT}/code/ensembl/ensembl-pipeline/modules/
+
+4. PREPARE INTERNAL DATA
+-------------------------
+-------------------------
+
+1. Concatenate all the *_probe_fasta files from Affymetrix into one big file.
+
+cat {$AFFYROOT}/data/*_probe_fasta > {$AFFYROOT}/data/all_probes.fa
+
+ecs4a[vvi]51: wc all_probes.fa
+   6256422  12512844 324040528 all_probes.fa
+
+2. Make sure you can find a copy of the current assembly's softmasked-dusted
+chromosomes. For human, ours live here:
+/data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted/
+in files that look like '1.fa', '2.fa' etc.
+It is NOT necessary to have one chromosome per file - you can have one big multi-fasta
+file with all the sequence in it, if you want.
+
+The sequence header for "1.fa" looks like this:
+>chromosome:NCBI35:1:1:245442847:1 chromosome 1
+The big deal is that the string "chromosome:NCBI35:1:1:245442847:1" is exactly what
+the ensembl api needs as a '$name' in $slice_adaptor->fetch_by_name($name)
+to load the whole of chromosome 1. This is the way in which the sequence dump
+in this file / these files agrees with the assembly inside the ensembl core db
+
+3 .You need to have a Human (or other) ensembl-schema database ready to 
+write affy features into.
+It doesn't have to have sequence inside, but it needs to have a valid assembly,
+whose top-level slice-names (e.g. "chromosome:NCBI35:1:1:245442847:1") 
+match the headers of the sequence fasta files you've already prepared and dumped out.
+Go to the mysql instance ensembldb.ac.uk to see examples of ensembl-schema databases
+for various organisms. 
+
+The one I'm running with looks like this one:
+>> homo_sapiens_core_29_35b
+
+and I scp'd it from ecs2:3364 to from my own copy on ecs4:3352 using a command like this:
+scp data_3364/databases/homo_sapiens_core_29_35b/* \
+ecs4c:/mysql-3352/databases/vivek_homo_sapiens_core_29_35b_affy
+
+5. CONFIGURE THE ANALYSES
+-------------------------
+-------------------------
+
+There are two config files:
+
+1. The first one controls the 'collapse' step, where the we find all non-redundant
+probe sequences, and write them into the db, as well as a big fasta file keyed
+by probe internal id: the file corresponding to the datasets prepared above looks
+like this:
+
+ensembl-analysis/Config/CollapseAffyProbes.pm
+
+    DEFAULT => {
+      QUERYSEQS            => '/ecs2/work3/vvi/affy_march_2005/data/all_probes.fa',
+      NON_REDUNDANT_PROBE_SEQS => '/ecs2/work3/vvi/affy_march_2005/data/all_nr_probes.fa',
+      OUTDB => {
+        -dbname => 'vivek_homo_sapiens_core_29_35b_affy',
+        -host => 'ecs4',
+        -port => '3352',
+        -user => '***REMOVED***',
+        -pass => 'xxxxx',
+        },
+    },
+    
+2. The second one controls the alignment step.
+
+The file corresponding to the datasets prepared above looks
+like this: it contains 
+- a reference to the fasta file of non-redundant probe sequences just written.
+- a reference to the soft/dusted genomic sequence fasta file or directory.
+- a reference to the ensembl dna-db and the ensembl db that will contain the affy features.
+- the options that exonerate will be run with when aligning the affy probes to the genome.
+
+ensembl-analysis/Config/AlignAffyProbes.pm
+  AFFY_CONFIG => {
+    DEFAULT => {
+      GENOMICSEQS         => '/data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted/',
+      QUERYTYPE           => 'dna',
+      QUERYSEQS           => '/ecs2/work3/vvi/affy_march_2005/data/all_nr_probes.fa',
+      IIDREGEXP           => '(\d+):(\d+)',
+      DNADB => {
+        -dbname => 'vivek_homo_sapiens_core_29_35b_affy',
+        -host => 'ecs4',
+        -port => '3352',
+        -user => '***REMOVED***',
+        -pass => 'xxxxx',
+        },
+      OUTDB => {
+        -dbname => 'vivek_homo_sapiens_core_29_35b_affy',
+        -host => 'ecs2',
+        -port => '3352',
+        -user => '***REMOVED***',
+        -pass => 'xxxxx',
+        },
+      OPTIONS             => ' --bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 25 --dnawordthreshold 11 ',
+    },
+
+  }
+  
+3. In order to get Bio::EnsEMBL::Analysis::RunnableDB::AlignAffyProbes.pm to compile, you will
+also have to make sure that the module
+Bio::EnsEMBL::Analysis::Config::General.pm 
+is present and compiles. Here are the contents I have for that config file:
+    BIN_DIR  => '/usr/local/ensembl/bin',
+    DATA_DIR => '/usr/local/ensembl/data',
+    LIB_DIR  => '/usr/local/ensembl/lib',
+    ANALYSIS_WORK_DIR => '/tmp',
+    ANALYSIS_REPEAT_MASKING => ['RepeatMask'],
+-- this is installation specific stuff, but the module Bio::EnsEMBL::Runnable.pm needs
+to know about it to know where to find executables, where to write temp files etc. I don't
+think these affy analyses care about any of this, though.
+  
+   
+6. RUN THE COLLAPSE PROBE ANALYSIS
+----------------------------------
+----------------------------------
+
+This doesn't need a pipeline to be set up: as run it is one big job. It should be farmed
+out to a big-memory node, though, just for safety's sake. For this reason I insert a record
+into the analysis table that points to the right runnabledb:
+
+mysql -hecs4 -u***REMOVED*** -***REMOVED*** -P3352 -Dvivek_homo_sapiens_core_29_35b_affy \
+-e"insert into analysis set analysis_id = 5000, logic_name = 'CollapseAffyProbes', module='CollapseAffyProbes'"
+
+bsub -q long -R model=IBMBC2800 -o collapse_affy.out \
+-e collapse_affy.err $EXPANALYSISCODEDIR/scripts/test_RunnableDB \
+-dbhost ecs2 -dbport 3352 -dbuser ensro -dbname  vivek_homo_sapiens_core_29_35b_affy\
+-input_id whatever -logic_name 'CollapseAffyProbes' -write
+
+Memory usage on current human probes seems to remain constant at about 1.7Gb. 
+For me, this job runs in close to one half hour.
+
+How many non-redundant probes does the job produce?
+ecs4c[vvi]99: grep -c ">" data/all_nr_probes.fa
+> 2268274
+
+-- how many affy_probe rows written?
+SELECT count(*) FROM `affy_probe`
+> 3128209
+
+-- how many distinct affy_probe_id's exist in the table?
+select count(distinct(affy_probe_id)) from affy_probe
+> 2268274
+
+This is a good check: it shows that a single probe, uniquely identified by the logical key
+probeset+dna_sequence, can belong to different affy arrays. The table stores the appearance
+of the probe on each array as a different row. When we retrieve an affy probe by affy_probe_id
+using the API, the API gets all the rows together, and presents us with a single probe,
+with a set of attached arrays.
+
+7. INTERLUDE: REMOVING THE ASSEMBLY EXCEPTIONS
+----------------------------------------------
+----------------------------------------------
+
+This is only an issue for ensembl dbs with haplotypes or pair-equivalanced-regions.
+Since these are probably NOT represented in the 
+
+1. Delete everything from the assembly_exception table.
+
+2. Fix up any assembly_exception induced artefacts you may be unwittingly carrying around -
+First: remove the assembly_exception rows from the database.
+Next: Know your HAP regions - these, for h sapiens - are:
+>chromosome:NCBI35:DR52:1:139182:1 chromosome DR52
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+| asm_seq_region_id | cmp_seq_region_id | asm_start | asm_end  | cmp_start | cmp_end | ori |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+|            966000 |            412319 |  32511423 | 32610886 |         1 |   99464 |  -1 |
+|            966000 |            317628 |  32610887 | 32634805 |         1 |   23919 |  -1 |
+|            966000 |            412299 |  32634806 | 32650604 |     60000 |   75798 |  -1 |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+
+This NEEDS to be changed to coords consistent with the actual 140k sequence which is DR52, so
+we need to substract 32511422 off all coords -> table should look like this:
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+| asm_seq_region_id | cmp_seq_region_id | asm_start | asm_end  | cmp_start | cmp_end | ori |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+|            966000 |            412319 |  1		| 99464    |         1 |   99464 |  -1 |
+|            966000 |            317628 |  99465    | 123383   |         1 |   23919 |  -1 |
+|            966000 |            412299 |  123384   | 139182   |     60000 |   75798 |  -1 |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+
+mysql -hecs4 -P3352 -u***REMOVED*** -pxxxx -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update seq_region set length = 139182 where seq_region_id = 966000"
+
+mysql -hecs4 -P3352 -u***REMOVED*** -pxxxx -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update seq_region set length = 150447 where seq_region_id = 966001"
+
+mysql -hecs4 -P3352 -u***REMOVED*** -pxxxx -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly set asm_start = 1, asm_end = 99464 \
+where asm_seq_region_id = 966000 and cmp_seq_region_id = 412319 "
+
+mysql -hecs4 -P3352 -u***REMOVED*** -pxxxx -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 99465, asm_end = 123383 \
+where asm_seq_region_id = 966000 and cmp_seq_region_id = 317628 "
+
+mysql -hecs4 -P3352 -u***REMOVED*** -pxxxx -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 123384, asm_end = 139182 \
+where asm_seq_region_id = 966000 and cmp_seq_region_id = 412299"
+
+>chromosome:NCBI35:DR53:1:150447:1 chromosome DR53
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+| asm_seq_region_id | cmp_seq_region_id | asm_start | asm_end  | cmp_start | cmp_end | ori |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+|            966001 |            965889 |  32503398 | 32593944 |         1 |   90547 |  -1 |
+|            966001 |            965890 |  32593945 | 32653844 |         1 |   59900 |   1 |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+
+This has to change to 
+
+>chromosome:NCBI35:DR53:1:150447:1 chromosome DR53
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+| asm_seq_region_id | cmp_seq_region_id | asm_start | asm_end  | cmp_start | cmp_end | ori |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+|            966001 |            965889 |  1        | 90547    |         1 |   90547 |  -1 |
+|            966001 |            965890 |  90548    | 150447   |         1 |   59900 |   1 |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+
+mysql -hecs4 -P3352 -u***REMOVED*** -pxxxx -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 1, asm_end = 90547 \
+where asm_seq_region_id = 966001 and cmp_seq_region_id = 965889"
+
+mysql -hecs4 -P3352 -u***REMOVED*** -pxxxx -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 90548, asm_end = 150447 \
+where asm_seq_region_id = 966001 and cmp_seq_region_id = 965890"
+
+8. SET UP HIVE ADMINISTRATION FOR THE PROBE-ALIGNMENT-ANALYSIS
+--------------------------------------------------------------
+--------------------------------------------------------------
+
+The alignment analysis takes 100-sequence pieces of the set of non-redudundant affy probes
+generated in the first step, and maps them to the genome. It does need farming, as there
+will be (for human) about 2.2 million / 100 = 22000 jobs to be handled. I choose to do
+this using the 'hive' system, but you can do what you like.
+
+1. Create the hive admin database inside our human db:
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "source /ecs2/work3/vvi/affy_march_2005/code/ensembl/ensembl-hive/sql/tables.sql"
+
+This creates the tables for hive:
+
+hive
+dataflow_rule
+analysis_cntrl_rule
+analysis_job
+analysis_job_file
+analysis_data
+analysis_stats
+
+-- in the given instance.
+
+The usual Hive doc suggests running a script to populate the admin tables. If you
+are not running in a 'compara' context, I think we can get away with the following:
+
+2. Store a parameter hive_output_dir in the meta table for the admin database
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "insert into meta set meta_key = 'hive_output_dir', meta_value ='/ecs2/scratch1/vvi/affy_hive_outupt/'"
+
+-- and make sure that output directory exists
+
+3. Store the analysis, and ensure the analysis_stats record exists for this analysis:
+
+use Bio::EnsEMBL::Hive::DBSQL::DBAdaptor;
+
+my $db = 
+  new Bio::EnsEMBL::Hive::DBSQL::DBAdaptor(
+    -host => 'ecs4',
+    -port => '3352',
+    -user => '***REMOVED***',
+    -pass => ***REMOVED***,
+    -dbname => 'vivek_homo_sapiens_core_29_35b_affy'
+  );
+  
+my $analysis_adaptor = $db->get_AnalysisAdaptor;
+my $analysis = 
+  new Bio::EnsEMBL::Analysis(
+    -logic_name=>'AlignAffyProbes', 
+    -module=>'Bio::EnsEMBL::Analysis::RunnableDB::AlignAffyProbes'
+  );
+  
+$analysis_adaptor->store($analysis);
+$stats = $db->get_AnalysisStatsAdaptor->fetch_by_analysis_id($analysis->dbID);
+$stats->batch_size(3);
+$stats->hive_capacity(600);
+$stats->update;
+
+for(my $input_id =1; $input_id <= 22683; $input_id++){
+    my $total_input_id = "$input_id:22683";
+    my $analysis_job =
+      Bio::EnsEMBL::Hive::DBSQL::AnalysisJobAdaptor->CreateNewJob (
+        -input_id       => $total_input_id,
+        -analysis       => $analysis,
+        -input_job_id   => 0,
+      );
+  }
+}
+
+Put all this in scripts/load_hive_analysis.pl and execute. You will find the following records
+in the hive tables:
+
+meta:
++---------+------------------------+--------------------------------------+
+| meta_id | meta_key               | meta_value                           |
++---------+------------------------+--------------------------------------+
+|     188 | hive_output_dir        | /ecs2/scratch1/vvi/affy_hive_outupt/ |
++---------+------------------------+--------------------------------------+
+
+analysis:
++-------------+---------------------+--------------------+----------------+------------+-------------------------------------------------------------+---------------------------------------------------+-----------------+--------------------------------------------+-------------------------------------------------------------------------+-----------------------------------------------------+----------------+-------------------------+---------------+
+| analysis_id | created             | logic_name         | db             | db_version | db_file                                                     | program                                           | program_version | program_file                               | parameters                                                              | module                                              | module_version | gff_source              | gff_feature   |
++-------------+---------------------+--------------------+----------------+------------+-------------------------------------------------------------+---------------------------------------------------+-----------------+--------------------------------------------+-------------------------------------------------------------------------+-----------------------------------------------------+----------------+-------------------------+---------------+
+|        5001 | 2005-03-03 13:41:42 | AlignAffyProbes    | [NULL]         | [NULL]     | [NULL]                                                      | [NULL]                                            | [NULL]          | [NULL]                                     | [NULL]                                                                  | Bio::EnsEMBL::Analysis::RunnableDB::AlignAffyProbes | [NULL]         | [NULL]                  | [NULL]        |
++-------------+---------------------+--------------------+----------------+------------+-------------------------------------------------------------+---------------------------------------------------+-----------------+--------------------------------------------+-------------------------------------------------------------------------+-----------------------------------------------------+----------------+-------------------------+---------------+
+
+analysis_stats:
++-------------+---------+------------+------------------+---------------+-----------------+---------------------+----------------+------------------+----------------------+---------------------+-----------+
+| analysis_id | status  | batch_size | avg_msec_per_job | hive_capacity | total_job_count | unclaimed_job_count | done_job_count | failed_job_count | num_required_workers | last_update         | sync_lock |
++-------------+---------+------------+------------------+---------------+-----------------+---------------------+----------------+------------------+----------------------+---------------------+-----------+
+|        5001 | LOADING |          3 |                0 |           600 |           22683 |               22683 |              0 |                0 |                    0 | 2005-03-03 13:41:43 |         0 |
++-------------+---------+------------+------------------+---------------+-----------------+---------------------+----------------+------------------+----------------------+---------------------+-----------+
+
+analysis_job:
++-----------------+----------------------+-------------+------------+-----------+---------+--------+-------------+---------------------+-------------+--------------+-------------+
+| analysis_job_id | prev_analysis_job_id | analysis_id | input_id   | job_claim | hive_id | status | retry_count | completed           | branch_code | runtime_msec | query_count |
++-----------------+----------------------+-------------+------------+-----------+---------+--------+-------------+---------------------+-------------+--------------+-------------+
+|               1 |                    0 |        5001 | 1:22683    |           |       0 | READY  |           0 | 0000-00-00 00:00:00 |           1 |            0 |           0 |
+|               2 |                    0 |        5001 | 2:22683    |           |       0 | READY  |           0 | 0000-00-00 00:00:00 |           1 |            0 |           0 |
+|               3 |                    0 |        5001 | 3:22683    |           |       0 | READY  |           0 | 0000-00-00 00:00:00 |           1 |            0 |           0 |
+........etc
++-----------------+----------------------+-------------+------------+-----------+---------+--------+-------------+---------------------+-------------+--------------+-------------+
+
+
+Now, in theory, we can run the lsf_beekeeper thingy and watch it spawning workers etc.
+
+9. TEST A SINGLE JOB
+--------------------
+--------------------
+
+$AFFYANALYSISCODEDIR/scripts/test_RunnableDB \
+-dbhost ecs4 -dbport 3352 -dbuser ensro -dbname vivek_homo_sapiens_core_29_35b_affy \
+-input_id 1:22683 -logic_name 'AlignAffyProbes'
+
+10. RUN THE LSF_BEEKEEPER
+-------------------------
+-------------------------
+
+Test a single worker using a runWorker locally:
+runWorker.pl -bk LSF -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -limit 1 -job_id 91
+
+Will 'create' single worker, which will then request a single input_id from the queen, and
+start the runnabledb pointed at by the analysis.
+
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
+
+How to check if things went wrong:
+SELECT hive_id
+FROM `hive` where cause_of_death = 'FATALITY'
+
+Alternatively, go to the output directory and grep for 'EXCEPTION'
+/ecs2/scratch1/vvi/affy_hive_outupt/
+ggrep -r EXCE *
+
+select analysis_job_id, input_id from analysis_job, hive where analysis_job.hive_id = hive.hive_id and cause_of_death = 'FATALITY'
+Yields this for me:
++-----------------+-----------+
+| analysis_job_id | input_id  |
++-----------------+-----------+
+|              29 | 29:22683  |
+|              84 | 84:22683  |
+|              91 | 91:22683  |
+|             110 | 110:22683 |
+|             194 | 194:22683 |
++-----------------+-----------+
+
+So now we can re-try a single worker on the failing input id by passing in an option "-job_id 29"
+into the runWorker script...
+
+runWorker.pl -bk LSF -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -limit 1 -job_id 91 -outdir ''
+-- in this particular case the problem was that the mitochondrial chromosome had a name
+"MT_NC_001807" in the sequence dumps, but was only called 'MT' in my database
+
+So I rerun by 
+deleting everything from hive:
+- delete from hive;
+resetting the analysis stats table:
+- update analysis_stats set batch_size = 3, avg_msec_per_job = null, unclaimed_job_count = 22683, done_job_count = 0;
+
+and restart the lsf_beekeeper:
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
+-- note, no jlimit, so I will create a max of 600 workers at a time, which will each 
+live for an hour before dying.
+
+Periodically check for problems:
+select * from hive left join analysis_job on hive.hive_id = analysis_job.hive_id where cause_of_death = 'FATALITY' 
++---------+-------------+-----------+------------+-------------+-----------+---------------------+---------------------+---------------------+----------------+-----------------+----------------------+-------------+----------+-----------+---------+--------+-------------+-----------+-------------+--------------+-------------+
+| hive_id | analysis_id | beekeeper | host       | process_id  | work_done | born                | last_check_in       | died                | cause_of_death | analysis_job_id | prev_analysis_job_id | analysis_id | input_id | job_claim | hive_id | status | retry_count | completed | branch_code | runtime_msec | query_count |
++---------+-------------+-----------+------------+-------------+-----------+---------------------+---------------------+---------------------+----------------+-----------------+----------------------+-------------+----------+-----------+---------+--------+-------------+-----------+-------------+--------------+-------------+
+|     586 |        5001 | LSF       | rlx-1-6-24 | 2867346[14] |         0 | 2005-03-03 16:43:51 | 2005-03-03 16:44:48 | 2005-03-03 16:44:48 | FATALITY       |          [NULL] |               [NULL] |      [NULL] | [NULL]   | [NULL]    |  [NULL] | [NULL] |      [NULL] | [NULL]    |      [NULL] |       [NULL] |      [NULL] |
++---------+-------------+-----------+------------+-------------+-----------+---------------------+---------------------+---------------------+----------------+-----------------+----------------------+-------------+----------+-----------+---------+--------+-------------+-----------+-------------+--------------+-------------+
+
+Which says a worker (586) died of some problem.
+Which analysis_job's did this worker successfully process? Seemingly none -
+select * from analysis_job where hive_id = 586 brings back nothing.
+Check the output directory:
+<outputdir>/worker_586/ has only one job - job_1675.err - which has a crash in it (which, mercifully,
+happened before any affy features were written).
+
