@@ -11,8 +11,8 @@ What you need
 *The ensembl core CVS module named ***REMOVED***
 *bioperl
 
-This document describes the use a script which is found in the cvs module
-ensembl-pipeline but nothing else requires that cvs module.
+This documents describes scripts which are found in the ensembl-pipeline
+cvs module in ensembl-pipeline/scripts
 
 Creating the Database
 =====================
@@ -26,12 +26,11 @@ ensembl/sql/table.sql
 To add the table definitions to an already existing database perform the 
 following command from a shell:
 
-mysql -h localhost -u ensdamin -p *****  my_ensembl_db < path/to/ensembl/sql/table.sql
+mysql -h localhost -u ensdamin -p *****  my_ensembl_db < path/to/ensembl/
+sql/table.sql
 
-
-The database should now contian all the tables from the ensembl core schema.
-Tables which you will now need to fill out are
-
+The database should now contain all the tables from the ensembl core 
+schema. Tables which you will now need to fill out are
 
 coord_system
 seq_region
@@ -43,53 +42,82 @@ meta
 each of these tables are described in sequence_schema_and_api.txt.
 
 
-Loading Sequence
-----------------
+Loading seq regions
+-------------------
 
-the sequence can be loaded into your database using this script
+Before anything else can be done you must load the seq_region table.
 
-ensembl-pipeline/scripts/load_scaffolds.pl, which uses Bioperl SeqIO to
-parse through a fasta file and load the sequence ( this script can be
-found in the ensembl-pipeline api which is a seperate cvs module availible
-from the sanger cvs repository)
+The entries in this table must define any piece of sequence you wish 
+to beable to use and the structures which make up that sequence. For
+example in human you must load sequence regions for your contigs, 
+supercontigs and chromosomes.
 
-This script takes several options
+The script which can be used to do this is 
+
+ensembl-pipeline/scripts/load_seq_region.pl
+
+This script can take both fasta files and agp files and create seq_regions
+using them. If a fasta file is passed in the sequence can be stored.
+AGP files must be in the standard format as described here
+
+http://www.sanger.ac.uk/Projects/C_elegans/DOCS/agp_files.shtml
+
+These are the scripts command line options
 
     -dbhost    host name for database (gets put as host= in locator)
     -dbname    For RDBs, what name to connect to (dbname= in locator)
     -dbuser    For RDBs, what username to connect as (dbuser= in locator)
     -dbpass    For RDBs, what password to use (dbpass= in locator)
 
-    -seqfile   the fasta file which contains the sequence
     -coord_system_name the name of the coordinate system being stored
     -coord_system_version the version of the coordinate system being stored
-    -default_version, reflects this is the default version of this 
-                      coordinate system, this is true by default but can
-                      be switched off with -nodefault_version
-    -top_level  reflects this is the top level of sequence in the database
-                this is off by default
-    -sequence_level reflects this is a sequence level coordinate system
-                    this is on by default
-    -help      displays the documentation with PERLDOC
+    -rank the rank of the coordinate system.  The highest coordinate system
+          should have a rank of 1 (e.g. the chromosome coord system).  The
+          nth highest should have a rank of n.  There can only be one 
+          coordinate system for a given rank.
+    -default_version shows this version is the default version of the 
+          coordinate system
+    -sequence_level reflects this is a sequence level coordinate system and
+          means sequence will be stored from the fasta file. This option 
+          isn't valid if an agp_file is being passed in'
+    -agp_file the name of the agp file to be parsed
+    -fasta_file, name of the fasta file to be parsed, without the presence
+           of the -sequence_level option the sequence will not be stored
+    -verbose, prints the name which is going to be used can be switched 
+              off with -noverbose
+    -help      displays this documentation with PERLDOC
 
 
-This script by default takes the first word which is part of the sequence 
-description as the slice name.
+In the example of human you would first want to load the contig sequences
+and these would be done using a commandline like this
 
-line 123:  my @values = split /\s+/, $seq->desc;
-line 124:  my $name = $values[0];
+./load_seq_region.pl -dbhost host -dbuser user -dbname my_db -dbpass ****
+-coord_system_name contig -rank 4 -sequence_level -fasta_file sequence.fa
 
-You may need to alter this is this operation doesn't retrive the ID you
-which to use as the seq region name
+Then you would want to load the superctg seq regions using an agp file
 
-By default this script assume the version of sequence you are loading will 
-be the default version. 
+./load_seq_region -dbhost host -dbuser user -dbname my_db -dbpass ****
+-coord_system_name supercontig -rank 2 -agp_file superctg.agp
+
+the chromosomes would also be loaded using an agp file
+
+./load_seq_region -dbhost host -dbuser user -dbname my_db -dbpass ****
+-coord_system_name chromosome -coord_system_version NCBI34 -rank 1 
+-agp_file genome.agp
 
 
-an example commandline
+You can load seq_regions without sequence using a fasta file and the 
+command line to do this would look like this
 
-./load_scaffolds.pl -dbname my_ensembl_db -dbhost localhost -dbuser ***REMOVED*** -dbpass ***** -seqfile my_contigs.fa -coord_system_name contig
+./load_seq_region.pl -dbhost host -dbuser user -dbname my_db -dbpass ****
+-coord_system_name clone -rank 3 -fasta_file clone.fa
 
+note the absence of the sequence_level option in the command indicating not
+to store the sequence from the fasta file.
+
+Also the script as standard when parsing fasta files takes the value
+returned by Bio::Seq::id for the seq_region name if this value isn't
+what is desired the code will need to be altered
 
 Loading assemblies
 ------------------
@@ -109,24 +137,64 @@ http://www.sanger.ac.uk/Projects/C_elegans/DOCS/agp_files.shtml
 
 This file needs to be parsed and loaded into the assembly table 
 
-for an example of code which does this look at 
+There is a standard script which will parse agp files
 
-ensembl-pipeline/scripts/DataConversion/wormbase/WormBase.pm
+ensembl-pipeline/scripts/load_agp.pl
 
-this contains a method called agp_parse to see how this method is used 
-look at the sequence_store.pl script in the same directory
+This script assumes you already have both the compenent and assemblied
+pieces alraedy loaded as seq_regions in the database. Without this it
+won't work
 
-The meta table also needs to be given information about what mappings your
-assembly table contains. The format should be this name:version|name:version
-and as can be seen below the :version is optional
+The command line arguments
 
-+---------+------------------+--------------------------+
-| meta_id | meta_key         | meta_value               |
-+---------+------------------+--------------------------+
-|      43 | assembly.mapping | chromosome:NCBI33|contig |
-|      44 | assembly.mapping | clone|contig             |
-|      45 | assembly.mapping | supercontig|contig       |
-+---------+------------------+--------------------------+
+    -dbhost    host name for database (gets put as host= in locator)
+    -dbname    For RDBs, what name to connect to (dbname= in locator)
+    -dbuser    For RDBs, what username to connect as (dbuser= in locator)
+    -dbpass    For RDBs, what password to use (dbpass= in locator)
+    -assembled_name, the name of the coordinate system which represents
+                   the assembled pieces
+    -assembled_version, the version of the assembled coord system
+    -component_name, the name of the coordinate system which represents
+                     the component pieces
+    -component_version, the version of the component coord system
+    -agp_file path to the the agp file 
+    -help      displays this documentation with PERLDOC
 
-If you look at the bottom of the sequence_store.pl script for wormbase
-an example of code to do this can be seem
+
+In the case of human you would need to run this script twice. Once to load
+the assembly of contig to supercontig and once to load supercontig to
+chromosome
+
+These would be the command lines
+
+contig->superctg
+
+./load_agp.pl -dbhost host -dbuser user -dbname my_db -dbpass ****
+-assembled_name supercontig 
+-component_name contig -agp_file superctg.agp
+
+
+superctg->chromosome
+
+./load_agp.pl -dbhost host -dbuser user -dbname my_db -dbpass ****
+-assembled_name chromosome -assembled_version NCBI34 
+-component_name supercontig -agp_file genome.agp
+
+Note if you are going to be consistently pulling out an particular 
+assembled coordinate system and you are concerned about speed it is best
+to have an assembly which maps that coordinate system to your sequence
+level coordinate system and the code mapping between multiple assemblies
+isn't as fast
+
+
+The last set once all seq regions and assemblies have been loaded is
+you must run the set_top_level.pl script which is also found in
+ensembl-pipeline/scripts
+
+this is a script which looks through the seq_region tables and establishes
+which seq regions have nothing above them assembly wise this would
+normally be the chromosomes but in draft genomes with only partially
+assembled sequences the coordinate system which is top level isn't always
+consistent. The sequences which are marked as being top level in the
+seq_region_attrib table can then be all fetched by the coordinate
+system alias toplevel
