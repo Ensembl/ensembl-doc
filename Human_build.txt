@@ -15,17 +15,14 @@ A. Data sources
 	Protein id mapping resources
 
 B. Assembly loading
-
-C. Human specific configuration options
-	Exonerate
-	Genebuilder
 	
-D. Lessons learned from past builds
+C. Lessons learned from past builds
 	Short-cuts and hacks
 	Potentially surprising things
 
-E. Miscellaneous
+D. Miscellaneous
 
+E. Human specific configuration options
 
 
 
@@ -234,15 +231,9 @@ Make sure to dump and compare the sequences for all chromosomes.  In this way, a
 Of particular importance, check that you can access the sequence of the DR51 haplotype.  This has required hand editing of the assembly table in the past.  Watch out for an aberrant chromosome 6 sequence at around the 30Mb mark - this is where the DR51 sequence would fit in to this chromosome.
 
 
-=======================================
-C. Human specific configuration options
-=======================================
-
-
-
 
 ====================================
-D. Lessons learned from past builds:
+C. Lessons learned from past builds:
 ====================================
 
 Short-cuts and hacks
@@ -265,9 +256,139 @@ Compared to other organisms, the size of data available for annotating the human
 Check early that the data resources that you need are available.  This is mainly important for the protein id mapping procedure.  As the protein mapping usually happens just before the database hand-over, there is no time to request the generation of external data files if they aren't already available.
 
 =================
-E. Miscellaneous:
+D. Miscellaneous:
 =================
 
 * Build version
 In the meta table the correct entry format for genebuild.version is YYMMOrganisation - as the human annotation is always done by us, the entry is of the format 0405Ensembl.
+
+
+=======================================
+E. Human specific configuration options
+=======================================
+
+The following sections are a reference for config options that are commonly used on human gene builds.  These values have been found to work well in previous builds.  Keeping these options consistent between builds will aid overall data consistency between gene builds.  If you build using different options and this works well, make sure to update the relevant entries below.
+
+Not all options are included.  For sanity, only options that have an influence on the character of the computation results are listed:
+
+Config/General.pm
+-----------------
+
+PIPELINE_REPEAT_MASKING			=> ['RepeatMask'],	
+SNAP_MASKING				=> [],
+
+
+Config/GeneBuild/Pmatch.pm
+---------------------------
+
+GB_PMATCH_MAX_INTRON			=> '50000',
+GB_PMATCH_MASKING			=> [''],
+
+
+Config/GeneBuild/Targetted.pm
+-----------------------------
+
+GB_TARGETTED_MULTI_EXON_COVERAGE	=> '25',
+GB_TARGETTED_SINGLE_EXON_COVERAGE	=> '80',
+GB_TARGETTED_MAX_INTRON			=> '20000',
+GB_TARGETTED_MIN_SPLIT_COVERAGE		=> '95',
+GB_TARGETTED_MASKING			=> [],
+GB_TARGETTED_SOFTMASK			=> 0,
+
+
+Config/GeneBuild/Similarity.pm
+------------------------------
+
+GB_SIMILARITY_DATABASES			=> [
+					     {
+					      'type'       => 'Swall',
+					      'threshold'  => '200',
+					      'index'      => '',
+					      'seqfetcher' => ''
+					     },
+					   ],
+GB_SIMILARITY_COVERAGE			=> 70,
+GB_SIMILARITY_MAX_INTRON		=> 10000,
+GB_SIMILARITY_MIN_SPLIT_COVERAGE	=> 90,
+GB_SIMILARITY_MAX_LOW_COMPLEXITY	=> 60,
+GB_SIMILARITY_MASKING			=> ['RepeatMask', 'Dust'],
+GB_SIMILARITY_SOFTMASK			=> 0,
+GB_SIMILARITY_BLAST_FILTER		=> 0,
+
+
+Config/GeneBuild/Genewise.pm
+----------------------------
+
+GB_GENEWISE_GAP				=> 12, 
+GB_GENEWISE_EXTENSION			=> 2, 
+GB_GENEWISE_SUBS			=> 0.0000001,
+
+
+Config/GeneBuild/Combined.pm
+----------------------------
+
+GB_COMBINED_MAX_INTRON			=> 10000,
+
+
+Config/GeneBuild/GeneBuilder.pm
+-------------------------------
+
+GB_USE_ABINITIO				=> '0',
+GB_MIN_FEATURE_SCORE			=> 50,
+GB_MIN_FEATURE_LENGTH			=> 15,
+GB_VCONTIG				=> 1,
+GB_MAX_TRANSCRIPTS_PER_GENE		=> 10,
+GB_MINSHORTINTRONLEN			=> 7, 
+GB_MAXSHORTINTRONLEN			=> 15, 
+GB_MINLONGINTRONLEN			=> 10000, 
+GB_MINSHORTEXONLEN			=> 3, 
+GB_MAXSHORTEXONLEN			=> 10, 
+GB_MINLONGEXONLEN			=> 5000, 
+GB_MINTRANSLATIONLEN			=> 10, 
+GB_MAX_EXONSTRANSCRIPT			=> 150, 
+GB_MAXTRANSCRIPTS			=> 10, 
+
+
+Config/cDNAs_ESTs/Exonerate.pm
+------------------------------
+
+EST_ONE_FILE_PER_CHROMOSOME		=> 1,
+EST_EXONERATE				=> '/usr/local/ensembl/bin/exonerate-0.6.7',
+EST_EXONERATE_OPTIONS			=> ' --softmasktarget  --score 500 --fsmmemory 800  --saturatethreshold 100 --hspthreshold 60 --dnawordlen 14',
+REJECT_POTENTIAL_PROCESSED_PSEUDOS	=> 1,
+BEST_IN_GENOME				=> 1,
+EST_MIN_COVERAGE			=> 90,
+EST_MIN_PERCENT_ID			=> 97,
+
+
+Config/cDNAs_ESTs/EST_GeneBuilder_Conf.pm
+-----------------------------------------
+
+EST_GENEBUILDER_CHUNKSIZE		=> 1000000,
+USE_GENOMEWISE				=> 0,
+MAX_NUMBER_ESTS				=> 200,
+CHECK_SPLICE_SITES			=> 1,
+FILTER_ON_SINGLETON_SIZE		=> 200,
+RAISE_SINGLETON_COVERAGE		=> 95,
+EST_GENEBUILDER_COMPARISON_LEVEL	=> 3,
+EST_GENEBUILDER_SPLICE_MISMATCH		=> 8,
+EST_GENEBUILDER_INTRON_MISMATCH		=> 10,
+BRIDGE_OVER_SMALL_INTRONS		=> 0,
+EST_MIN_INTRON_SIZE			=> 20,
+EST_GENEBUILDER_EXON_MATCH		=> 0,
+EST_MAX_EVIDENCE_DISCONTINUITY		=> 2,
+REJECT_SINGLE_EXON_TRANSCRIPTS		=> 1,
+GENOMEWISE_SMELL			=> 0,
+EST_MIN_EXON_SIZE			=> 20,
+EST_MAX_INTRON_SIZE			=> 200000,
+CLUSTERMERGE_MIN_EVIDENCE_NUMBER	=> 1,
+MAX_TRANSCRIPTS_PER_GENE		=> 100,
+
+
+ensembl/misc_scripts/protein_match/mapping_conf.pl
+--------------------------------------------------
+
+'min_known_idt'				=> 40,
+'min_ensembl_idt'			=> 10,
+'ox'					=> '9606'
 
