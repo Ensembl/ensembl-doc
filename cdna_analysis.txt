@@ -376,8 +376,8 @@ You can do this by:
 edit ensembl-pipeline
 (/work2/vac/ensembl-scripts/)exonerate2mysqltab.pl -> converts o/p files into tab delimited files for loading
 
-
-need to dump out golden contig ids first
+need to dump out golden contig ids first in a file. 
+Check the order ( raw_contig_ids\t internal_ids or vice versa )
 
 ecs1g[vac] % foreach i ( exest* )
 foreach? gunzip $i

@@ -1,3 +1,4 @@
+
 Running EST analysis in Ensembl
 -------------------------------
 
@@ -222,6 +223,8 @@ Another index system: INDICATE (by Steve Searle)
 	--index directory created in step 1
 	--parser parser function to use (dbParser for db* databases,
 	  swallParser for swall, rikenParser for riken,... )
+	  ( if you only have 1-word display_ids in a multiple-entry fasta file
+	  the parser to use is 'singleWordParser')
 
 	The seqfetcher to use with this index is Bio::EnsEMBL::Pipeline::SeeFetcher::OBDAIndexSeqFetcher.pm
 	make sure that it is correctly defined in your Runnables
@@ -515,7 +518,7 @@ Note: you may need to dump out golden contig ids first.
     mysql> update analysisprocess set db='wibble' where db='dbEST';
 
     and load the data into the feature table:
-    mysql> load data infile 'estfeatures' into table features;
+    mysql> load data infile 'estfeatures' into table feature;
 
     You can find these scripts in /nfs/acari/eae/ensembl-scripts/ESTs/ if they aren't checked in yet
 
