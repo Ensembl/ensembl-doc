@@ -335,25 +335,8 @@ all you need to do, assuming you have filled in GeneConf.pm properly, is type:
 
 prepare_proteome.pl
 
-remove sequences containing polyX from your input fasta files if
-prompted to do so. This script should be done in minutes.
-For non-human proteins, since PolyX tract proteins are not classified yet,
-this will have to be done manually.
-
-We've seen so far:
-in refseq:
->gi|10946888|ref|NP_067457.1| (NM_021482) synaptogyrin 4; synaptogyrin 4 protein [Mus musculus]
-in sptr:
->FINC_MOUSE (P11276) Fibronectin precursor (FN) (Fragments)
->SNG4_MOUSE (Q9Z1L2) Synaptogyrin 4
->Q9JLP4 (Q9JLP4) Aryl-hydrocarbon interacting-protein like-1 (Fragment)
->Q62021 (Q62021) 89 kDa protein (Fragment)
->Q9CRG9 (Q9CRG9) 2410041F14Rik protein (Fragment)
-
-Apr 6 2002: also 
-Q8VEW3
-NP_291080.1
-O89080
+Note: remove manually sequences containing many X's (stands for undetermined residue) 
+from your input fasta files. 
 
 Options to be set in GeneConf.pm:
 
@@ -362,6 +345,9 @@ GB_SPTR    Path to fasta file of swissprot/trembl protein sequences
 GB_PFASTA  Path to file where cleaned up proteome data will be written
 GB_PMATCH  Path to pmatcn executable
 
+Also, the analysis will use blast, make sure that you have defined the proper one, 
+which should be the right version installed in the nodes:
+GB_TBLASTN     => '/usr/local/ensembl/bin/wutblastn',
 
 4. index the seqfile using, for example, makeseqindex. You can use whatever 
 sequence indexing/fetching setup you like as long as the ensembl modules know how to use
