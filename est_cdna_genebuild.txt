@@ -442,3 +442,26 @@ type=1MSLICE
 [cdna_wait]
 module=Accumulator
 type=ACCUMULATOR
+
+
+====================
+=B. EST release    =
+====================
+
+1. Add fake stable IDs for genes, exons, transcripts, translations
+
+eg
+
+insert into gene_stable_id select gene_id, concat( 'ENSDARESTG',
+lpad(gene_id,11,'0')), 0, now(),now() from gene;
+
+insert into transcript_stable_id select transcript_id, concat(
+'ENSDARESTT', lpad(transcript_id,11,'0')), 0 from transcript;
+
+insert into translation_stable_id select translation_id, concat(
+'ENSDARESTP', lpad(translation_id,11,'0')), 0  from translation;
+
+insert into exon_stable_id select exon_id, concat(
+'ENSDARESTE', lpad(exon_id,11,'0')), 0 from exon;
+
+2. Run healthchecks (NB these may take a long time with such a large number of genes).
