@@ -5,8 +5,14 @@ The classes are in ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/GeneComparison/
 and the scripts are in 
 ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/GeneComparison/
 
+It describes:
+1.- compare transcripts and exons between orthologous genes in different species
+2.- description of some modules and methods useful for these comparisons
+3.- how to run comparisons agains benchmark genes or annotated genes (under construction)
+4.- hot to run sequence based comparisons between two sets of cdnas.
+
 ############################################################
-# Comparing isoforms in gene pairs
+# 1.- Comparing isoforms in gene pairs
 ############################################################
 
 1) dump in a file (e.g. gene_pairs ) the 
@@ -100,9 +106,109 @@ on a separate directory:
  (will only fill those for which it ran an analysis)
 
 
+############################################################
+# 2.- description of some of the methods and modules
+############################################################
+
+The module ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/GeneComparison/GenePair.pm 
+contains the logic of
+
+* take two genes (orthologs)
+* compare all their transcripts
+* select the best transcript pairs with stable-marriage
+* for each selected pair, compare the exons
+
+There are two methods:
+
+compare() and find_exact_matches(),
+
+both do basically the same thing above, except for the
+step of comparin the exons:
+compare() runs a global alignment in exon space to
+find the alignment between the exons, whereas
+find_exact_matches() runs blastz on the genomic extent of
+both transcripts to find out whether the exons align with each other.
+
+compare()
+
+ this method reads two genes (suposedly orthologs) in slice coordinates
+ and compares its transcripts all against all using blastn.
+ The best possible transcript-pairs are derived using
+ the stable-mariage algorithm. 
+ For each one of these selected pairs
+ ir runs a global dynamic programming alignment algorithm
+ on exon space to match up the exons.
+
+ You can pass a flag to run only with coding exons.
+
+
+find_exact_matches()
+
+ This method is similar to the one above, except 
+ for the exon comparison step, which uses the genomic extent
+ of the transcripts in the pair.
+
+ This method reads two genes suposedly orthologs (in slice coordinates)
+ and compares its transcripts all against all using blastn.
+ The best possible transcript-pairs are derived using
+ the stable-mariage algorithm. 
+ For each one of these selected pairs
+ it uses blastz to compare the genomic extent of the transcripts
+ and locate whether the exons align with each other.
+
+ You can also pass a flag to run only with coding exons.
+
+Some of the methods used here are:
+
+my ($score,$pair) =Bio::EnsEMBL::Pipeline::GeneComparison::TranscriptPair->blast_isoforms( 
+$human_t, $mouse_t, $coding_exons );
+to compare two transcripts using blastn
+
+$object_map->match($human_t, $mouse_t, $score );
+to store the result.
+
+$best_pairs_object = $object_map->stable_marriage;
+to obtain the best pairs
+
+my ($missing_terminal_exons, $exon_skipping, $all_exons_conserved) = 
+          $self->compare_Exons( $element1, $partner, $self->gap_penalty, 
+$coding_exons, $human_id, $mouse_id);
+to run the dynamic programming in exon space
+
+my ($missing_terminal_exons, $exon_skipping, $all_conserved) = 
+Bio::EnsEMBL::Pipeline::GeneComparison::TranscriptPair->blast_genomic_isoforms( 
+$human_t, $mouse_t, $coding_exons, $gene_id1, $gene_id2);
+to blastz the transcripts in a pair
+
+each one of these two last methods will also print an exon alignment of 
+the form:
+
+TRANPAIR        ENST00000290466 human_exons:37  human_miss_term_exons:0 human_miss_int_exons:0  conserved_exons:35      with_same_length:27     with_same_phase:31
+ENSMUST00000048608      mouse_exons:35  mouse_miss_term_exons:0 
+mouse_miss_int_exons:2
+20.1-62802940:62128175-62128277 (103) strand:1 phase:-1 endphase:0      <---->  2.1-181423755:180740240-180740341 (102) strand:1 phase:0 endphase:0      score= 171
+20.1-62802940:62130071-62130269 (199) strand:1 phase:0 endphase:1       <---->  2.1-181423755:180741596-180741794 (199) strand:1 phase:0 endphase:1      score= 279
+20.1-62802940:62130623-62130716 (94) strand:1 phase:1 endphase:2        <---->  2.1-181423755:180742085-180742178 (94) strand:1 phase:1 endphase:2       score= 148
+20.1-62802940:62131319-62131400 (82) strand:1 phase:2 endphase:0        <---->  2.1-181423755:180742647-180742728 (82) strand:1 phase:2 endphase:0       score= 144
+20.1-62802940:62131602-62131662 (61) strand:1 phase:0 endphase:1        <---->  2.1-181423755:180742968-180743028 (61) strand:1 phase:0 endphase:1       score= 103
+20.1-62802940:62134777-62134852 (76) strand:1 phase:1 endphase:2        <---->  2.1-181423755:180747887-180747962 (76) strand:1 phase:1 endphase:2       score= 93
+20.1-62802940:62136242-62136326 (85) strand:1 phase:2 endphase:0        <---->  2.1-181423755:180750077-180750161 (85) strand:1 phase:2 endphase:0       score= 146
+etc...
+
+to give you an idea of the alignment. 
+
+
+
+
+############################################################
+# 4.- comparisons to annotation/bechmark genes
+############################################################
+
+under construction
+
 
 #############################
-# SEQUENCE BASED COMPARISON #
+# 3.- SEQUENCE BASED COMPARISON #
 #############################
 
 
