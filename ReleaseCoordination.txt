@@ -51,16 +51,21 @@ Main steps in release coordination
 ==================================
 
 * A - on the 1st of the month previous to release send a mail with
-  subject like "July release: declaration of intention", asking people
+  subject like "December release: declaration of intention", asking people
   to declare what are the new databases and schema changes expected.
-  Give people a couple of days to declare, send a reminder then a summary
-  of what has been declared. Also announce new version number if it's
+  Give people a couple of days to declare, send a reminder then with a 
+  summary of what has been declared. Also announce new version number if it's
   changed.
 
-* B - Ask the martians to copy from ecs2d over to ecs2f the old dbs. 
+* A1 - check how old is the ensembl_go_* database, and if it is older than
+  6 months ask Tony Cox (avc@sanger.ac.uk) to generate an updated version.
+  Check how old is homo_sapiens_disease_* database, ask Arek (arek@ebi.ac.uk)
+  if it needs an update in sync with the latest OMIM release.  
+
+* B - Ask the martians to copy from ecs2:3364 over to ecs2:3363 the old dbs. 
   Send an email to ensembl-admin saying which databases you're going 
   to drop, in case there are any objections.
-  Drop from ecs2d all the old databases when allowed.
+  Drop from ecs2:3364 all the old databases when allowed.
   (use drop database command in a MySQL client, never do a rm -rf as
   mysqlens user). Do not delete databases like ensembl_% and with
   %_expression_% in their name. Check with compara and mart people to see 
@@ -75,18 +80,19 @@ Main steps in release coordination
 
 * D - keep a tight contact with the persons involved in the production of
   new data, i.e.
-  Yuan for snp,
-  Laura for worm dbs,
-  Val for mammalian dbs,
-  Martin for insect dbs,
-  Kerstin for Zebrafish,
-  Stephen for vega,
-  Vivek for honeybee,
-  Abel/Cara for compara/family...
+  Yuan/Daniel for snp/haplotype,
+  Laura/Felix for worm dbs,
+  Val/Steve for mammalian dbs,
+  Martin/Vivek/Jan for insect dbs,
+  Kerstin/Mario for Zebrafish/Xenopus,
+  Steve T./Patrick for vega,
+  Cara/Jessica/Abel for compara
 
   Send them a mail from time to time, to see how things are going.
 
-  From time to time ask James Smith to run lite in the corresponding 
+  From time to time ask James Smith to run lite in the corresponding databases.
+  In case you want to build lite yourself, you'll need ensembl-lite cvs repository.
+  This should disappear with the introduction of the new variation database.
 
   Note that, currently, if there are new SNPs, the following needs to be done
   *in this order*:
@@ -113,47 +119,45 @@ Main steps in release coordination
     snp_lite_density.pl      (takes about XXX, produces SNP density features)
     seq_region_stats.pl      (takes about XXX, produces seq_region_attribs)
 
-* E - On the Genebuild handover date all dbs but compara/family are expected 
-  to be ready and copied over to ecs2d.
+* E - On the Genebuild handover date all dbs but compara are expected 
+  to be ready and copied over to ecs2:3364.
 
-* F - Set up a web test server on ecs2d port 5000. When done, send a mail
+* F - Set up a web test server on ecs2 node. When done, send a mail
   to ensembl-admin to ask everyone concerned to check the display of
   his/her data on the web.
 
-To set up a web server, you need to be logged in as the ***REMOVED*** Unix user,
-if not already set up.
-The default machine and port to run it are ecs2d port 5000
+To set up a web server, it is better to do it as ***REMOVED*** unix user. So that
+in case, you are not around and a fix is needed, it can be applied by someone else.
+
+The default port use to be 5000, but you can choose whatever you like, as far
+as it is announce in ensembl-admin.
 
 It's customary to create a directory for each release, e.g. for
-release 24 use ensembl_24
+release 26 use ensembl_26
 
 su ensembl
-mkdir /nfs/acari/websites/ensembl_24
-cd /nfs/acari/websites/ensembl_24
+mkdir /nfs/acari/websites/ensembl_26
+cd /nfs/acari/websites/ensembl_26
 cvs -d :ext:ensembl@cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co sanger-web
 cvs -d :ext:ensembl@cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co ensembl
 cvs -d :ext:ensembl@cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co ensembl-external
 cvs -d :ext:ensembl@cvs.sanger.ac.uk:/nfs/ensembl/cvsroot co ensembl-compara
 
-ensembl-lite is not needed unless you want to run lite scripts and
-build lite dbs yourself. At the moment, you will need to ask James
-Smith to do it.
-
 get the latest stable bioperl version (see
 http://www.bioperl.org/Core/Latest/index.shtml)
 
 setenv http_proxy "http://wwwcache.sanger.ac.uk:3128" (to make wget work)
-wget http://bioperl.org/DIST/bioperl-1.2.1.tar.gz
-gtar xvzf bioperl-1.2.1.tar.gz
-rm -f bioperl-1.2.1.tar.gz
-ln -s bioperl-1.2.1 bioperl-live (that is to comply with @INC set up
+wget http://bioperl.org/DIST/bioperl-1.2.3.tar.gz
+gtar xvzf bioperl-1.2.3.tar.gz
+rm -f bioperl-1.2.3.tar.gz
+ln -s bioperl-1.2.3 bioperl-live (that is to comply with @INC set up
 in conf/httpd.conf file)
 
 mkdir logs (needed for webserver logs)
 
-if /nfs/acari/websites/ensembl_24 already exists, running
-a cvs up -dP should be enough. The bioperl version already installed
-would work.
+if /nfs/acari/websites/ensembl_26 already exists, running
+a cvs up -dP on each module should be enough (unless a lot of conflicts appears). 
+The bioperl version already installed should also work.
 
 Modify some conf files.
 
@@ -165,15 +169,13 @@ MULTI.ini
 
 DEFAULTS.ini
  update the following variables if not already done
- ENSEMBL_HOST            = ecs2d
- ENSEMBL_HOST_PORT       = 3306
- ENSEMBL_WRITE_USER      = ecs2dadmin
+ ENSEMBL_HOST            = ecs2
+ ENSEMBL_HOST_PORT       = 3364
+ ENSEMBL_WRITE_USER      = ***REMOVED***
  ENSEMBL_WRITE_PASS      = xxxx
 
 SiteDefs.pm
  update the following variables if not already done
- $ENSEMBL_SERVERROOT     = '/nfs/acari/websites/ensembl_24';
- (or just leave this as dirname ($Bin) and it should work)
  $ENSEMBL_PORT           = '5000';
  $ENSEMBL_USER           = ***REMOVED***;
  $ENSEMBL_ERRORS_TO      = 'abel@ebi.ac.uk';
@@ -186,16 +188,16 @@ http://ecs2d:5000/Tetraodon_nigroviridis/mapview
 
 Homo_sapiens.ini
  update the following variables if not already done
- ENSEMBL_GOLDEN_PATH     = NCBI31
- ENSEMBL_DB              = homo_sapiens_core_14_31
- ENSEMBL_DISEASE         = homo_sapiens_disease_14_31
- ENSEMBL_EST             = homo_sapiens_est_14_31
- ENSEMBL_ESTGENE         = homo_sapiens_estgene_14_31
- ENSEMBL_FASTA           = homo_sapiens_fasta_14_31
- ENSEMBL_HAPLOTYPE       = homo_sapiens_haplotype_14_31
- ENSEMBL_LITE            = homo_sapiens_lite_14_31
- ENSEMBL_VEGA            = homo_sapiens_vega_14_31
- ENSEMBL_SNP             = homo_sapiens_snp_14_31
+ ENSEMBL_GOLDEN_PATH     = NCBI35
+ ENSEMBL_DB              = homo_sapiens_core_26_35
+ ENSEMBL_DISEASE         = homo_sapiens_disease_26_35
+ ENSEMBL_EST             = homo_sapiens_est_26_35
+ ENSEMBL_ESTGENE         = homo_sapiens_estgene_26_35
+# ENSEMBL_FASTA           = homo_sapiens_fasta_26_35
+ ENSEMBL_HAPLOTYPE       = homo_sapiens_haplotype_26_35
+ ENSEMBL_LITE            = homo_sapiens_lite_26_35
+ ENSEMBL_VEGA            = homo_sapiens_vega_26_35
+ ENSEMBL_SNP             = homo_sapiens_snp_26_35
 
 ad so one for species to be served Mus_musculus.ini,
 Rattus_norvegicus.ini, etc...
@@ -207,25 +209,10 @@ As Mart is not used, the follownig 2 lines in perl.startup script can be comment
 [...]
 # MartDefs->new();
 
-Modify httpd start and stop scripts
-
-cd ../ctrl_scripts
-
-in start_ensembl script
-change from 
- /ensweb/wwwdev/server/src/httpd -d /ensweb/wwwdev/server
-to
- /usr/local/ensembl/apache/bin/httpd -d /nfs/acari/websites/ensembl_24
-
-in stop_ensembl script
-change from 
- kill -TERM `cat /ensweb/wwwdev/server/logs/$HOSTNAME.httpd.pid`
-to
- kill -TERM `cat /nfs/acari/websites/ensembl_24/logs/$HOSTNAME.httpd.pid`
-
 Then start the server
 
-./start_ensembl
+./ctrl_scripts/start_server
+or ./ctrl_scripts/start_server -r (if you want to delete config.packed)
 
 This will go through all the conf files and create the file
 conf/config.packed; this is used to speed up starting the server. If
@@ -234,8 +221,7 @@ re-start the httpd, so that the changes will be taken into account.
 
 to stop it
 
-./stop_ensembl
-
+./ctrl_scripts/stop_server
 
 * G - Ask the release core assistant to run health check suite and to
   update schema if needed. Advertise any inconsistency in the dbs,
@@ -247,199 +233,20 @@ to stop it
 
 * I - By the Core/Compara handover date if everything is fine, send a
   mail to hand-over the dbs, listing all dbs, specifying what are the
-  new data coming in, the schema changes, and a summary of mart
-  translation (that can be obtained from the martians). Mention there
-  that the mart db is expected 3 working days after the handover.
+  new data coming in, the schema changes.
+  Mention there when is the dead line for mart db handover.
   If there have been any schema changes, send the appropriate patch SQL
   file to the web team so that they can publish it.
 
-Here is an example,
-
--------------------------------------------------------------------------------
-
-Hi all,
-
-The 39 databases listed below are ready for collection on ecs2d.
-That does not include ensembl_mart_14_1, as from now on, the mart database 
-hand-over to the web team has its own dead-line.
-
-The ensembl June edition contains 9 species. Here the details of new data,
-
-* It should have been a new FPC map for mouse core..., but I forgot to 
-remind this to Tim until this morning. Partly my fault then. He 
-suppose to work on it by now and will provide the data file to James Smith 
-directly who will load the data in....Tim, James, is that right?
-
-* New assembly/gene_build/estgenes for Zebrafish
-* New estgene db for human
-
-* New SNP dbs for mosquito based on dbSNP114
-
-* New human ensembl vega database in sync with vega.sanger.ac.uk released 
-  on May 12th.
-
-* New protein family database including now Zebrafish Ensembl proteins. 
-  All families have their multiple alignment stored, but the first 7 largest 
-  families. I still did not have time to investigate/try the solution 
-  proposed by Tony to maybe solve the pb.
-
-* New compara database, with additional subset of DNA/DNA alignments 
-  focused on highly conserved regions, for human/mouse, human/rat, mouse/rat 
-  and elegans/briggsae.
-  Homologous gene pairs included now Zebrafish Ensembl proteins compared to 
-  human, mouse, rat and fugu.
-
-Databases
-=========
-anopheles_gambiae_core_14_2
-anopheles_gambiae_est_14_2
-anopheles_gambiae_estgene_14_2
-anopheles_gambiae_lite_14_2
-anopheles_gambiae_snp_14_2
-caenorhabditis_briggsae_core_14_25
-caenorhabditis_briggsae_estgene_14_25
-caenorhabditis_briggsae_lite_14_25
-caenorhabditis_elegans_core_14_98
-caenorhabditis_elegans_lite_14_98
-danio_rerio_core_14_2
-danio_rerio_est_14_2
-danio_rerio_estgene_14_2
-danio_rerio_lite_14_2
-drosophila_melanogaster_core_14_3
-drosophila_melanogaster_lite_14_3
-ensembl_compara_14_1
-ensembl_family_14_1
-fugu_rubripes_core_14_2
-fugu_rubripes_lite_14_2
-homo_sapiens_core_14_31
-homo_sapiens_disease_14_31
-homo_sapiens_est_14_31
-homo_sapiens_estgene_14_31
-homo_sapiens_haplotype_14_31
-homo_sapiens_lite_14_31
-homo_sapiens_snp_14_31
-homo_sapiens_vega_14_31
-mus_musculus_core_14_30
-mus_musculus_est_14_30
-mus_musculus_estgene_14_30
-mus_musculus_fasta_14_30
-mus_musculus_lite_14_30
-mus_musculus_snp_14_30
-rattus_norvegicus_core_14_2
-rattus_norvegicus_est_14_2
-rattus_norvegicus_estgene_14_2
-rattus_norvegicus_lite_14_2
-rattus_norvegicus_snp_14_2
-
-Translation checks from mart
-============================
-
-SUMMARY FOR ensembl_mart_14_1 homo_sapiens core 14_31
-0 sequences of 37347 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 homo_sapiens estgene 14_31
-0 sequences of 49188 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 homo_sapiens vega 14_31
-24 sequences of 5198 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 mus_musculus core 14_30
-0 sequences of 32911 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 mus_musculus estgene 14_30
-0 sequences of 31546 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 rattus_norvegicus core 14_2
-0 sequences of 28904 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 rattus_norvegicus estgene 14_2
-0 sequences of 27502 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 anopheles_gambiae core 14_2
-0 sequences of 16112 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 drosophila_melanogaster core 14_3
-0 sequences of 17670 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 danio_rerio core 14_2
-0 sequences of 26587 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 danio_rerio estgene 14_2
-0 sequences of 1527 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 fugu_rubripes core 14_2
-1263 sequences of 38510 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 caenorhabditis_elegans core 14_98
-0 sequences of 21459 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 caenorhabditis_briggsae core 14_25
-0 sequences of 14713 sequences total seqs do not translate
-SUMMARY FOR ensembl_mart_14_1 caenorhabditis_briggsae estgene 14_25
-0 sequences of 1292 sequences total seqs do not translate
-
-Schema changes
-==============
-
-Core
-----
-Addition of tables to better support archived old peptides
-
-(1) Added 'peptide_archive' table
-	translation_stable_id
-	translation_version
- 	peptide_seq
-
-(2) Added 'gene_archive' table
-	gene_stable_id
-	gene_version
-	transcript_stable_id
-	transcript_version
-	translation_stable_id
-	translation_version
-	mapping_session_id
-
-The versions were added to the stable_id_event table to allow better
-tracking
-
-(3) Added 'stable_id_event' table added
-	old_stable_id
-	old_version # new column
-	new_stable_id
-	new_version # new column
-	mapping_session_id
-
-(4) Altered 'analysis' table
-    column parameters was enlarged from varchar(80) 
-    to varchar(255).
-
-(5) Altered mapfrag table
-    column type enum got two more members
-
-(6) We allow versions of stable_ids  to be NULL throughout the system for
-    ids we produced before we started versioning.
-
-Compara
--------
-Various changes occured in several tables to allow the possibility to 
-distinguish between different kind of DNA/DNA alignments implicating the 
-same 2 species
-
-(7) Altered method_link table
-    changed colunm name from 'method_link_type' to 'type' and change it
-    from varchar(10) to varchar(50)
-(8) Altered method_link_species table
-    added colunm 'species_set' int(10)
-(9) Altered genomic_align_genome table
-    added colunm 'method_link_id' as FK from method_link table
-(10) Altered genomic_align_block table
-     added colunm 'method_link_id' as FK from method_link table
-
-
-Any other schema changes that I would have missed?
-
-Regards,
-
-Abel
-
--------------------------------------------------------------------------------
-
-* I- Even if by this date, the main part of your work is over, you will
+* J- Even if by this date, the main part of your work is over, you will
   still need to follow mail about dbs problems take some decision
   together with the web team to fix them.
 
 * K- By the day of release, organise a post-mortem meeting to list what
   were the problem during the release, propose/ask for possibles
   solutions/improvements for the next release.
-  The main persons to be there should be Jim, James, Arne, Graham, Arek,
-  Abel, Val, Ewan. I found out that find the right day and time to have
+  The main persons to be there should be Jim, James, Arne, Arek, Abel, Val, Steve,
+  Glenn, Ewan. I found out that find the right day and time to have
   most of those people together has been the most complicated task. You
   will have to organize that in morning as Val is working part time.
 
