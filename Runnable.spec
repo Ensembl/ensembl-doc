@@ -5,8 +5,8 @@ api an interface to the specific analyses it wishes to run
 
 
 All runnables should provide to methods run and output. There are
-generic versions of these methods in the base clase but this can be overridden
-by child Runnables if their structure isn't appropriate
+generic versions of these methods in the base clase but this can be 
+overridden by child Runnables if their structure isn't appropriate
 
 
 Runnable.pm will provide some methods to give the wrappers some base 
@@ -92,3 +92,10 @@ and a parse_results method. Runnable.pm does provide a generic run_analysis
 method which assumes the commandline structure 
 
 program options queryfile > resultsfile
+
+if your commandline doesn't fit this structure but you wish to use 
+Runnable.pm's generic run method then you need a run_analysis method
+
+All runnables which use the Runnable:run method also need a parse_results
+method this is specific to the analysis the runnable is running so there
+are no generic methods for this

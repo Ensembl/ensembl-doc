@@ -67,7 +67,7 @@ parameter_hash, this is a method which takes a string formatted like so
 All RunnableDBs must provide these three methods
 
 fetch_input, run and write_output. RunnableDB provides generic run and
-write output method. 
+write output method.
 
 run cycles through each runnable on the RunnableDB::runnable array and 
 calls run on it then pushes its output onto the RunnableDB:output method
