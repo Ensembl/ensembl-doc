@@ -95,9 +95,9 @@ e1.end_phase=e2.end_phase and e1.exon_id != e2.exon_id and e1.contig_id
 
 
 
-###################
-# checks on genes #
-###################
+###################################
+# checks on genes and transcripts #
+###################################
 
 
 1. all genes have transcripts
@@ -109,10 +109,14 @@ e1.end_phase=e2.end_phase and e1.exon_id != e2.exon_id and e1.contig_id
 3. all transcripts belong to a gene
    select count(distinct t.transcript_id) from transcript t left join gene g on g.gene_id =t.gene_id where g.gene_id is null;
 
-4. check that there are no too-long single exon genes (>50kb)
-     start with 
-  select exon_id,  (contig_end - contig_start +1 ) as length  from exon having length > 50000; 
-     and pick out those that are single exon genes - should not be any.
+4. check that there are no too-long (>20kb) or too-short (<200bp?) single exon transripts 
+   select contig_end - contig_start + 1 as s from exon e, exon_transcript et, transcript t where e.exon_id = et.exon_id and et.transcript_id = t.transcript_id and t.exon_count = 1 having s>20000;
+
+   select contig_end - contig_start + 1 as s from exon e, exon_transcript et, transcript t where e.exon_id = et.exon_id and et.transcript_id = t.transcript_id and t.exon_count = 1 having s<200;
+
+   This is important for cdns and ests. Too long single exon cdnas may mean it is
+   a genomic region rather than an mRNA, or it is a pseudogene.
+   Too short single exon EST means it is rubbish.
 
 5. you can also have a look at how many single-exon genes there are
      select count(*) as c,transcript_id from exon_transcript group by transcript_id having c=1;
