@@ -1,26 +1,24 @@
-RunnableDB.pm is a abstract module which should provide base functionatlity
-for the RunnableDB for specific analyses
+The RunnableDB is a abstract module which provides some base functionality
+for the RunnableDBs. The RunnableDBs should provide an interface between
+the Database which provides input data and takes output data and the
+Runnables which actually run the analyses and interpret their results
 
-A RunnableDB is a perl module which is to act as a intermediate between
-a Runnable and the database. It is meant to provide functions which fetch
-the input_id a runnable needs either from the database or other sources
-then write that output back to the database
-
-RunnableDB.pm will provide these methods to give some base functionality
+The RunnableDB provide several methods to give the child RunnableDBs
+some base functionality.
 
 A constructor new which expects three arguments, input_id, dbadaptor
 and analysis object and will throw an exception if it doesn't receive
-one or if either of the objects are of the wrong type
+one or if either of the objects are of the wrong type. Any child runnabledb
+should only expect to be given these arguments in the constructor. This
+is the way all RunnableDBs are instantiated as part of the pipeline so
+if a RunnableDB insists on any other constructor arguments it won't beable 
+to be run as part of the pipeline.
 
-container methods
+All the constructor arguments have container methods which check type if 
+appropriate
 
-input_id expects a string which is input_id and stores and returns that 
-         string
-db       expect an object which is a 
-         Bio::EnsEMBL::Pipeline::DBSQL::DBAdaptor and will throw if the 
-         object received isn't one.
-analysis expects an object which is a Bio::EnsEMBL::Pipeline::Analysis
-         and will throw if the object recieved is not one.
+Other container methods are
+
 query    a container method to hold a query sequence in the form of a 
          Bio::EnsEMBL::Slice adn should throw if not given a Slice
 output   a container for an array of results. It should take an array
@@ -29,7 +27,10 @@ output   a container for an array of results. It should take an array
 runnable a method to contain the array of runnables to be run 
          expects an single Bio::EnsEMBL::Pipeline::Runnable object and will
          push it onto the array
-
+input_is_void this is a boolean toggle meant to indicate that an input
+         has too much repeatmasked sequence and shouldn't be run
+failing_job_status, container for a string to indicate the status a job
+         failed with
 
 Utility methods
 
@@ -58,48 +59,33 @@ parameter_hash, this is a method which takes a string formatted like so
         parameter column of the analysis table. If the string doesn't match
         the required format the whole string is placed in a hash with a key
         of options which is one of the standard arguments expected by 
-        Runnables
-
-input_is_void this is a flag to indicate to the RunnableDB that the input
-        sequence contains too many N's to have it's analysis usually blast
-        run on it. This flag is recognised by the pipeline system and the 
-        job is labelled as VOID
+        Runnables. If there is a comma separated value with no => this
+        is given the value of 1
 
 
-failing_job_status, this is a container method for an error string. If
-    a runnable parses its programs STDERR and wants to report a specific
-    error rather than a general FAILED status this is where that string
-    ends up. It can be a maximun of 40chars
+
+All RunnableDBs must provide these three methods
+
+fetch_input, run and write_output. RunnableDB provides generic run and
+write output method. 
+
+run cycles through each runnable on the RunnableDB::runnable array and 
+calls run on it then pushes its output onto the RunnableDB:output method
+
+write_output expects the child RunnableDB to implement a get_adaptor
+method which returns the appropriate adaptor for output storage. It
+also calls Bio::EnsEMBL::Analysis::Tools::FeatureFactory:validate
+which expects the output to fit the Bio::EnsEMBL::Feature model.
+
+These two methods can be overidden if they don't provide the functionality
+required.
+
+All runnableDBs must implement a fetch input method as inputs can be quite
+different between
+
+The fetch input method generally fetches any input either sequence or 
+features from the database or information from files and then creates the
+runnables using this information and appropriate information from
+configuration and the analysis table
 
 
-run RunnableDB implements a generic run method which basically runs through
-    the array of runnables and calls run on each one. Then pushes their output
-    into RunnableDB::output
-
-write_output RunnableDB will implement a generic write output method
-    which gets its adaptor from the child runnabledb and calls store with
-    each feature from RunnableDB::output. Each call to store is wrapped in
-    an eval if a single store fails the method will throw
-
-Methods the RunnableDB and the pipeline api expect the child modules
-to implement
-
-Each child RunnableDB has to implement these methods
-
-fetch_input this is the only obligatory method to be implemented and it
-    should do two things. It should know what the input_id it recieves means
-    and what input to fetch on that basis. It should also know how to create
-    the appropriate runnable and what information to pass to it.
-
-
-Other methods RunnableDBs need to consider. 
-
-The pipeline exepcts all RunnableDBs to have three methods fetch_input, run
-and write_output. RunnableDB.pm implements basic run and write_output methods
-which can be used. If the basic write_output method is to be used the child
-runnabledb must implement an adaptor method which returns the appropritate 
-adaptor to write the results back to the database from the desired database
-
-run
-write_output
-adaptor

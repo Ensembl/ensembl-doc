@@ -1,0 +1,326 @@
+This is a guide to how to write runnable and runnabledbs. This will 
+describe the interface other modules generally expect this modules to
+provide plus what methods are availible from the base class
+
+All runnable/runnabledbs live in the ensembl-analysis cvs module in
+these directories
+
+ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable and
+ensembl-analysis/modules/Bio/EnsEMBL/Analysis/RunnableDB
+
+========================================================================
+
+First I will talk about Runnables. Runnables are modules which are meant
+to act as wrappers around other programs. They should know how to run that
+other program and how to parse and interpret its results. 
+
+Runnables are expected to implement three methods, a constructor, run and 
+output.
+
+You may want to consider these things before implementing you runnable
+
+Does your runnable need variables beyond a query sequence, program name
+and command line options (If yes you will need your own constructor)
+
+Does your runnable need to verify more input than the query sequence
+or dump any more files than the query sequence (If yes you may need
+to consider your own run method)
+
+Does your programs command line fit a standard model of
+
+program name, commandline options queryfile > output file
+
+(if no you will need your own run_analysis method)
+
+Does suitable feature creation methods exist in either Gene or 
+FeatureFactory?
+
+
+Now we describe the basis of the methods required and other useful
+methods which exist in the base class
+
+#################
+#The Constructor#
+#################
+
+The base class provides a constructor which can accept seven arguments.
+QUERY, this is a Bio::EnsEMBL::Slice which will be the query sequence
+PROGRAM, this is a string which should be the program name
+OPTIONS, this is a string which will be any commandline arguments
+
+the other four arguments are all directory paths whose values can be
+taken from Bio::EnsEMBL::Analysis::Config::General but have constructor
+arguments here incase the configuration needs to be overidden
+
+If your Runnable needs other variables set in the constructor it will need
+its own new method. This should always call this constructor first using
+the syntax: 
+
+my $self = $class->SUPER::new(@args);
+
+Even if you dont need any other constructor arguments you may still need
+a constructor as we always specify any default values in the constructor
+
+If you write your own constructor for extra arguments you will need to 
+write container methods for those arguments. This container methods can
+be very simple 4 line affairs like this
+
+
+sub options{
+  my $self = shift;
+  $self->{'options'} = shift if(@_);
+  return $self->{'options'};
+}
+
+
+But if the argument should be of a specific type ie a Bio::EnsEMBL::Slice 
+or an arrayref this is where the check should be main
+
+If any variable should not be undefined the constructor should check this
+and either set an appropriate default or throw an error
+
+Any options which can affect the behaviour of the runnable should where
+ever possible be settable in the constructor to allow flexible use of the
+runnables both within and outside the pipeline system as with the
+RunnableDB::parameters_hash method extra commandline options can
+easily be passed into the Runnable from the analysis parameters column
+
+#####
+#run#
+#####
+
+The run method is what defines how a particular analysis is run. The
+standard run method in Runnable first checks if there is a query sequence
+then checks the working directory has enough space and writes the sequence
+of the query to a file. It adds the names of the query and results file to
+the list of files to be deleted and then uses run_analysis to construct
+and run the analysis and parse_results to parse the results into objects.
+Finally delete_files it used to delete any extraneous output
+
+Any run method should check its input is correct, dump any files required
+by the analysis and then run and parse the analysis, then finally cleanup
+to make sure it doesn't clutter up the working directory. 
+
+If you only have a query sequence as input and are going to use the above
+generic method you will need to implement a run_analysis and parse_results
+method.
+
+run_analysis
+-----------
+
+run_analysis should construct the command line and run the analysis you
+want run. Runnable provides a generic run_analysis which expects the 
+program to fit the command line model
+
+program options queryfile > resultsfile
+
+If your analysis commandline doesn't fit this model then you will
+need to implement your own run_analysis method
+
+
+parse_results
+-------------
+
+as every program tends to produce its own output format every runnable
+needs its own parse_results method. The function of this method is to
+go through the results and parse into the desired output objects to 
+return to the Runnables caller and this can be done any number of ways.
+
+
+There will be some runnables who can't even use the base run method
+this will need to implement all of their own code and as such may not
+need run_analysis or parse_results method but by always checking the input
+is what is expected, dumping any files required and then running any
+other analyses or modules most of the time things should work
+
+Note Bio::EnsEMBL::Analysis::Tools::FeatureFactory provides feature
+creation methods for most features apart from genes and there
+underlying structures which instead can be created by 
+Bio::EnsEMBL::Analysis::Tools::GeneFactory
+
+########
+#output#
+########
+
+Runnable also provides a generic output method. This should be useable by
+most child Runnables as it is justs a container for an array reference 
+which pushes any arrayref passed in onto the object hash element then 
+returns the array ref.
+
+Runnable also provides a clean output method which will empty the output 
+array and returns what used to be contained by it
+
+
+Before implementing a Runnable it is probably a good idea to read 
+Runnable.spec to familarize yourself with the base methods it provides to
+avoid reinventing wheels
+
+Runnable implementation check list
+-----------------------------------
+
+Do you have new, run and output methods
+Can you set all required variables
+All are the defaults set in the constructor new
+Do you add all filenames to be cleaned up to the files_to_delete list
+
+=======================================================================
+
+RunnableDBs provide an interface between the database and the Runnables.
+They should provide any input which its Runnable needs and provide
+functionality to allow the output of the Runnable to be validated and then
+stored back into the desired database
+
+Every runnabledb needs these methods, a constructor, fetch_input, run
+and write_output
+
+
+You may want to consider these things before implementing your RunnableDB
+
+What are you input sources?, sequence from the database or fasta files
+translations or features from the databases
+
+What input_id are your going to expect?
+
+What databases connections do you need beyond the pipeline database you
+will be passed if any?
+
+Do you need any configuration to define cut off levels, filepaths or logic
+names?
+
+What validation do your features need before storage?
+
+
+Now we describe the methods needed and what the base class provides to aid
+their implementation
+
+#################
+#The Constructor#
+#################
+
+RunnableDB provides a base constructor. This should be the only constructor
+your RunnableDB needs as this is the interface the pipeline expects. If 
+you write a RunnableDB which insists on any other constructor arguments
+it will not work inside of the pipeline without another wrapper of 
+some descriptions. If you RunnableDB needs input other than what can be 
+defined by the input_id or the analysis object this should come from
+configuration files. The three standard constructor arguments are
+
+input_id, this is the string derived from the input_id_analysis table
+when an analysis is run. This can indicate a slice name allowing the
+Bio::EnsEMBL::Slice::fetch_by_name method to be used or a filename
+or a translation id.
+
+analysis, this should be a Bio::EnsEMBL::Analysis object this should 
+contain the name of the program to be run along with any runnable or
+program specific settings in the parameters variable
+
+db, this will be the pipeline database. This database generally also 
+provides what ever sequence is desired too. Many RunnableDBs need to get
+input data or write its output data to other databases. These other
+databases should have their details specified in a config file (see
+Bio::EnsEMBL::Pipeline::Config::GeneBuild::Databases for examples) and
+ideally the connection should be instantiated the first time the connection
+is required (see Bio::EnsEMBL::Pipeline::RunnableDB::FPC_BlastMiniGenewise)
+
+
+
+#############
+#fetch_input#
+#############
+
+fetch_input is the method which fetches any input the runnable requires and
+creates the runnables themselves to be run. The different input types our
+variety of RunnableDBs currently deal with include sequence which is 
+generally fetched out of the database or filenames which are frequently for
+multisequence fasta files which are generally either passed straigh into
+the runnable or parsed into Bio::Seq objects which can then be passed to 
+the runnable. The fetch input method sometimes also gets features out of 
+the database to either generate a list of locations of hit ids to pass to
+the runnable. As fetch input is so specific to each analysis this is a 
+method which doesn't have a generic method
+
+
+#####
+#run#
+#####
+
+run, this is the method which should actually run the runnables which
+have already been created. It should be a relatively simple method.
+There is a generic method in RunnableDB which just runs through each 
+runnable in the RunnableDB::runnable array calls run on it then pushes the
+output onto the output array. This should work for most simple analyses.
+There are some analyses though which require more complex run methods
+if filtering of the results is required before storage or if the
+object organization returned by the runnable isn't appropriate for storage
+
+
+##############
+#write_output#
+##############
+
+write_output is the method used to store the results in the database. This
+is usually done through an adaptor of some description. RunnableDB does
+provide a base write_output method. To use this requires the child 
+RunnableDB has a method called get_adaptor which returns an appropriate
+adaptor from the correct database to store the output and the output 
+features should pass the 
+Bio::EnsEMBL::Analysis::Tools::FeatureFactory::validate method. This 
+generic write_output will also throw the first time a store call fails
+which may not be the desired behaviour
+
+
+RunnableDB implementation checklist
+-----------------------------------
+
+Do you have access to suitable fetch_input, run and write_output
+methods?
+
+Can you get all the information you need from the input id, analysis
+object and database?
+
+Do you need a Configuration file?
+
+Can your features use the 
+Bio::EnsEMBL::Analysis::Tools::FeatureFactory::validate method before 
+storage or do they need their own validation method
+
+======================================================================
+
+
+Configuration files
+
+
+Lastly a note on configuration files. Many of our analyses rely on 
+information from configuration files such as details of extra databases
+to connect too or levels of score, percentage identity or coverage to 
+filter on or directory and file path locations
+
+The convention for configuration it this. Any single RunnableDB should
+not use more than 3 configuration files, a general config file, a database
+options config file and an analysis specific config file
+
+Any configuration variable which
+will be used by may RunnableDB's should go in 
+Bio::EnsEMBL::Analysis::Config::General, for example 
+ANALYSIS_REPEAT_MASKING is used by many of the raw compute runnables to 
+define what repeats are to be masked (generally RepeatMasker). 
+
+Any Database variables live in another config file generally called 
+Databases. As each section of the pipeline generally gets its own directory
+underneath Config the database config file for that set of analyses 
+generally lives there like for the GeneBuild currently in ensembl-pipeline
+Bio::EnsEMBL::Pipeline::Config::GeneBuild::Databases.
+
+Lastly any analysis specific config options need to go in an analysis
+specific configuration file. If a analysis needs options from another
+analyses config this should be included in the analysis specific config
+file rather than using 5 different config files at the top of the 
+RunnableDB
+
+------------------------------------------------------------------------
+
+Before implementing any runnable/runnabledb do familiarise yourself with
+the methods availiable in the two base classes and in FeatureFactory. 
+These methods can help you implement your classes and reduce the need
+for code duplication which also make the code more easy to maintain when
+fundamental core code changes occur
