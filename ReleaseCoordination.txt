@@ -57,26 +57,31 @@ Main steps in release coordination
   summary of what has been declared. Also announce new version number if it's
   changed.
 
-* A1 - check how old is the ensembl_go_* database, and if it is older than
+* B - check how old is the ensembl_go_* database, and if it is older than
   6 months ask Tony Cox (avc@sanger.ac.uk) to generate an updated version.
   Check how old is homo_sapiens_disease_* database, ask Arek (arek@ebi.ac.uk)
   if it needs an update in sync with the latest OMIM release.  
 
-* B - Ask the martians to copy from ecs2:3364 over to ecs2:3363 the old dbs. 
-  Send an email to ensembl-admin saying which databases you're going 
-  to drop, in case there are any objections.
-  Drop from ecs2:3364 all the old databases when allowed.
-  (use drop database command in a MySQL client, never do a rm -rf as
-  mysqlens user). Do not delete databases like ensembl_% and with
-  %_expression_% in their name. Check with compara and mart people to see 
-  if ensembl_compara_* and ensembl_mart_* can be dropped.
+* C - First copy the latest released database versions from ecs3:3307 to ecs2:3365
+      ecs2:3365 is used for internal (sanger/ebi) heavy scripting. That means
+      you will need to delete the old previous database versions to free disk
+      space. 
+      Warn people on ensembl-admin about deletion and new copy.
+      The script to use is ensembl/scripts/CopyDBoverServer.pl scripts, -h gives
+      you an idea how to use it.
+      You have to run it as mysqlens user.
+      Must be run on the destination host.
 
-* C - Based on the synthesis of what is new coming, you can decide what are
-  the databases that will not change, and can copy their latest version
-  from ecs3:3307 using ensembl/scripts/CopyDBoverServer.pl scripts, -h gives
-  you an idea how to use it.
-  You have to run it as mysqlens user.
-  Must be run on the destination host.
+      Second based on the synthesis of what is new coming, you can decide what are
+      the databases that will not change, and can copy their latest version from 
+      ecs3:3307 to ecs2:3364, with probably some renaming
+      ecs2:3364 is the release staging server.
+      Warn people on ensembl-admin about deletion and new copy and database renaming.
+
+      NB: (use drop database command in a MySQL client, never do a rm -rf as
+      mysqlens user). Do not delete databases like ensembl_% and with
+      %_expression_% in their name. Check with compara and mart people to see 
+      if ensembl_compara_* and ensembl_mart_* can be dropped.
 
 * D - keep a tight contact with the persons involved in the production of
   new data, i.e.
