@@ -17,9 +17,8 @@ sensible start and end coords:
   select * from simple_feature where contig_start > contig_end;
   select * from dna_align_feature where hit_start > hit_end;	
 
-2. all features have an entry in analysisprocess with a
+2. all features have an entry in analysis table with a
 unique and consistent (i.e. same as last release) logic_name.
-
 
 3. Check that the analysis table is as complete as possible,
 including entries in the 'db' column - even when this clearly
