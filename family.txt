@@ -417,8 +417,7 @@ mkdir ../families
 # This time, a fair number of old families (prolly singletons, I didn't look)
 # got lost. I think the upcoming mapping (120 ->130), both figures below 20%
 # can be expected. 
-
-
+#
 # Note on the algorithm: nothing fancy really, the two lists of families are
 # sorted by size, then starting with the largest of the old families, the
 # best matching family is greedily picked from the new list, and so on down
@@ -449,6 +448,24 @@ mkdir ../families
 #           can be taken into consideration (prolly won't matter much; it might
 #           make the mapping take longer, no idea). 
 # 
+#
+# OK, after you have got the mapping, you have to apply it. One way of doing
+# it is to map the family id's in final.families, and then run
+# family-input.pl on the result. This, however, would be very wasteful, since 
+# family-input.pl then completely redoes the ens-peptide -> ens-gene mapping,
+# which doesn't need redoing as it is the same. 
+#
+# So instead, create an SQL update script from the family.map file, e.g as
+# follows (or write a little script if you're not into one-liners):
+
+  perl -nae 'print "UPDATE family SET id = \"$F[1]\" where id = \"$F[0]\"\n";' \
+     < family.map > family-map.sql
+
+# and then apply it to the database as
+ 
+  mysql -h host -u ***REMOVED*** -pSECRET the-database-name \ 
+       < family-map.sql >& family-map.log 
+#
 # 
 # ------------------------------------------------------------------------
 #
