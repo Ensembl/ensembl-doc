@@ -24,7 +24,11 @@ unique and consistent (i.e. same as last release) logic_name.
 
 3. Check that the analysis table is as complete as possible,
 including entries in the 'db' column - even when this clearly
-does not make sense :-)
+does not make sense :-) References to files should be valid.
+
+For example, the STS file for ePCR and the appropriate maps
+database/tables should be in sync. The STS file should be named
+appropriately, e.g. not "jimbos_favourite_human_markers.dat"!
 
 
 4. There should be no dangling features (i.e. all link to a
@@ -70,4 +74,9 @@ feature ID (this happens when jobs get restarted) and delete them.
 9. If necessary, prune features by whatever criterion is flavour of
 the month with the genebuild team. A common request is to remove
 features with bit score < 150.
+
+
+10. Check that analyses done on golden path regions/denormalized
+contigs (such as ePCR) are run. No compute should be outstanding
+once the database is handed over.
 
