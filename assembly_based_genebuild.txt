@@ -1,0 +1,410 @@
+Running an assembly based genebuild
+-------------------------
+
+Val Curwen 22.1.2002
+
+A. Overview
+-----------
+
+As far as possible the genebuild is automated, though not (yet)
+incorporated into the pipeline.
+
+
+The pre-genebuild prepares genes from known proteins, from regions
+with similarity to proteins specific to the species being built, and
+also to proteins in swall. Data from the pre-genebuild are
+incorporated into the final gene build during which additional genes
+will also be predicted from evidence not yet used.
+
+We can run either on an assembled genome ie one that has a golden
+path, or on RawContigs. This document describes how to run the build
+on assembled data though the basic concepts are common to both approaches.
+
+These instructions assume you already have a database with an uploaded
+golden path, entries in contig, clone and dna tables, and have
+completed any raw computes you plan to do.
+
+The instructions are written from the point of view of human
+sequence. The general points should be applicable to ant assembled
+genome.
+
+The modules that need to be run are contained in Bio::EnsEMBL::Pipeline::RunnableDB and are:
+
+1. FPC_TargettedGeneE2G
+
+(to be replaced with updated TargettedGenewise)
+
+   Uses genewise to build a gene by comparing an input protein (id)
+   with a region of the golden path.
+
+2. FPC_BlastMiniGenewise
+
+   Depends on the genscan peptides having already been blasted against
+   sptr during the pipeline run.
+
+   For a given golden path region, finds all the blast hits from
+   genescan peptides to entries in sptr and filters out those that
+   overlap with genes predicted in stage 1. Any remaining sequences
+   are reblasted against the golden path region and the resultant
+   features used to build a MiniSeq over which we can run genewise and
+   build genes.
+
+3. Combine_Genewises_and_E2Gs
+
+   Depends on the species specific cDNAs having been run against the
+   whole genome sequence and genes built using a combination of
+   exonerate and est2genome (will eventually be exonerate only). This
+   is described in cdna_analysis.txt
+
+   Also depends on stages 1 and 2 having already been run
+
+   Combines the two predictions, using UTRs from the est_genome
+   prediction with internal gene structure from the genewise
+   prediction.
+
+4. Gene_Builder
+
+   Can create additional genes from genscan predictions that have strong supporting evidence. 
+   Performs various validity checks on transcripts.
+   Clusters transcripts into genes.
+   Writes genes to database.
+
+However, various steps need to be completed before you can run these modules.
+
+
+B. General preparation
+----------------------
+
+1. I use 2 areas, one scratch area for the genebuild LSF error and
+output files, and an area where I keep all the files generated during
+processing so I can refer back.
+
+So, for example, for the April golden path:
+
+mkdir /work2/vac/GeneBuild/Apr_gp
+mkdir /scratch4/ensembl/vac/GeneBuild
+
+2. make sure you are using bioperl 0.7 
+
+3. cvs checkout ensembl and ensembl-pipeline code (Jan 2001 I am using branch-ensembl-121 for the pipeline and branch-ensembl-3 for the core ensembl code)
+
+4. make sure ensembl/modules and ensembl-pipeline/modules and bioperl 0.7 are in your $PERL5LIB
+
+5. make sure ensembl-pipeline/scripts/GeneBuild is in your PATH, or be
+prepared to qualify the names of the various scripts.
+
+6. cvs checkout rd-utils, or make sure you have access to a pmatch executable.
+
+7. The scripts for running the pre-genebuild are in ensembl-pipeline/scripts/GeneBuild
+
+8. There is a configuration file specific to the genebuild in
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/GB_conf.pl, which needs
+to be filled in with details relevant to your directory setup. The
+fields to be filled in should be self explanatory.
+
+9. Fill in relevant fields of pipe_conf.pl, notably nfstmpdir (defaults to /tmp) and bindir - which is essential!
+
+C. TargettedGenewise build
+----------------------------------
+
+1. download assembled sequence eg for the human build:
+
+    old way:
+    from Jim Kent
+
+    This takes up a good bit of space.
+
+    http://genome-test.cse.ucsc.edu/gs.7/oo.29/contigFa.zip
+
+    mv contigFa.zip /data/humangenome
+    cd /data/humangenome
+    unzip contigFa.zip
+
+    new way:
+    or for NCBI (and mouse and ...)
+    get out chromosome names & coords into a file called names_and_coords:
+
+    more names_and_coords:
+    chr4_NT_022804  1       153717
+    chr4_NT_022910  1       196456
+    chr4_NT_022923  1       94217
+    etc
+
+    dump out one sequence per chromosome.
+
+    perl -e 'while(<>){next unless /^(\S+)\s+(\d+)\s+(\d+)/; $command = "/work2/vac/ensembl-pipeline/dump_vc_seq.pl -chrname $1 -start $2 -end $3 -outfile $1.fa"; system("$command"); print "$command\n"}' < names_and_coords
+
+2. download proteome data
+
+TargettedGeneE2G needs as input protein ids and corresponding cDNA ids
+together with a golden path (fpc contig) location to which that
+protein matches. The first stage is downloading human protein
+sequences from SwissProt/TrEMBL and Refseq. 
+
+mkdir /work2/vac/GeneBuild/Apr_gp/human_proteome
+cd /work2/vac/GeneBuild/Apr_gp/human_proteome
+
+#downloading swissprot files:
+ftp.ebi.ac.uk
+ftp>cd pub/databases/SPproteomes
+ftp>get fasta_files/proteomes/9606.FASTAC
+ftp>get swissprot_files/proteomes/9606.FASTAC
+ftp> bye
+mv 9606.FASTAC sptr.fa
+
+# downloading refseq files:
+ftp ftp.ncbi.nlm.nih.gov
+ftp>cd refseq/H_sapiens/mRNA_Prot/
+ftp>get hs.faa.gz 
+ftp>bye
+gunzip hs.faa.gz
+mv hs.fsa refseq.fa
+
+3. prepare_proteome data
+
+ensembl-pipeline/scripts/GeneBuild/prepare_proteome.pl cleans up the
+sptr and refseq files, prepares a single proteome file and runs a test
+pmatch to make sure there are no sequences that will cause pmatch to
+loop.
+
+all you need to do, assuming you have filled in GB_conf.pl properly, is type:
+
+prepare_proteome.pl
+
+remove sequences containing polyX from your input fasta files if
+prompted to do so. This script should be done in minutes.
+
+
+4. run the pmatches
+
+We use pmatch to compare all the human protein sequences to the golden
+path sequence to try to find the best match for each protein in the
+genome. We look at the extent to which the protein is covered ie what
+percentage of the protein matches the genome in a given region, and we
+take the hit with the best coverage, plus any hits within 2% of that
+coverage. Caveat - we throw away anything that has less than 25%
+coverage as the best hit.
+
+There are 2 scripts that deal with pmatch running and result
+processing: 
+
+    ensembl-pipeline/scripts/GeneBuild/pm_filter.pl : finds best in chromosome matches
+    ensembl-pipeline/scripts/GeneBuild/pm_bestmatch.pl finds the best in genome match from all of these.
+
+    mkdir /work2/vac/TGE/Apr_gp/pmatches
+    cd /work2/vac/TGE/Apr_gp/pmatches
+    pm_filter.pl -chr 1 -protfile protein_filename
+    pm_filter.pl -chr 2 -protfile protein_filename
+    .
+    .
+    pm_filter.pl -chr UL -protfile protein_filename
+
+    cat *.pm.out > all.pm.out
+    pm_bestmatch.pl < all.pm.out
+
+for some assemblies you may need to split the protein file up into
+pieces and run pm_filter.pl on each chromosome with each piece - keep
+an eye on how big the script gets and split up the file as necessary.
+
+5. Create tables in database to hold the pmatch results
+mysql -uuser -ppasswd -hhost dbname < ensembl-pipeline/sql/pmatch.sql
+
+6. Load up pmatch results into the database using pmatch_feature_loader
+
+run FPC_Targetted_Gene_E2G on (5MB) regions
+
+7. make bsub lines for submitting jobs
+
+The length based runnable you need is called FPC_TargettedGeneE2G so enter this in the GB_conf.pl file and run
+
+make_bsubs.pl
+
+The jobs to be run are in 
+
+Also, look in your tmpdir (what you specified in GB_conf.pl) - all the
+output directories needed for collecting the bsub out & err files are
+made if they didn't already exist
+
+8. Run FPC_TargettedGeneE2G jobs
+
+This is as easy as typing submit.pl < FPC_TargettedGeneE2G.jobs BUT WAIT!
+
+I ALWAYS run test jobs forst before unleashing everything on the farm:
+
+a. check the pre-exec command (the bit in double quotes) by running on
+the command line
+b. send one job via LSF to check the output goes to the right place
+c. usually I then slowly load up the farm to check for database
+contention issues - generally I run 10 jobs via LSF, then 100 jobs. If
+there ARE database issues, consider "dripping" the jobs into LSF ie
+submit a job, sleep (10,20,30, ...) seconds, submit the next etc.
+d. if all is well, submit the remaining jobs.
+
+You can submit jobs using
+ensembl-pipeline/scripts/GeneBuild/submit.pl, adjusting the number of
+seconds in the sleep statement as required.
+
+9. Check for errors
+
+Sadly, there's no easy way to do this yet. I grep through the err
+files from bsub commands for "EXCE" and look to see what the errors
+are. Once I identify key words seen in exceptions I'll grep through
+for those, and use comm to find if there are more things I am missing
+eg
+
+foreach i(*.err)
+grep -l EXCE $i >> EXCE.err
+grep -l "gap contigs" $i >> gapcontigs.err
+end
+
+(comm only works on sorted files, but effectively these already are sorted)
+
+comm -23 EXCE.err gapcontigs.err 
+
+this will tell you which files have EXCE in them but not "gap contigs" so you can look at those.
+
+Error checking often takes as much time as setting up to run the jobs in the first place ...
+
+D. Similarity Genewise build
+----------------------------
+
+Don't start this stage until all the Targetted jobs are finished and checked.
+
+1. Edit GB_conf.pl and set length_runnables to be FPC_BlastMiniGenewise
+
+2. run make_bsubs.pl - output will go into FPC_BlastMiniGenewise.jobs
+in the directory from which make_bsubs.pl was run
+
+3. run some test jobs as before - this stage is the most likely to cause database contentions so you really mioght need to stagger job submissions.
+
+4. If all is well, submit the rest of the jobs as before
+
+5. Check for errors. One to look for at this stage is "Out of memory"
+- if you see this in any of the stderr files, you'll need to identify
+the regions that had problems, and rerun on smaller subsets of those
+regions
+
+eg if chr1.1-5000000 ran out of memory, set up new jobs to run that are only 1MB long:
+chr1.1-1000000
+chr1.1000001-2000000
+chr1.2000001-3000000
+
+etc.
+there's no script to do this for you but it's a pretty easy one to write ...
+
+E. cDNA build
+-------------
+
+This is described in ensembl-doc/cdna_analysis.txt
+
+F. Adding UTRs to genewise predictions
+--------------------------------------
+
+The module that does this for you is called Combine_Genewises_and_E2Gs
+
+Don't start this stage until all the Similarity jobs are finished and checked.
+
+1. Edit GB_conf.pl and set length_runnables to be Combine_Genewises_and_E2Gs
+
+2. run make_bsubs.pl - output will go into Combine_Genewises_and_E2Gs.jobs
+in the directory from which make_bsubs.pl was run
+
+3. run some test jobs as before.
+
+4. If all is well, submit the rest of the jobs as before
+
+5. Check for errors. 
+
+G. Final genebuild
+-----------------
+The module that does this for you is called Gene_Builder
+
+You will be writing the final ensembl genes to a separate
+database. The name and host of this database are specified in
+GB_conf.pl as finaldbname and finaldbhost. Make sure this database
+exists, has a schema (!) and has the same entries in clone, contig, static_golden_path
+and analysisprocess tables as the one you have been using. eg:
+
+mysql -uuser -ppassword -hinterim_dbhost interim_db
+mysql> select * from contig into outfile '/path/to/contig.file';
+mysql> select * from contig into outfile '/path/to/clone.file';
+mysql> select * from static_golden_path into outfile '/path/to/sgp.file';
+mysql> select * from analysisprocess into outfile '/path/to/ap.file';
+mysql> quit
+
+mysql -uuser -ppassword -hfinal_dbhost finaldb
+mysql> load data infile '/path/to/contig.file' into table contig;
+mysql> load data infile '/path/to/clone.file' into table clone;
+mysql> load data infile '/path/to/sgp.file' into table static_golden_path;
+mysql> load data infile '/path/to/ap.file' into table analysisprocess;
+mysql> quit
+
+Don't start this stage until all the Similarity jobs are finished and checked.
+
+1. Edit GB_conf.pl and set length_runnables to be Gene_Builder
+
+2. run make_bsubs.pl - output will go into Gene_Builder.jobs
+in the directory from which make_bsubs.pl was run
+
+3. run some test jobs as before.
+
+4. If all is well, submit the rest of the jobs as before
+
+5. Check for errors. You may have memory errors as with the Similarity
+jobs. If so, resplit and rerun as you did before.
+
+NOTE:
+It is very important that none of the Gene_Builder jobs is run more than
+once otherwise you'll end up with duplicate genes in the final
+database.
+
+H. Checking results before web handover
+---------------------------------------
+
+This is described in ensembl-doc/post_genebuild_checks.txt
+
+Also, you'll need to make sure that the final database you hand over
+has dna, feature, repeat_feature etc tables populated. The way I do
+this is to re-use the interim database:
+
+1. Connect to interim database and save out all entries from gene-related tables into tab delimited
+files in case you need to go back later
+
+mysql> select * from gene into outfile 'path/to/interim_gene.file';
+mysql> select * from exon into outfile 'path/to/interim_exon.file';
+mysql> select * from exon_transcript into outfile 'path/to/interim_exon_transcript.file';
+mysql> select * from transcript into outfile 'path/to/interim_transcript.file';
+mysql> select * from translation into outfile 'path/to/interim_translation.file';
+mysql> select * from supporting_feature into outfile 'path/to/interim_supporting_feature.file';
+
+2. Connect to interim database and delete all entries from gene-related tables
+
+mysql> delete from gene;
+mysql> delete from exon;
+mysql> delete from exon_transcript;
+mysql> delete from transcript;
+mysql> delete from translation;
+mysql> delete from supporting_feature;
+
+3. Connect to final gene build db and save out gene related tables:
+
+mysql> select * from gene into outfile 'path/to/final_gene.file';
+mysql> select * from exon into outfile 'path/to/final_exon.file';
+mysql> select * from exon_transcript into outfile 'path/to/final_exon_transcript.file';
+mysql> select * from transcript into outfile 'path/to/final_transcript.file';
+mysql> select * from translation into outfile 'path/to/final_translation.file';
+mysql> select * from supporting_feature into outfile 'path/to/final_supporting_feature.file';
+
+4. Connect to interim database and load up results from final gene build
+
+mysql > load data infile 'path/to/final_gene.file' into table gene;
+mysql > load data infile 'path/to/final_exon.file' into table exon;
+mysql > load data infile 'path/to/final_exon_transcript.file' into table exon_transcript;
+mysql > load data infile 'path/to/final_transcript.file' into table transcript;
+mysql > load data infile 'path/to/final_translation.file' into table translation;
+mysql > load data infile 'path/to/final_supporting_feature.file' into table supporting_feature;
+
+5. Transfer the analysisprocess entry relevant to genes of type ensembl into the shiny new db.
+
+Once all your post-build checks are run, you're done!
+
