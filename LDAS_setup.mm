@@ -22,6 +22,9 @@
 .\" Use roman font style for all headings
 .ds HF  R  R  R
 .
+.\" Break after heading on level <= 3
+.nr Hb 3
+.
 .\" Nothing in page header, page number in page foot (unless
 .\" we're in plain text/nroff mode).
 .PH "''''"
@@ -29,6 +32,8 @@
 .PF "''-%-''"
 .el
 .PF "''''"
+.
+.\" ---------- SETUP ENDS / TITLE STARTS
 .
 .DS C
 .S +4
@@ -51,6 +56,8 @@ Andreas K\(:ah\(:ari,  European Bioinformatics Institute (EBI)
 $Revision$
 .S D
 .DE
+.
+.\" ---------- TITLE ENDS / BODY STARTS
 .
 .SP
 .H 1 "Introduction"
@@ -159,7 +166,7 @@ $ \f(CBexport PATH\fP
 .ft R
 .DE
 .SP
-.H 2 "About GNU Stow"
+.H 3 "About GNU Stow"
 .P
 I have been using the GNU Stow program for handling software
 packages for a couple of years, and I also used it when getting
