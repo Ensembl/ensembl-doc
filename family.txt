@@ -348,9 +348,33 @@ mkdir ../families
 
 # ------------------------------------------------------------------------
 
-# Alignments:
+OK, the only thing left to do is ID mapping. This is done as follows:
 
-  mkdir $work/alignments
-  cd $work/alignments
+  $scripts/family-id-map.pl \
+     -old 'user=ensro;host=ensrv1;dbname=homo_sapiens_family_110' \
+     -new 'user=ensro;host=ensrv1;dbname=homo_sapiens_family_120' \
+   > family.map 2>log.map
 
-MORE HERE
+This may take a while (do a tail -f on the log file). Look at the log file
+to get an idea. the larger families (>= 10) should be fine. 
+
+The output is in TAB-delimited format.  Currently the mappings are from ENSF
+to ENSF; it may be better to use internal_id's at some point, but that is
+trivial to change. NOTE: to run the mapping, the gene/peptide id's that are
+read from the old and new databases must already have been mapped!
+
+Note on the algorithm: nothing fancy really, the two lists of families are
+sorted by size, then starting with the largest of the old families, the best
+matching family is greedily picked from the new list, and so on down till we
+have run out of matches. The 'best matching' family is the one that has the
+largest MAX(overlap(SPTR), overlap(ENSPEP)), where overlap(X) is the
+percentage of matching cross-references to database X in the old and new
+family databases. The percentage used is
+100*accessions-in-both-old-or-new/those-in-either.
+
+
+
+
+# ------------------------------------------------------------------------
+
+alignments: to come.
