@@ -89,7 +89,7 @@ been properly documented yet. But the first bits are:
  - The next step is adding the family additions for genes that have no
    description. This is done by running
 
-     ensembl/scripts/desc-from-fam.sh coreDB famDB DBNAME -h host -u user 
+     ensembl/scripts/desc-from-fam.sh coreDB famDB ENSEMBLGENE -h host -u user 
 
    where coreDB is an ensembl database, famDB the family database, and DBNAME
    the database name used inside famDB for looking up the ids. This will be
