@@ -328,3 +328,15 @@ Here is an example of the %Analysis entry in Analysis.pm
     },
   ],
 );
+
+Loading the Interpro data
+A link is needed between the signatures ids (eg: Pfam, Prints, Prosite, ...) and the interpro accessions.
+Two files are needed, interpro.txt goes into the interpro table and interpro_desc.txt goes into the xref table.
+A simple load data infile .... should be enough
+An updated version of these 2 files should be found in the following directory:
+/acari/analysis/iprscan/interpro_update/
+
+mysql to use:
+load data infile '/acari/analysis/iprscan/interpro_update/interpro.txt' into table interpro;
+load data infile '/acari/analysis/iprscan/interpro_update/interpro_desc.txt' into table xref;
+
