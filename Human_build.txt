@@ -5,18 +5,45 @@ A. Data sources:
 Protein: 
 --------
 
-* Swissprot human set
+Building genes on the human genome enjoys a gloriously rich set of sequences that can be used as evidence.  Hence, for the Pmatch/TargettedGenewise part of the annotation process there is no real need to include sequences other than those from Homo sapiens.
 
-- where they can be found - additional files
+* Swissprot human proteins
 
-# Swissprot varsplic...  Needs to be mentioned.
-You need to generate this yerself.
+Have a look for the file:
+
+ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/fasta_files/proteomes/9606.FASTAC
+
+The swissprot folks store organism specific data files according to their NCBI taxonomic id - 9606 means Homo sapiens.  
+
+For Homo sapiens/9606 you might notice there is another special file in this directory called 9606.SPEns.FASTAC.  You certainly don't want to pick up this file by mistake.  This file contains the 'human proteome set' which is largely based on ensembl protein predictions combined with any missing swissprot entries.  It would not be good to use this as a starting set for another round of annotation.  One of these files also exists for the mouse.  For more information on these files check the README file in the swissprot ftp data directory.
+
+Indeed, tt is always appropriate to have at least a quick look in the README file (ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/README) associated with this directory.  A quick check here might alert you to recent changes (which will probably be explicitly described) in the data format since the last build and help avoid a messy problem further downstream.
+
+While you are performing this download it is easy to also pick up the file:
+
+ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/swissprot_files/proteomes/9606.SPC
+
+This will be needed later in the protein xref id mapping procedure.
+
+VERY IMPORTANT: Swissprot alternative splice variants.
+
+The feature table of a swissprot entry contains much information about alternative splicing.  The swissprot protein data set can be expanded to include a sequence for each protein splice variant.  Use of this expanded data source is now pretty much a compulsory part of the human gene build.  The process to create the expanded protein set is easy-ish and uses a perl script available from:
+
+ftp://ftp.ebi.ac.uk/pub/software/swissprot/varsplic/varsplic.pl
+
+The script includes internal documentation on its usage. In addition, the download directory includes a detailed README which explains the logic of the process of creating alternative splice forms from a swissprot entry.  The script requires that the Swissprot Perl module Swissknife.pm be in your $PERL5LIB path.  This module and its documentation are available at:
+
+ftp://ftp.ebi.ac.uk/pub/software/swissprot/Swissknife/
 
 
-* Refseq human set
+* Refseq human proteins
 
-# Be totally suspicious about the refseq datafiles.  They change, they get half updated, things are missing.  Check them against previous files.  Check the NCBI refseq web site (even after you have downloaded your files and run your pmatches), read their READMEs - be vigilant. #
+The whole build process ultimately uses both the amino acid and nucleotide refseq files, hence you may as well grab both at the same time (see cDNA data sources below).  The amino acid sequences are found at:
 
+ftp://ftp.ncbi.nih.gov/refseq/H_sapiens/mRNA_Prot/human.protein.faa.gz
+
+As also mentioned in the cDNA section, the contents of the refseq download files are not unchanging from release to release.  Hence make sure to read the README files associated with the refseq ftp directory (ftp.ncbi.nih.gov/refseq).  It is definitely also worth reading and re-reading the refseq web page documents (www.ncbi.nlm.nih.gov/RefSeq/).  Little things change from time to time and it is important that a check is made that these input files don't contain certain sequence types that may perturb the build.  In particular be vigilant for proteins derived from automated annotation - these should not be allowed to become evidence for our predictions for obvious reasons.  Especially look out for sequences with XP_ prefixes - these have to be removed.  Check what the other id prefixes in the file mean and consider whether they are worth keeping.
+It is highly likely that older versions of this file are lurking about on the farm - perform a quick comparison of the old and new files (eg. count sequences, grep the description lines from different parts of the file and manually skim the contents for any surprises).  This is all pretty paranoid, but this is a phase of the build where a bit of healthy suspicion will pay off.
 
 
 cDNA:
@@ -36,6 +63,10 @@ EST:
 
 dbEST human entries
 
+* Filtering of ests is done with the assumption that lots of ests can be thrown out with little loss of data quality.  This is true for human est sets, but not so much for other organisms.
+
+
+
 
 
 Xref ID Mapping resources:
@@ -48,10 +79,29 @@ Esp. GKB files need to be made by Imre/Esther/Bijay
 
 
 B. Problems with past builds:
+=============================
+
+Short-cuts and hacks
+--------------------
+
+* The human genome is 'known'
+Compared to other organisms, so much effort has been spent looking at the human genome that in many cases the automated annotation can be readily checked against other data sources.  For example, the manual annotation is good for checking the quality of the automated annotation - especially in a scripted manner.  Also, the scientific literature is deep - via PubMed (which is at www.ncbi.nlm.nih.gov) it is almost always possible to get independent corroboration of strange things you might find during the build (and oddball section of a chromosome, a gene with 100 copies of the same exon, etc, etc).  
+
+
+Potentially surprising things
 -----------------------------
 
-C. Miscellaneous
-----------------
+* Be suspicious of the assembly.
+Your assembly is a fundamental part of your data-set.  Loading the assembly is an early part of the build process and hence mistake here can be propagated right through the whole process.  Take a little time to be paranoid about you assembly and primary sequence.  Dump the chromosomes and have a very close look at what you have.  As the assembly becomes more stable, diffs of the dumped chromosome sequence between releases might be useful for spotting things that might be awry.
 
-Make sure there is an entry in the meta table for genebuild.version of the form YYMMOrganisation
-eg 0405Ensembl
+* Human data overload.
+Compared to other organisms, the size of data available for annotating the human genome is immense.  This means that the processes used for matching this data to the genome using blast, exonerate or whatever will take much longer for this organism than for others.  Sometimes the problem is manifest in subtle ways.  For example, there are lots of human ESTs and these are highly redundant.  While this means that many of the rarer transcripts are annotated by the EST gene build, there are regions of the genome where tens of thousands of ESTs are matched.  Successfully running some processes with this much data can be a headache in terms of CPU time/memory consumption. 
+
+
+
+C. Miscellaneous
+================
+
+* Build version
+In the meta table the correct entry format for genebuild.version is YYMMOrganisation - as the human annotation is always done by us, the entry is of the format 0405Ensembl.
+
