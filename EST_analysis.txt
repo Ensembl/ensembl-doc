@@ -175,7 +175,7 @@ The number of chunks must be specified in EST_CHUNKNUMBER
 
 The chunk size is CRITICAL: too large, and your exonerate jobs will run out
 of memory, too small and they'll waste time.
-Our farm nodes have 1G of memory. We have found that for human
+Our farm nodes have 1Gb of memory. We have found that for human
 sequence (dumped as RawContigs) ~350 seqs per chunk is optimal, while
 for mouse (very small RCs, dumped as 500K virtual contigs) we had to
 drop this to <100 seqs per chunk. In any case you'll always get some jobs failing
@@ -225,9 +225,12 @@ Another index system: INDICATE (by Steve Searle)
 	  swallParser for swall, rikenParser for riken,... )
 	  ( if you only have 1-word display_ids in a multiple-entry fasta file
 	  the parser to use is 'singleWordParser')
+	  
 
 	The seqfetcher to use with this index is Bio::EnsEMBL::Pipeline::SeeFetcher::OBDAIndexSeqFetcher.pm
 	make sure that it is correctly defined in your Runnables
+
+	You'll also need to use Bioperl 1 to be abkle to use OBDAIndex
 
 3. distribute the (multiple-entry fasta) EST seqfile and the index file across farm where they
 can be seen from all running nodes, and specify its location in ESTConf: 
@@ -270,7 +273,7 @@ c. Or, for mouse, where the RawContigs were tiny, we dump fixed-size 500K masked
 
 
 2. dust the masked sequence:
-use the scripts in /work2/vac/dust, they'll soon be transfered to 
+use the scripts in /acari/work2/vac/dust, they'll soon be transfered to 
 nsembl-pipeline/scripts/EST/dust/
 
 copy files to /work6a/vac.tmp/fam where there is more space
@@ -716,8 +719,7 @@ the genomewise genes into this new db, e.g.:
     shell>mysqldump -t -u ***REMOVED*** -***REMOVED*** -h ecs1f "-wgene_id>=1245146" ens_NCBI_28_est gene | mysql 
     -u ***REMOVED*** -***REMOVED*** -h ecs1e -D ens_NCBI_28_est_genes &
  
-Copy the supporting evidence
-relevant to these genes and write them as features into this new database.
+Copy the supporting evidence relevant to these genes and write them as features into this new database.
 Use script ensembl-pipeline/scripts/ESTs/supp_evidence2feature.pl to convert the supporting_feature
 table into a tab-delimited file with feature table info. To use it you need to dump first
 all the supporting_feature_id's you are interested in transforming:
@@ -737,6 +739,12 @@ for the 'similarity' entry, e.g.:
 
 analysisId = 1 will be for the genes, and
 analysisId = 2 will be for the supporting features that we are going store as features in this database
+
+Stable_ids:
+
+create stable ids for gene, transcript, translations and exons
+
+
 
 
 For this database you should do the same checks as in the genebuild, as described in post_genebuild checks.txt

@@ -142,7 +142,7 @@ unzip rscu.gbff.Z (this is a really huge multiple-entry genbank file)
 
 for embl_vertRNAs you have to check first where the latest version is
 (/data/blastdb/Ensembl/embl_vertrna-1  in plato or acari )
-Use the script ensembl-pipeline/ESTs to get the mRNAs you want from 
+Use the script ensembl-pipeline/mRNA to get the mRNAs you want from 
 this database.
 
 There may be repeats and pseudogenes in embl_vertrna-1. If you're using mRNAs
