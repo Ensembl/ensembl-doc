@@ -406,8 +406,19 @@ mkdir ../families
 # For the 'after the fact' mapping from homo_sapiens_family_110 to
 # homo_sapiens_family_120 (which has been caculated but never applied), the run
 # took 5 hours, and resulted in loss of 15% old families, and new id's for 41%
-# new families.
+# new families. These results are not typical, because from 110 -> 120, mouse
+# peptides were added. The mouse singletons resulting from those could of
+# course not possibly have mapped. I therefore mapped 102 to 110 (which is
+# human ENS only), and found
 # 
+#   No mapping for old ids: (4337/15786=27 %)
+#   No mapping for new ids: (2362/13811=17 %)
+#
+# This time, a fair number of old families (prolly singletons, I didn't look)
+# got lost. I think the upcoming mapping (120 ->130), both figures below 20%
+# can be expected. 
+
+
 # Note on the algorithm: nothing fancy really, the two lists of families are
 # sorted by size, then starting with the largest of the old families, the
 # best matching family is greedily picked from the new list, and so on down
