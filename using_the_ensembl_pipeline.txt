@@ -1,0 +1,432 @@
+This document aims to descibe the basic premise of the ensembl pipeline
+including what the tables are and how they are used and setup
+
+other documents will contain specific details about how to use the 
+pipeline for specific tasks such as an ensembl genebuild or rawcomputes
+
+all the documents about the pipeline work on the premise that you
+have a ensembl core database with sequence loaded see the 
+loading_sequence_into_ensembl.txt document for details about
+how to do this
+
+if you have any questions please contact ensembl-dev@ebi.ac.uk
+
+this document therefore assumes you have these things
+
+What you need
+=============
+
+a mysql_instance with an instance of the ensembl core database
+
+bioperl-072 
+ensembl core 
+ensembl pipeline
+
+these are all availible from cvs on the web
+
+this document refers to the ensembl main trunk which should be used
+with care as it is under development
+
+it should work with branch-ensembl-14 and branch-ensembl-15 of the core
+but not the pipeline
+
+as a note the pipeline will most likely run fine with newer versions of
+bioperl but this is the only version we guarentee it works with
+
+The EnsEMBL pipeline schema
+===========================
+
+The ensembl pipeline uses an extra set of tables which need to be loaded
+onto a core database and can be found here
+
+ensembl-pipeline/sql/table.sql
+
+the tables in this extension should be in the same database as the core
+database, the main table the pipeline tables have links to in the core
+schema is the analysis table
+
+job
+---
+this contains information about specific jobs, what input_id they are 
+using what analysis they are running where their stdout and stderr and
+being redirected, how many times the job has been retries and the id from
+which ever submission system has been used
+
+
+job_status
+----------
+
+this contains the record of the various statuses a particular job has
+the current_status has a y flag in the is_current column and the 
+time records when the entry was made
+
+rule_goal
+---------
+
+this contains the analysis_id of the analysis that should be completed
+when this rule is executed
+
+rule_condition 
+--------------
+this contains the rule_id of the goal which should be
+executed together with the logic_name of an analysis which needs to be
+completed before this rule can be executed
+
+each rule can have more than one condition and all conditions need to
+have the same rule_id and must be complete before that rule
+will be executed
+
+you shouldn't have two different rules which have the same goal but 
+different conditions
+
+
+input_id_analysis
+-----------------
+
+this contains a record of input_ids together with the analyses
+which have been completed for those input_ids, what type the input
+id is and when that analysis was completed
+
+input_id_type_analysis
+----------------------
+
+this table specifies which type of input_id an particular analyses
+has analysis can have what ever type you want, it is good syntax to have
+types all in uppercase like CONTIG, the only type which has to be a 
+specifc spelling and syntax is ACCUMULATOR which should always look
+like this, what these are and what they do is explained later in the 
+document
+
+
+Dependancies within the pipeline
+================================
+
+there are 3 different types of dependancies that the ensembl pipeline
+can handle
+
+first a basic premise, the RuleManager script which runs the pipeline
+finds the input ids it should use for a particular job which input_ids 
+it takes depend on the condition that rule has
+
+A. No dependancies, these are analysis which don't depend on anything
+   being complete before they are run they just need the sequence and
+   possibly the assembly to have been loaded, These currently need to
+   depend on a Dummy Analysis which provides the input ids 
+   
+   For example the RepeatMask analysis has no dependancies but in the
+   rule_goal table  it depends on SubmitContig and it has an input_id
+   type of CONTIG, before the pipeline is set of the input_id_analysis
+   table has entries added for each contig under the analysis 
+   SubmitContig and then when checking those input_ids, which are contig
+   names against the rule for RepeatMasker it will know it can run
+
+B. Dependancies which use the same input_id, these are analysis which
+   depend on another analysis being complete and use the same input
+   id. 
+   
+   An example of this is a blast against swall, most of our blasts
+   run on contigs and all of our blasts depend on RepeatMasker being
+   complete so a Swall blast job would depend on RepeatMask being 
+   complete for a particular contig and that contig having an entry in 
+   the input_id_analysis table so when the rule was checked it could
+   be run. 
+
+   Rules can be dependant on more than one condition here you
+   would have too entries in the rule_condition table under the same 
+   rule_id and each condition would need to be complete for the same
+   input_id for it to beable to start the goal analysis
+
+C. Accumulator dependancies are where a type of analysis which require
+   all of the previously analysis to be run before it can be complete
+   the Accumulator analysis run a runnableDB called Accumulator which
+   doesn't do anything but this type of analysis allows both transition
+   between different input_id types ie from contig names to chromosomes
+   and best in genome type analyses
+
+D. Dependancies which don't use the same input id type, This is a new
+   feature of our pipeline you can now run analysis which don't use the 
+   same input_id type this is done by introducing a Wait for all stage
+   between the two analysis which use different input ids.
+   
+   The way to mark between different input_ids is to use Accumulators
+   which are described in type C
+   
+   An example of this would be the Pmatch run for the targetted genewise
+   the Pmatches are run in two stages, first each chromosome is pmatched
+   against a set of peptides, then the Pmatch results across the entire
+   genome are taken and filtered to get the best in genome hits and those
+   within 2% of those hits
+   
+   The structure of the rules for this go like this the first pmatch 
+   stage can have no dependancies so only need depend on a 
+   SubmitChromosome dummy analysis which already have entries 
+   representing each chromosome in the input_id_analysis table.
+   
+   Both the SubmitChromosome and pmatch analyses have the type CHROMOSOME
+   There is then an accumulator called Best_Wait with type ACCUMULATOR
+   which depends all the pmatches being complete, when they are all 
+   complete the accumulator runs. 
+   
+   BestPmatch (the best in genome pmatch analysis) then depends on two 
+   things the Best_Wait accumulator and a SubmitGenome dummy analysis 
+   which already has an entry in the input_id_analysis table, given 
+   that the SubmitGenome entry should already by in the input_id_analysis
+   table when the pipeline starts the BestPmatch then just has to wait
+   for the Best_Wait accumulator to complete which will happen once
+   all the Pmatch analyses have run
+
+
+this diagram should hopefully describe an example flow of rules
+
+ SubmitContig      SubmitChromosome   SubmitGenome     	SubmitSlice
+    CONTIG           CHROMOSOME         GENOME            SLICE
+ A   ^               A   ^                 ^                ^
+     |                   |                 |		    |	
+ RepeatMask            Pmatch		   |		    |
+   CONTIG            CHROMOSOME		   |		    |
+ B   ^			 ^		   |		    |
+     |		     C 	 |		   |		    |
+     |			 |	 	   |		    |
+   Swall              Best_Wait		  /		    |
+   CONTIG	     ACCUMULATOR     	/		    |
+ C   ^			 ^	      /			    |
+     |			 |	    /			    |
+     |			 |	  /			    /  
+  Blast_Wait          BestPmatch/			  /    
+  ACCUMULATOR	        GENOME			        /	    
+     ^			 ^			      /	    
+     |		      C	 |			    /	    
+     |			 |			  /	    
+     |                Pmatch_Wait	        /		    
+     |                ACCUMULATOR	      /		   
+     |		         ^		    /		    
+     |			 |		  /		    
+     |			 |	        /		    
+       \	     TargettedGenewise/ 			    
+	 \		 SLICE	
+	   \ 		 ^
+	     \		 |
+	       \	 |
+		 \	 |
+                   \SimilarityGenewise
+  			  SLICE	
+
+
+this is an example of the the flow between rules those arrows labeled 
+with either A, B or C are explained the A, B and C type of dependancies
+all other of the connections are covered by D
+
+Rules can have more than one condition. In this situation there are only
+multiple conditions for a single rule where one of the two conditions is
+an accumulator. If there are multiple conditions which aren't 
+accumulators all the conditions should provide the same type of input_id
+
+
+Setting up the system
+=====================
+
+you should already have an ensembl core database with sequence in it now
+i will describe what you need to do to setup the pipeline system to run,
+I am going describe how you would setup the those analyses in the
+rule flow described above
+
+
+1. you first need to add the pipeline tables to you ensembl core database
+-------------------------------------------------------------------------
+
+mysql -hecs1a -u***REMOVED*** -p*** ensembl_db <ensembl-pipeline/sql/table.sql
+
+2. you then need to fill in the analysis table which is part of the core
+   schema
+-------------------------------------------------------------------------
+
+there is a script to do this
+
+ensembl-pipeline/scripts/add_Analysis 
+
+this script has options to specify all the fields in the analysis table
+aswell as a input_type to go in the input_id_type_analysis
+
+running the script with the -help option should give you information
+about these
+
+these are the fields in the analysis table
+
+
+logic name this is a name for your analysis, we try and make them
+informative
+
+db this is a name for the database your database, 
+db_version the version of your database 
+db_file a path to a database file or matrix file needed by the program 
+for blast the path needs to be from whatever you set to be the 
+environment variable BLASTDB for  example if you BLASTDB is 
+/data/blastdb and you want to use the  database in 
+/data/blastdb/Ensembl/swall Ensembl/swall would be what 
+to put in the db_file column
+
+program this is the name for the program 
+program_version version of program 
+program_file this is the file for the program if the program is
+located in the directory specified in BIN_DIR in General.pm(see later in
+docs) you only need give the program name otherwise it is best to 
+specify the full path
+
+parameters this is any commandline parameters your program might need,
+the format should be a comma delimited list, if the option is just a
+commandline flag e.g -gi or -low that is what should appear but if it
+is a flag and a value the entry should look like this 
+'-lib => /path/to/library_file' for example the parameters string 
+'-low, -lib => /ecs2/work1/lec/briggsae.lib' would be parsed to 
+produce a command line like this 
+/usr/local/ensembl/bin/RepeatMasker  -low -lib 
+/ecs2/work1/lec/briggsae.lib AC091216.24470.32005.2980374.seq
+
+
+module this should either be the name of the module which is located in
+Bio::EnsEMBL::Pipeline::RunnableDB or if the module isn't located there
+it should be the full name of the module 
+module_version version of module
+
+gff_source the source or program which produces these results
+gff_feature the type of feature e.g repeat, homology or gene
+
+the input_id_type_analysis table is also filled in by the add_Analysis
+this table links the analysis_id to an input_id_type
+
+this input_id types can in theory be anything. The only fixed 
+input id type is ACCUMULATOR, analysis which are to act as 
+ACCUMULATOR's should have the type ACCUMULATOR and use the module 
+Accumulator other than that the only guideline is that any analysis 
+which use the same set of input_ids should share an input_id type
+examples of this are, if analysis use contig names as input_ids they
+all should be of type CONTIG but if they use slice names ie 
+chr_name.start-end the size of the slices should all be the same ie 
+you shouldn't use a combination say of 5MB and 1MB slices otherwise
+you analysis may contain a lot of repeat results 
+
+3. Now you need to fill in the rule tables
+------------------------------------------
+
+there are two rule tables. 
+
+rule_goal which contains a rule_id and an analysis_id (labelled as goal),
+the analysis_id points to the analysis which should be run when the rule
+is executed
+
+rule_condition contains rule_id and a logic_name(labelled condition) 
+which is the logic_name of an analysis that rule depends on, a single
+rule can have multiple conditions
+
+below is an example of the rule_goal table and the rule_condition table
+and a subset of the data from the analysis and input_id_tupe_analysis
+tables
+
+
+analysis_id/logic_name/input_id_type
+
++-------------+---------------------+---------------+
+| analysis_id | logic_name          | input_id_type |
++-------------+---------------------+---------------+
+|           2 | TGE_gw              | SLICE         |
+|           3 | Pmatch              | CHROMOSOME    |
+|           4 | Pmatch_Wait         | ACCUMULATOR   |
+|           5 | similarity_genewise | SLICE         |
+|          11 | Swall               | CONTIG        |
+|          13 | BestPmatch          | GENOME        |
+|          15 | RepeatMask          | CONTIG        |
+|          25 | SubmitContig        | CONTIG        |
+|          26 | SubmitSlice         | SLICE         |
+|          27 | SubmitChromosome    | CHROMOSOME    |
+|          28 | Best_Wait           | ACCUMULATOR   |
+|          29 | SubmitAll           | GENOME        |
+|          30 | Blast_Wait          | ACCUMULATOR   |
++-------------+---------------------+---------------+
+
+
+rule_goal
+
+
++---------+------+
+| rule_id | goal |	logic_name  type
++---------+------+
+|       3 | 15   |	RepeatMasker CONTIG
+|      14 | 11   |	Swall	     CONTIG
+|      17 | 30   |	Blast_Wait   ACCUMULATOR
+|      19 | 3    |	Pmatch       CHROMOSOME
+|      20 | 28   |	Best_Wait    ACCUMULATOR	
+|      23 | 13   |	BestPmatch   GENOME
+|      24 | 4    |	Pmatch_Wait  ACCUMULATOR
+|      26 | 2    |	TGE_gw       SLICE
+|      27 | 5    |	similarity_genewise	SLICE
++---------+------+
+
+rule_conditions
+
++---------+------------------+
+| rule_id | condition        |
++---------+------------------+
+|       3 | SubmitContig     |
+|      14 | RepeatMask       |
+|      17 | Swall            |
+|      19 | Raw_Wait         |
+|      19 | SubmitChromosome |
+|      20 | Pmatch           |
+|      23 | SubmitAll        |
+|      23 | Best_Wait        |
+|      24 | BestPmatch       |
+|      26 | Pmatch_Wait      |
+|      26 | SubmitSlice      |
+|      27 | TGE_gw           |
+|      27 | Blast_Wait       |
++---------+------------------+
+
+
+these rules should allow for a rule flow like in the diagram for the 
+dependancies
+
+i will describe how one chain from that diagram is representing in the
+rules, this is the first chain which starts with SubmitContig
+
+the RepeatMask analysis has no dependancies some must be made to depend
+on a Dummy Analysis which is SubmitContig and will already have
+entries in the input_id_analysis table so the RuleManager script 
+will know it can run
+
+Once a RepeatMask job has run sucessfully entires should be written to
+the input_id_analysis table, After each sucessful RepeatMask job has 
+finished a Swall job can run. 
+
+Blast_Wait an accumulator type job is dependant on Swall, logic within
+the RuleManager script and the modules it uses recognise that Blast_Wait
+is an accumulator and will only set this job of once all the Swall
+jobs are finished
+
+similarity_Genewise is dependant on both TGE_gw jobs being finished
+and the Blast_Wait job being run, the jobs get their input_ids from the
+TGE_gw analysis, the Blast_Wait marker is just an entry in the 
+input_id_analysis table to mark the accumulator being finished 
+
+
+you can add rules to the rule table using the 
+ensembl-pipeline/scripts/RuleHandler.pl
+
+here is an example commandline
+
+./RuleHandler.pl -host ecs1a -dbname pipeline_db -dbuser ***REMOVED*** 
+-pass ensro -insert -goal BestPmatch -condition SubmitAll 
+-condition Best_Wait 
+
+more information about this script can be got if the -help flag is
+used this script can also be used to disply the rules and analysis and
+also delete rules
+
+4. filling in the input_id_analysis table
+-----------------------------------------
+
+any dummy entries in the analysis table need entries in the input_id
+analysis table in my rule flow example the dummy entries which require
+entries in the analysis table before the pipeline was started are
+SubmitContig, SubmitChromosome, SubmitAll and SubmitSlice
+
+a script can be used to 
