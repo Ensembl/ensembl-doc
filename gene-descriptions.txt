@@ -108,10 +108,14 @@ so that if bad comes to worst, you at least already have the obvious bits
    DBNAME. 
 
    The merged gene description table that is created in famDB does not
-   automatically replace the old one; this has to be done by hand, e.g. as
-   follows:
+   automatically replace the old one in the core database; this has to be
+   done by hand. Go to the core database, and do:
 
      delete from gene_description;
      insert into gene_description select * from famDB.gene_description;
 
-   (assuming again famdb and coredb are on the same  server). 
+   (assuming again famdb and coredb are on the same  server; if not you're
+   hosed by this time !)
+
+   After this, it's better to delete the gene_description table in the family
+   database, as it has no business there and takes up space. 
