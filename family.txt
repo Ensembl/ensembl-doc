@@ -224,7 +224,7 @@ User description (should this go elsewhere?):
 # it will need (1.1 Gbyte for P=8000)
 
 # -I is the inflation parameter: the higher, the more (and smaller) families
-# will be.
+# will be. See note below, too.
 
 ## Further optimization stragegies, in case it's too slow:
 #
@@ -232,6 +232,18 @@ User description (should this go elsewhere?):
 #    -P 2000 -M 1500 -pct 90
 #    -P 2000 -M 1500 --adapt -pct 90
 #    -P 3000 -M 2000 --adapt -pct 90
+
+# Note added after doing the (test) ID mapping from 110 to 120 : it turns out
+# that there is some 'chaining' due to the addition, as of 120, of the mouse
+# peptides. That is, the new families are much bigger, because some mouse
+# peptides provide 'bridges of similarity' between families that were
+# formerly separate. So the families are not bigger in over-all terms (as
+# would be expected when clustering more peptides), but also when counted per
+# contributing database. Some of this chaining is to be expected. Because of
+# this, it is worth doing the clustering with higher inflation levels. The
+# optimum is determined by the total %-tage of additional gene-descriptions
+# that can be obtained this way (because that's one of the main reasons for
+# doing the clustering in the first place ...)
 
 # ------------------------------------------------------------------------
 # put the numbers and strings back together again:
@@ -399,10 +411,12 @@ mkdir ../families
 # Note on the algorithm: nothing fancy really, the two lists of families are
 # sorted by size, then starting with the largest of the old families, the
 # best matching family is greedily picked from the new list, and so on down
-# till we have run out of matches. The 'best matching' family is the one that
-# has the largest MAX(overlap(SPTR), overlap(ENSPEP)), where overlap(X) is
-# the percentage of matching cross-references to database X in the old and
-# new family databases. The percentage used is
+# till we have run out of matches. (The sorting is only to speed things up,
+# as the likelihood to find a good match between the big families is higher,
+# so you'll more quickly reduce the search space).  The 'best matching'
+# family is the one that has the largest MAX(overlap(SPTR), overlap(ENSPEP)),
+# where overlap(X) is the percentage of matching cross-references to database
+# X in the old and new family databases. The percentage used is
 # 100*accessions-in-both-old-and-new/those-in-either. If this max overlap
 # percentage is > $minperc (default: 10), the match is kept; otherwise, new
 # id's will be used.
