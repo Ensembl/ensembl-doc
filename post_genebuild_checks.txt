@@ -74,6 +74,10 @@ where x is the assembly number
 5. exons with no supporting feature data - there will be some but it should not be an enormous number!
      select count(exon.exon_id) from exon left join supporting_feature on exon.exon_id=supporting_feature.exon_id where supporting_feature.exon_id is NULL;
 
+6. If you want to print the chromosome where those exons fall:
+
+     select e.exon_id, c.name from chromosome c, assembly a, exon e left join supporting_feature on e.exon_id=supporting_feature.exon_id where supporting_feature.exon_id is NULL and e.contig_id = a.contig_id and c.chromosome_id = a.chromosome_id
+
 
 
 ###################
