@@ -100,12 +100,15 @@ where x is the assembly number
 2. all transcripts have exons
     select count(transcript.transcript_id) from transcript left join exon_transcript on transcript.transcript_id=exon_transcript.transcript_id where exon_transcript.transcript_id is NULL;
 
-5. check that there are no too-long single exon genes (>50kb)
+3. all transcripts belong to a gene
+select count(distinct t.transcript_id) from transcript t left join gene g on g.gene_id =t.gene_id where g.gene_id is null;
+
+4. check that there are no too-long single exon genes (>50kb)
      start with 
   select exon_id,  (contig_end - contig_start +1 ) as length  from exon having length > 50000; 
      and pick out those that are single exon genes - should not be any.
 
-6. you can also have a look at how many single-exon genes there are
+5. you can also have a look at how many single-exon genes there are
      select count(*) as c,transcript_id from exon_transcript group by transcript_id having c=1;
 
 
