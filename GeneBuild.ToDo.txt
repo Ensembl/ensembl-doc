@@ -1,6 +1,17 @@
 File for listing all those jobs we want to do but haven't got round to yet.
 
 1. Slim & tidy Combine_Genewises_and_E2Gs.pm (vac, 10.01.2003).
-2. Pipeline the GeneBuils (lec 10.01.2003)
+   Rewrite  Combine_Genewises_and_E2Gs.pm:
+      rename it
+      introduce the methods of TranscriptComparator
+      Include also cdna genes as in GeneCombiner
+      Ideally: merge GeneCombiner and Combine_Genewises_and_E2Gs.pm into one analysis step
+2. Pipeline the GeneBuild (lec 10.01.2003)
 3. Make base GeneBuild runnable (lec 10.01.2003)
 4. Make transcripts and Prediction transcripts complete transparent (lec 10.01.2003) 
+5. Create Transcript evidence table: transcript_id, hit_name, analysis
+6. GeneBuilder:
+   Introduce the methods of TranscriptComparator
+   Refine the hierarchy of transcripts to be chosen to make up the genes
+
+  
