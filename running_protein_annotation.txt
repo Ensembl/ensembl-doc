@@ -80,11 +80,15 @@ PA_PROTEOME_DUMMY this is the name of the dummy analysis object
                   for analysis which are done on the whole proteome, 
                   this is used for quick analysis like seg
 
+there are also three similar variable postfixed with type which
+are meant to contain the input_id_type for each of these analysis
+
 There is an example of this file at the bottom of this document.
 
-The dummy analyses are needed so the script which sets of the jobs has
+The dummy analyses are needed so the script which sets off the jobs has
 an idea of what analyses to start when it is running.
 
+there are three different types of 
 
 Bio::EnsEMBL::Pipeline::Config::General
 
@@ -131,6 +135,8 @@ QUEUE_CONFIG this is another array of hashes, each element contains
 There are also default settings for Batch_size, retries output_dir and
 queue and runner script that Job will use if an analysis doesn't have an 
 entry here
+
+Here at Hinxton these are the analyses we run and on
 
 *****************************************************************
 
@@ -249,9 +255,16 @@ load data infile '/acari/analysis/iprscan/interpro_update/interpro_desc.txt' int
 Here is an example of the %Analysis entry in Analysis.pm  
 
 %Analysis = (
-	     PA_SINGLE_DUMMY => 'SubmitTranscript', # this is the logic name for the dummy analysis type required in order to start those analyses
-	     PA_CHUNK_DUMMY => 'SubmitTranscriptChunk', # as above but for chunk of peptides
+	     PA_SINGLE_DUMMY => 'SubmitTranscript', # this is the logic 
+				#name for the dummy analysis type 
+				#required in order to start those 
+				#analyses
+	     PA_SINGLE_TYPE => 'TRANSLATIONID',	
+	     PA_CHUNK_DUMMY => 'SubmitTranscriptChunk', # as above but 
+	     #for chunk of peptides
+	     PA_CHUNK_TYPE => 'FILENAME',
 	     PA_PROTEOME_DUMMY => 'SubmitProteome',
+	     PA_PROTEOME_TYPE => 'PROTEOME'
 
 	     PA_ANALYSIS_TYPE => [
 				  {
