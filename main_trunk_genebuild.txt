@@ -717,13 +717,15 @@ database.
 
 Options to be set in GeneConf.pm:
 
-GB_VCONTIG		set to 1 as we're running on Virtual Contigs
-GB_FINALDBNAME		Name of databse to which final stage genes will be written
-GB_FINALDBHOST		Host where final db lives
-GB_DBUSER		Read/write database user
-GB_DBPASS		Password for read/write user
-GB_MIN_GENSCAN_EXONS	Genscan transcripts with fewer than this number of exons will be discarded
-GB_GENSCAN_MAX_INTRON	Genscan transcripts will be split if intron length exceeds this threshold.
+GB_ABINITIO_TYPE
+GB_ABINITIO_SUPPORTED_TYPE types given to abintio exons
+GB_FINALDBNAME	 Name of databse to which final stage genes will be written
+GB_FINALDBHOST	 Host where final db lives
+GB_FINALDBUSER   user
+GB_FINALDBPASS   password        
+GB_MIN_GENSCAN_EXONS the minimum number of genes a abintio gene needs before it is considered
+GB_GENSCAN_MAX_INTRON  the max intron size for an abintio gene
+
 
 H. Checking results before web handover
 ---------------------------------------
