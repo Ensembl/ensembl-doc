@@ -88,6 +88,13 @@ Main steps in release coordination
 
   From time to time ask James Smith to run lite in the corresponding 
 
+  Note that, currently, if there are new SNPs, the following needs to be done
+  *in this order*:
+
+    - rebuild SNP database
+    - generate lite databases
+    - recalculate SNP density features
+
 * E - On the Genebuild handover date all dbs but compara/family are expected 
   to be ready and copied over to ecs2d.
 
