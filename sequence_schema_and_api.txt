@@ -1,0 +1,348 @@
+This document describes how sequence and assembly information is stored in
+the EnsEMBL database, and how this information should be loaded when creating
+a new EnsEMBL database.
+
+for ay questions please contact ensembl-dev(ensembl-dev@ebi.ac.uk)
+
+What you need
+=============
+
+*a mysql instance
+*The ensembl core CVS module named ***REMOVED***
+
+Creating the Database
+=====================
+
+You need to create a database on your mysql instance and then create the 
+tables.
+
+The SQL table definitions are found in the file:
+ensembl/sql/table.sql
+
+To add the table definitions to an already existing database perform the 
+following command from a shell:
+
+mysql -h localhost -u ensdamin -p *****  my_ensembl_db < path/to/ensembl/sql/table.sql 
+
+
+Database Tables
+===============
+
+The database has several tables which contain sequence, assembly and meta 
+information.  The following describes what each of these tables and what
+they should contain once they are populated.
+
+coord_system
+------------
+This table lists the available coordinate systems in the database.  Each 
+coordinate system has a name and a version (which may be blank).  In addition
+there is an attrib column which can be used to define other properties of the
+coordinate systems.
+
+The version of a coordinate system can be thought of as a tag which applies to
+all sequences of a given coordinate system.  For example the version of a 
+human coordinate system could be 'NCBI33' because the tag 'NCBI33' is 
+associated with every chromosome of that coordinate system. It would not be 
+appropriate, however, to assign a version such as '4' to a clone coordinate 
+system since this describes a particular clone and not every clone in the 
+database.
+
+The name and version of the coordinate system uniquely define a coordinate
+system.  It is acceptable to leave the version blank.  It is only possible to
+have coordinate systems with the same name if they have different versions
+(for example 'chromosome', 'NCBI33' and 'chromosome', 'NCBI34' could both be
+valid coordinate systems in the same database).
+
+There are three possible attributes that may be associated with a coordinate
+system: 'top_level', 'sequence_level', 'default_version'.  There must be
+one and only one coordinate system which is the 'sequence_level' coordinate
+system. This tells the EnsEMBL system which coordinate system sequence is 
+stored at.  There can be multiple 'top_level' coordinate systems but 
+they must have the same name and different versions.  The 'top_level' attribute
+simply describes what coordinate system is the most assembled.  Coordinate 
+systems may also be flagged as 'default_version' so that it is not always
+necessary to specify the version when using the EnsEMBL system.  Only one
+default version per unique name can be specified.  For example, 'NCBI34' could
+be set to be the default version of the 'chromosome' system so that users of 
+the software would only have to specify 'chromosome' rather than the fully 
+qualified 'chromosome','NCBI34'.  It is a good idea to specify a default 
+version for each named coordinate system even if only one version is present 
+in the database.
+
+The following is an example of a populated coord_system table:
+
+mysql> select * from coord_system;
++-----------------+-------------+---------+--------------------------------+
+| coord_system_id | name        | version | attrib                         |
++-----------------+-------------+---------+--------------------------------+
+|               1 | chromosome  | NCBI33  | top_level,default_version      |
+|               2 | supercontig | NULL    | default_version                |
+|               3 | clone       | NULL    | default_version                |
+|               4 | contig      | NULL    | default_version,sequence_level |
++-----------------+-------------+---------+--------------------------------+
+
+
+seq_region
+----------
+The seq_region table describes the regions of sequence which are in the
+database.  Each seq_region has a name, length and associated coordinate system.
+Formerly different sequence types were defined in the chromosome, contig, clone
+and assembly tables.  Every type of sequence is now defined in the seq_region
+table and the types are distinguished by their associated coordinate systems.
+
+It is valid to have two seq_regions with the same name as long as they have
+different coordinate systems.  For example there could be a seq_region 'X' in 
+the 'chromosome','NCBI33' coordinate system and the seq_region 'X' in the 
+'chromosome', 'NCBI34' coordinate system.  The following are some examples of
+some of the information contained in a populated seq_region table:
+
+mysql> select sr.* from seq_region sr,  coord_system cs where sr.coord_system_id = cs.coord_system_id and cs.name = 'clone' limit 3;
++---------------+------------+-----------------+--------+
+| seq_region_id | name       | coord_system_id | length |
++---------------+------------+-----------------+--------+
+|        971683 | AB000878.1 |               3 |  33983 |
+|        971684 | AB000879.1 |               3 |  39436 |
+|        971682 | AB000880.1 |               3 |  22973 |
++---------------+------------+-----------------+--------+
+
+
+mysql> select sr.* from seq_region sr,  coord_system cs where sr.coord_system_id = cs.coord_system_id and cs.name = 'chromosome' limit 3;
++---------------+------+-----------------+-----------+
+| seq_region_id | name | coord_system_id | length    |
++---------------+------+-----------------+-----------+
+|        963692 | 1    |               1 | 245203898 |
+|        963701 | 10   |               1 | 135480874 |
+|        963702 | 11   |               1 | 134978784 |
++---------------+------+-----------------+-----------+
+
+
+dna
+---
+The dna table contains the actual dna sequence.  Each row in the dna table 
+references a single seq_region. It is important to note that every seq_region
+in the coord_system that has been flagged 'seq_level' should have dna sequence
+associated with it, and that no other seq_regions should.
+
+The following in an example of a query from the dna table showing the length
+of some of the sequences:
+
+mysql> select sr.name, length(d.sequence) from seq_region sr, dna d where sr.seq_region_id = d.seq_region_id limit 3;
++---------------------+--------------------+
+| name                | length(d.sequence) |
++---------------------+--------------------+
+| AB015752.1.1.116160 |             116160 |
+| AB019437.1.1.200000 |             200000 |
+| AB019438.1.1.200000 |             200000 |
++---------------------+--------------------+
+
+
+assembly
+--------
+
+The assembly table describes how coord_systems are made up of each other.
+It describes the relationship between seq_regions in pairs. One 
+coordinate system must be considered the assembled coordinate system and
+the other the component.  Assembled seq_regions are made up from one or more 
+component peices.  Each piece is a row in the assembly table and both the
+assembled and component piece must be the same length. Relationships between
+the clone and contig tables which were formerly described by the embl_offset
+in the contig table are now also defined in the assembly table.
+
+The following is an example of some of the relationships defined in the table:
+
+mysql> select sr1.name, a.asm_start, a.asm_end, sr2.name, a.cmp_start, a.cmp_end, a.ori from assembly a, seq_region sr1, seq_region sr2 where sr1.seq_region_id = a.asm_seq_region_id and sr2.seq_region_id = a.cmp_seq_region_id  limit 3;
++------+-----------+---------+----------------------+-----------+---------+-----+
+| name | asm_start | asm_end | name                 | cmp_start | cmp_end | ori |
++------+-----------+---------+----------------------+-----------+---------+-----+
+| 20   |      8001 |   11943 | AL645732.1.1.3943    |         1 |    3943 |   1 |
+| 20   |     11944 |  174066 | AL360078.16.1.164123 |      2001 |  164123 |   1 |
+| 20   |    174067 |  327136 | AL034548.25.1.153170 |       101 |  153170 |   1 |
++------+-----------+---------+----------------------+-----------+---------+-----+
+
+
+
+meta
+----
+The meta table contains database meta information, only some of which is 
+related to sequence and assemblies.  The relationships between coordinate
+systems which have been explicitly defined in the assembly table must be
+listed in the meta table with the meta_key 'assembly.mapping'.  The format
+for these entries is:  
+<assembled_cs_name>[:<version>]|<component_cs_name>[:version]
+
+The 'assembly.default' and 'assembly.maxcontig' values are no longer required.
+
+The following is an example of the meta assembly information in a populated
+database:
+
+mysql> select * from meta where meta_key = 'assembly.mapping';
++---------+------------------+--------------------------+
+| meta_id | meta_key         | meta_value               |
++---------+------------------+--------------------------+
+|      43 | assembly.mapping | chromosome:NCBI33|contig |
+|      44 | assembly.mapping | clone|contig             |
+|      45 | assembly.mapping | supercontig|contig       |
++---------+------------------+--------------------------+
+
+
+meta_coord
+----------
+
+The meta_coord table describes what coordinate systems have been used to
+store the features which are in the database.  It is not necessary to 
+populate this table when the sequence and assembly information is loaded
+but you may wish to.  When features are stored in the datase, if the 
+meta_coord information is not present it will be automatically added. The
+following shows the contents of the meta_coord table in a populated database:
+
+mysql> select mc.table_name, cs.name, cs.version from meta_coord mc, coord_system cs where cs.coord_system_id = mc.coord_system_id;
++-----------------------+------------+---------+
+| table_name            | name       | version |
++-----------------------+------------+---------+
+| qtl_feature           | chromosome | NCBI33  |
+| exon                  | chromosome | NCBI33  |
+| gene                  | chromosome | NCBI33  |
+| karyotype             | chromosome | NCBI33  |
+| misc_feature          | chromosome | NCBI33  |
+| transcript            | chromosome | NCBI33  |
+| marker_feature        | contig     | NULL    |
+| prediction_transcript | contig     | NULL    |
+| simple_feature        | contig     | NULL    |
+| protein_align_feature | contig     | NULL    |
+| dna_align_feature     | contig     | NULL    |
+| repeat_feature        | contig     | NULL    |
++-----------------------+------------+---------+
+
+
+Order of Loading
+================
+
+The following is the recommended order of storing assembly and sequence 
+information in the database.  Storing in this order will allow foreign keys
+to be correctly used when storing.  Remember that seq_region references 
+coord_system, assembly references seq_region, dna references seq_region. 
+
+coord_systems
+seq_region / dna
+assembly
+meta
+
+
+Loading Coordinate Systems
+==========================
+
+The CoordinateSystem adaptor can be used to store newly created CoordSystem 
+objects in the database.  This is the recommended way to store coordinate 
+systems since it allows some sanity checking to be performed on the 
+data.  The following example shows how a new coordinate system can be stored:
+
+use Bio::EnsEMBL::DBSQL::DBAdaptor;
+use Bio::EnsEMBL::CoordSystem;
+
+$db = Bio::EnsEMBL::DBSQL::DBAdaptor->new(...);
+
+$csa = $db->get_CoordSystemAdaptor();
+
+$cs = Bio::EnsEMBL::CoordSystem->new
+  (-NAME            => 'chromosome',
+   -VERSION         => 'NCBI35',
+   -DEFAULT         => 0,
+   -SEQUENCE_LEVEL  => 0,
+   -TOP_LEVEL       => 1);
+
+$csa->store($cs);
+
+
+Loading Sequence Regions and DNA
+================================
+
+The SliceAdaptor can be used to store new sequence regions and sequence.  
+The SliceAdaptor store() method takes a slice (which must start at 1 and 
+have strand = 1) and takes it as a definition for the entire sequence region. 
+Slices which are on the sequence level coordinate system must provide a 
+sequence argument as well.  The following example shows how a sequence region 
+can be stored in the database:
+
+use Bio::EnsEMBL::DBSQL::DBAdaptor;
+use Bio::EnsEMBL::Slice;
+
+$db = Bio::EnsEMBL::DBSQL::DBAdaptor->new(...);
+
+$csa = $db->get_CoordSystemAdaptor();
+$sa  = $db->get_SliceAdaptor();
+
+$cs = $csa->fetch_by_name('contig');
+
+$slice = Bio::EnsEMBL::Slice->new
+  (-seq_region_name  => 'AB019437.1.1.200000',
+   -start            => 1,
+   -end              => 200000,
+   -strand           => 1,
+   -coord_system     => $cs);
+
+$sequence = 'ACTG' x 50000;
+
+$sa->store($slice, \$sequence);
+
+
+
+Loading Assemblies
+==================
+
+The assembly table must be loaded with any coordinate systems that you wish
+direct mapping to be possible between.  The API will perform two step mapping
+between coordinate systems so it is not necessary to populate the assembly
+table with every mapping that you would like to be possible.  For example
+if you have assembly information describing how chromosomes are assembled from
+clones and information on how clones are assembled from contig then after 
+loading this information into the database it will be possible to peform
+mapping between the chromosomes and contig coordinate systems even if the 
+explicit mapping is not present in the assembly table. This is two step mapping
+because it uses the clone coordinate system as an intermediate coordinate 
+system:  contig <-> clone <-> chromosome.  All of this should be completely
+transparent to users of the system however.
+
+Information in the assembly table is usually loaded from AGP files.
+There is currently no API support for the loading of the assembly table, and
+here isn't a standard script in ensembl for loading agps as the script 
+needed very much depends on the information in your agp files.
+
+The standard agp format is described here
+
+http://www.sanger.ac.uk/Projects/C_elegans/DOCS/agp_files.shtml
+
+it should contain information the chromosomal coords of  the dna pieces 
+and the gaps and which accessioned clones those pieces come from
+
+you need a script that will produce a tab delimited file that can be 
+loaded into the assembly table.  The tab delimited file will need the 
+information required for the columns in the assembly table in the order the 
+columns appear in the table. Once this has been created the mysqlimport tool 
+can be used to populate the table.
+
+For an example of agp parsing code you can look here
+
+ensembl-pipeline/scripts/DataConversion/wormbase/WormBase.pm
+
+this contains a method called agp_parse to see how this method is used 
+look at the sequence_store.pl script in the same directory
+
+The assembly table has an implicit definition of gaps - they are not stored
+directly. A gap is simply defined by the absence of assembly information 
+in a region.  The API code which retrieves sequence from the database
+simply pads any undefined regions with Ns.
+
+Loading the meta table
+======================
+Information can be added to the meta table using the MetaContainer.  The
+following information shows how meta information can be added to the database:
+
+use Bio::EnsEMBL::DBSQL::DBAdaptor;
+
+my $db = Bio::EnsEMBL::DBSQL::DBAdaptor->new(...);
+
+my $mc = $db->get_MetaContainer();
+
+$mc->store_key_value('assembly.mapping', 'chromosome:NCBI33|contig');
+$mc->store_key_value('assembly.mapping', 'clone|contig');
+$mc->store_key_value('assembly.mapping', 'supercontig|contig');
