@@ -13,5 +13,6 @@ File for listing all those jobs we want to do but haven't got round to yet.
 6. GeneBuilder: (eae 10/01/2003)
    Introduce the methods of TranscriptComparator
    Refine the hierarchy of transcripts to be chosen to make up the genes
-
+7. Replace multiple ensembl-pipeline/sql entries with script to autogenerate and load 
+   analysis table entries based on config files. (vac 13.01.2003)
   
