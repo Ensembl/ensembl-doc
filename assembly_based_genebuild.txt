@@ -111,6 +111,29 @@ fields to be filled in should be self explanatory.
 
 9. Fill in relevant fields of pipe_conf.pl, notably nfstmpdir (defaults to /tmp) and bindir - which is essential!
 
+10. Make sure you have 2 databases:
+
+a. Database with clone, contig, static_golden_path, dna, features from raw compute pipeline
+b. Database for writing out genes from final stage of build - need to have clone, contig and static_golde_path; does not need dna or features.
+
+Load up appropriate entries into the analysisprocess table of each database:
+
+mysql -uuser -ppassword -hhost databasename < /path/to/ensembl-pipeline/sql/GeneBuild_analysisprocess.sql
+
+11. Make sure these 2 databases have an entry in the meta table to
+tell it the default assembly name - should look something like this:
+
+| meta_id | meta_key         | meta_value                 |
++---------+------------------+----------------------------+
+|       2 | assembly.default | NCBI_28                    |
+
+If not, load one up like this:
+
+mysql -uuser -ppassword -hhost -e "insert into meta values (\N, 'assembly.default', 'NCBI_28');" dbname
+
+Obviously, replace NCBI_28 with the name of the appropriate assembly -
+use the string from the 'type' column of the static_golden_path table.
+
 C. TargettedGenewise build
 ----------------------------------
 
@@ -139,11 +162,13 @@ C. TargettedGenewise build
 
     dump out one sequence per chromosome.
 
-    perl -e 'while(<>){next unless /^(\S+)\s+(\d+)\s+(\d+)/; $command = "/work2/vac/ensembl-pipeline/dump_vc_seq.pl -chrname $1 -start $2 -end $3 -outfile $1.fa"; system("$command"); print "$command\n"}' < names_and_coords
+    perl -e 'while(<>){next unless /^(\S+)\s+(\d+)\s+(\d+)/; $command = "/path/to/ensembl-pipeline/scripts/GeneBuild/dump_vc_seq.pl -chrname $1 -start $2 -end $3 -outfile $1.fa"; system("$command"); print "$command\n"}' < names_and_coords
 
 Create one directory per chromosome underneath the directory Gene_Conf::GB_FPCDIR, and into each
 of those move the fasta file(s) with the appropropriate genomic sequence in fasta format. eg for chr1, make a directory called 1, and place the file 1.fa into it.
 
+Options to be set in GeneConf.pm:
+GB_FPCDIR  Directory which will contain one directory per chromosome.
 
 2. download proteome data
 
@@ -205,6 +230,14 @@ in sptr:
 >Q62021 (Q62021) 89 kDa protein (Fragment)
 >Q9CRG9 (Q9CRG9) 2410041F14Rik protein (Fragment)
 
+Options to be set in GeneConf.pm:
+
+GB_REFSEQ  Path to fasta file of Refseq protein sequences
+GB_SPTR    Path to fasta file of swissprot/trembl protein sequences
+GB_PFASTA  Path to file where cleaned up proteome data will be written
+GB_PMATCH  Path to pmatcn executable
+
+
 4. index the seqfile using, for example, makeseqindex. You can use whatever 
 sequence indexing/fetching setup you like as long as the ensembl modules know how to use
 it. Look at ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/SeqFetcher/*
@@ -220,6 +253,10 @@ Copy proteome_file and proteome_file.jidx to the place you have
 specified in GeneConf::GB_TARGETTED_PROTEIN_INDEX and rdist across the
 farm - this is important when you come to run the Targetted build
 jobs.
+
+Options to be set in GeneConf.pm:
+
+GB_TARGETTED_PROTEIN_INDEX	Path to proteome file that is rdisted across farm. (Not .jidx file!)
 
 5. run the pmatches
 
@@ -256,6 +293,15 @@ For some assemblies you may need to split the protein file up into
 pieces and run pm_filter.pl on each chromosome with each piece - keep
 an eye on how big the script gets and split up the file as necessary.
 
+Options to be set in GeneConf.pm:
+
+GB_PFASTA     Path to file containing cleaned up proteome data produced by prepare_proteome.pl
+GB_PMATCH     Path to pmatcn executable
+GB_PM_OUTPUT  Path to directory to write pmatch output files
+GB_FPCDIR     Path to top level directory containing genomic sequence in subdirectories
+GB_TMPDIR     Path to scratch directory for output files
+
+
 6. Create tables in database to hold the pmatch results
 mysql -uuser -ppasswd -hhost dbname < ensembl-pipeline/sql/pmatch.sql
 
@@ -263,6 +309,14 @@ mysql -uuser -ppasswd -hhost dbname < ensembl-pipeline/sql/pmatch.sql
 read from pm_best.out
 
 Run FPC_Targetted_Gene_E2G on (5MB) regions
+
+Options to be set in GeneConf.pm:
+
+GB_DBNAME	  Name of interim gene build database containing dna, features, static_golden_path etc
+GB_DBUSER         DB username (need read/write access)
+GB_DBHOST         Host for interim build database
+GB_DBPASS         Password for accessing build database 
+GB_PM_OUTPUT      Path to directory containing pmatch results
 
 8. make bsub lines for submitting jobs
 
@@ -277,11 +331,25 @@ Also, look in your tmpdir (what you specified in GeneConf.pm) - all the
 output directories needed for collecting the bsub out & err files are
 made if they didn't already exist
 
+Options to be set in GeneConf.pm:
+
+GB_RUNNER		Path to run_GeneBuild_RunnableDB
+GB_DBNAME		Name of interim gene build database containing dna, features, static_golden_path etc
+GB_DBHOST		Host for interim build database
+GB_DBUSER		DB username (need read/write access)
+GB_DBPASS		Password for accessing build database
+GB_QUEUE		LSF queue on which jobs should be run, plus any options
+GB_TMPDIR		Path to scratch directory
+GB_LENGTH_RUNNABLES	Names of length based runnables to be used
+GB_TARGETTED_RUNNABLES	Unlikely to need this so leave it blank
+GB_PM_OUTPUT		Path to directory containing pmatch results
+GB_SIZE			size of chunk to use in build - typicall 5000000 (5MB)
+
 9. Run FPC_TargettedGeneE2G jobs 
 
 This is as easy as typing submit.pl < FPC_TargettedGeneE2G.jobs BUT WAIT!
 
-I ALWAYS run test jobs forst before unleashing everything on the farm:
+I ALWAYS run test jobs first before unleashing everything on the farm:
 
 a. check the pre-exec command (the bit in double quotes) by running on
 the command line
@@ -295,6 +363,10 @@ d. if all is well, submit the remaining jobs.
 You can submit jobs using
 ensembl-pipeline/scripts/GeneBuild/submit.pl, adjusting the number of
 seconds in the sleep statement as required.
+
+Options to be set in GeneConf.pm:
+GB_TARGETTED_PROTEIN_INDEX	Path to indexed rdisted proteome file produced earlier
+
 
 10. Check for errors
 
@@ -344,9 +416,23 @@ Don't start this stage until all the Targetted jobs are finished and checked.
 2. run make_bsubs.pl - output will go into FPC_BlastMiniGenewise.jobs
 in the directory from which make_bsubs.pl was run
 
-3. run some test jobs as before - this stage is the most likely to cause database contentions so you really mioght need to stagger job submissions.
+3. run some test jobs as before - this stage is the most likely to
+cause database contentions so you really might need to stagger job
+submissions.
 
 4. If all is well, submit the rest of the jobs as before
+
+Options to be set in GeneConf.pm:
+GB_PROTEIN_INDEX			Path to index of all protein sequences eg swall, swissprot, trembl
+GB_SIMILARITY_TYPE			db entry from analysisprocess table for the protein blast features you'll be using eg swall
+GB_SIMILARITY_THRESHOLD			minimum score threshold for blast features to be used ni build eg 200
+GB_SIMILARITY_COVERAGE			minimum %ID between predicted and parent protein for a genewise prediction to be written to db eg 80 (keep it high to reduce low complexity dandruff)
+GB_SIMILARITY_MAX_INTRON		maximum intron size above which transcript will be split
+GB_SIMILARITY_MIN_SPLIT_COVERAGE	coverage level above which transcript will not be split even if it has very long introns.
+
+If you're not sure about GB_SIMILARITY_COVERAGE,
+GB_SIMILARITY_MAX_INTRON and GB_SIMILARITY_MIN_SPLIT_COVERAGE, you
+should leave them alone.
 
 5. Check for errors. One to look for at this stage is "Out of memory"
 - if you see this in any of the stderr files, you'll need to identify
@@ -384,15 +470,31 @@ in the directory from which make_bsubs.pl was run
 
 5. Check for errors. 
 
+Options to be set in GeneConf.pm:
+
+GB_DBNAME	  name of interim build database (containing genewise genes)
+GB_DBHOST	  host for interim build database
+GB_DBUSER	  read/write user of interim build database
+GB_DBPASS         password for read/write user of interim build database
+
+Options to be set in ESTConf.pm:
+
+EST_DBNAME	  name of database (containing cDNA genes)
+EST_DBHOST	  host of cDNA database
+EST_REFDBUSER	  (read only) user of EST database
+
 G. Final genebuild
 -----------------
 The module that does this for you is called Gene_Builder
 
-You will be writing the final ensembl genes to a separate
-database. The name and host of this database are specified in
-GeneConf.pm as finaldbname and finaldbhost. Make sure this database
-exists, has a schema (!) and has the same entries in clone, contig, static_golden_path
-and analysisprocess tables as the one you have been using. eg:
+You will be writing the final ensembl genes to a separate database -
+the reason for this is that we've had sever database locking issues
+when trying to read genes from and write genes to the same database
+across 400 farm nodes. The name and host of this database are
+specified in GeneConf.pm as finaldbname and finaldbhost. Make sure
+this database exists, has a schema (!) and has the same entries in
+clone, contig, static_golden_path and analysisprocess tables as the
+one you have been using. eg:
 
 mysql -uuser -ppassword -hinterim_dbhost interim_db
 mysql> select * from contig into outfile '/path/to/contig.file';
@@ -426,6 +528,16 @@ NOTE:
 It is very important that none of the Gene_Builder jobs is run more than
 once otherwise you'll end up with duplicate genes in the final
 database.
+
+Options to be set in GeneConf.pm:
+
+GB_VCONTIG		set to 1 as we're running on Virtual Contigs
+GB_FINALDBNAME		Name of databse to which final stage genes will be written
+GB_FINALDBHOST		Host where final db lives
+GB_DBUSER		Read/write database user
+GB_DBPASS		Password for read/write user
+GB_MIN_GENSCAN_EXONS	Genscan transcripts with fewer than this number of exons will be discarded
+GB_GENSCAN_MAX_INTRON	Genscan transcripts will be split if intron length exceeds this threshold.
 
 H. Checking results before web handover
 ---------------------------------------
