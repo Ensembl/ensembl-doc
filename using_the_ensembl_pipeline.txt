@@ -579,11 +579,12 @@ AUTO_JOB_UPDATE is true ie: set to 1 it automatically updates when a
 		job's status is changed. This will not occur if set to 0.
 		Usually, it is left set to 1.
 		
-DEFAULT_BATCH_SIZE  -
-DEFAULT_RETRIES      | series of default values, which will be used if
-DEFAULT_BATCH_QUEUE  | there is no entry for an analysis logic name
-DEFAULT_OUTPUT_DIR   |
-DEFAULT_CLEANUP     -	
+DEFAULT_BATCH_SIZE     -
+DEFAULT_RETRIES         | series of default values, which will be used if
+DEFAULT_BATCH_QUEUE     | there is no entry for an analysis logic name
+DEFAULT_OUTPUT_DIR      |
+DEFAULT_CLEANUP         |
+DEFAULT_RUNNABLEDB_PATH-
 
 QUEUE_CONFIG    an array of hashes, each element contains information 
 		about a particular analysis type (keyed in Job.pm 
@@ -624,8 +625,14 @@ QUEUE_CONFIG    an array of hashes, each element contains information
 		
 		cleanup    => 'yes', if yes, the job to delete stdout 
 		and stderr when it finishes successfully, if no the 
-		output will be kept	
-   }		   
+		output will be kept
+
+    runnabledb_path => 'Bio/EnsEMBL/Pipeline/RunnableDB', this should be
+    the path used by require to get the perl module you want to run using
+    the pipeline. As standard this will by the above but this means you
+    can utilise modules which live elsewhere provided they meet the interface
+    expected by Job.pm's run_module method
+   }            
 
 Resource and sub_args are used to pass information into the 
 batchsubmission object when it is created. In theory, they could be used
