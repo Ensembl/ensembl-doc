@@ -194,6 +194,10 @@ Once you have filled out all the tables you need to run the RuleManger
 script which again is described in the using_the_ensembl_pipeline.txt
 document
 
-
+as a warning these jobs can sometimes fail with no good reason just a 
+hardware glitch or hiccup (we you can see by looking at the stdout and 
+err files) but if you have the retries value in your BatchQueue.pm set 
+to more than 1 these jobs will be retried and should  work. If they fail
+ 4 times running with a consitent error then there is probably a problem
 
 

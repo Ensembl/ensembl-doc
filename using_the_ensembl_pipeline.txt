@@ -542,7 +542,9 @@ entry for an analysis logic name that you are running
 batch_size this is how many jobs the batchsubmission system will run in
 one command on one know, for long jobs this is best left at 1 but for
 short jobs for more efficient use of compute its good to set this to
-around 10
+around 10. If you have accumulators in your pipeline and they don't
+have entries in the hash then you need to set you default value to 1
+otherwise they will never run.
 
 retries this is the number of times that the script will resubmit a job
 when its hass failed
@@ -576,6 +578,10 @@ are both optional
 
 runner is if you want to use a different runner script for a particular
 analysis type than the one specified in General.pm
+
+cleanup, this is if you want the job to delete its stdout and stderr 
+when it finished sucessfully if you do want it to clean up, mark yes if
+you want the output to be cleaned up, no if you don't
 
 Blast.pm
 --------
@@ -696,6 +702,11 @@ perl RuleManager3.pl -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ****
  -dbname pipeline_db -analysis RepeatMask -local
 
 this would only run the RepeatMask analysis locally
+
+perl RuleManager3.pl -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ensembl 
+-dbname rat_Jun03_mk2 -shuffle -idlist_file id_list
+
+this would just run the ids in the file id_list
 
 obviously when specific analyses are specified their conditions must be 
 met otherwise they still won't be run'
