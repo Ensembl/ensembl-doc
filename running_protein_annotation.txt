@@ -208,7 +208,7 @@ here is an example of the %Analysis entry in Analysis.pm
 				  logic_name => 'pfscan', # logic name in analysis table
 				  module => 'Protein/Profile', #module path, the runner script adds this to the start Bio/EnsEMBL/Pipeline/RunnableDB so if module in RunnableDB/Protein will need to have Protein/ on name
 				  program_file => '/acari/analysis/iprscan/bin/OSF1/pfscan', # location of binary
-				  db_file => 'acari/analysis/iprscan/data/prosite_prerelease.prf', #location of any db file needed
+				  db_file => '/acari/analysis/iprscan/data/prosite_prerelease.prf', #location of any db file needed
 				  db => 'pfscan', # more human name for db
 				  chunk_size => 'SubmitTranscriptChunk', # this can be three things, single which means it will run on a single transcript, chunk which means 
 				  # it will run on a chunk file and genome which means it will run on all the transcripts in the genome
@@ -252,7 +252,7 @@ here is an example of the %Analysis entry in Analysis.pm
 				 {
 				  logic_name => 'ncoils', # logic name in analysis table
 				  module => 'Protein/Coil', #module path, the runner script adds this to the start Bio/EnsEMBL/Pipeline/RunnableDB so if module in RunnableDB/Protein will need to have Protein/ on name
-				  program_file => '/usr/local/ensembl/bin/ncoils', # location of binary
+				  program_file => 'ncoils', # location of binary
 				  db_file => '', #location of any db file needed
 				  db => '', # more human name for db
 				  chunk_size => 'SubmitTranscriptChunk', # this can be three things, single which means it will run on a single transcript, chunk which means 
@@ -274,7 +274,7 @@ here is an example of the %Analysis entry in Analysis.pm
 				 {
 				  logic_name => 'Pfam',
 				  module => 'Protein/Hmmpfam',
-				  program_file => '/usr/local/ensembl/bin/hmmpfam',
+				  program_file => 'hmmpfam',
 				  db_file => '/data/blastdb/Ensembl/Pfam_ls;/data/blastdb/Ensembl/Pfam_fs',
 				  db => 'Pfam',
 				  chunk_size => 'SubmitTranscript',
