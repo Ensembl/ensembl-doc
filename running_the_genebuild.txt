@@ -157,7 +157,7 @@ filled in:
 coord-system, seq_region, assembly,
 meta, meta_coord,  
 seq_region_attrib,attrib_type,
-assembly
+assembly_exception 
 
 The meta table should contain an assembly.default entry
 
