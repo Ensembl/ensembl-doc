@@ -162,10 +162,7 @@ in start_ensembl script
 change from 
  /ensweb/wwwdev/server/src/httpd -d /ensweb/wwwdev/server
 to
- /nfs/acari/stabenau/bin/httpd -d /nfs/acari/websites/ensembl_ecs2d_port5000
-
-We maybe need one day to have a proper general httpd in a more generic
-path /usr/local something...
+ /usr/local/ensembl/apache/bin/httpd -d /nfs/acari/websites/ensembl_ecs2d_port5000
 
 in stop_ensembl script
 change from 
