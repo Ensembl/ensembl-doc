@@ -57,6 +57,18 @@ This contains the record of the various statuses a particular job has,
 the current_status has a y flag in the is_current column and the
 time records when the entry was made.
 
+Jobs can have 8 possible different statuses. 
+CREATED, the job has been created inside the rulemanager
+SUBMITTED, the job has been submitted to the batchsubmission system
+READING, the fetch_input method of the RunnableDB is being called
+RUNNING, the run method of the RunnableDB is being called
+WRITING, the write_output method of the RunnableDB is being called
+FAILED, the job has failed for some reason and stopped running
+KILLED, the job has been running for too long and the RuleManager has
+	killed it
+VOID, A blast job is being run the the sequence has too many masked bases
+      to effectively run blast over 
+
 rule_goal
 ---------
 This contains the analysis_id of the analysis that should be completed
@@ -414,13 +426,26 @@ rule_goal.rule_id = rule_conditions.rule_id order by rule_id;
 4. Filling in the input_id_analysis table
 -----------------------------------------
 
-Any dummy entries in the analysis table need entries in the input_id
-analysis table in my rule flow example the dummy entries which require
+To start the pipeline a series of entries are required in the 
+input_id_analysis table. These entries fulfil two functions. First
+they fulfil conditions which exist in the rule_condition table but
+which don't actually match an analysis which needs to be run. Secondly
+They provide a list of input ids each associated with a type which 
+the RuleManager can check against the rules to see what to run.
+The 'fake' conditions in the rule table as matched with 'dummy'
+analyses in the analysis table. The dummy analyses generally have names
+like SubmitContig or SubmitSlice but they can be called anything. These
+analyses act as conditions for analysis which don't depend on anything
+like Repeatmasker or Pmatch. Each different type of input_id
+needs a different dummy analysis object in order to start its chain
+of dependancy. The entries for these dummy analyses can be filled
+in to the input_id_analysis table using the make_input_ids script
+which lives n  ensembl-pipeline/scripts/
+
+In my rule flow example the dummy entries which require
 entries in the analysis table before the pipeline was started are
 SubmitContig, SubmitChromosome, SubmitAll and SubmitSlice.
 
-A script can be used to load the table:
- ensembl-pipeline/scripts/make_input_ids
 
 This script currently lets you generate 5 different types of input_ids
 
@@ -483,6 +508,19 @@ this is set up in RunnableI and as default will be /tmp/.
 
 PIPELINE_RUNNER_SCRIPT is the location of the script to run the pipeline 
 and is usually: ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/runner.pl.
+
+MAX_JOB_TIME this is the maximum length of time the RuleManager will
+let a job have the status running for. For this method to work the
+BatchSubmission module being used has to of implemented the get_job_time
+method. This is implemented in the LSF module. If this method isn't 
+implemented this functionalilty will never be used.
+
+KILLED_INPUT_IDS, this is the path to a file where the input_id, logic_name
+and module of a killed job is written. The status of a job which is killed
+is also set to KILLED
+
+Both MAX_JOB_TIME and KILLED_INPUT_IDS can be overided in RuleManager
+on the commandline
 
 
 BatchQueue.pm
@@ -657,6 +695,11 @@ also need to be included.
  -killed_file     overides the path to the $KILLED_INPUT_IDS file in 
 		  General.pm
  -queue_manager   overides the $QUEUE_MANAGER in General.pm
+ 
+ -rename_on_retry, this means any output already produced will be 
+		   deleted before a job is retried, this defaults to off 
+		   currently, it was put in as LSF appends output and error 
+		   files and sometimes you don't want this
  -h or -help      print out the help 
 
 Examples
@@ -676,6 +719,18 @@ Examples
   To run RepeatMask analysis locally:
    perl RuleManager3.pl -dbhost ecs2b -dbuser ***REMOVED*** -dbpass ensembl 
     -dbname rat_Jun03_mk2 -shuffle -idlist_file id_list
+
+
+as a note RuleManager is relatively light on the CPU and is can also be
+quite verbose even without the verbose flag so it is generally best to
+run it in the background and redirect the output into a file. Also
+a RuleManager script will not actually stop itself running unless
+it is passed the -once flag. If it isn't it will continue running
+ad infinitum untill it is stop manually. If the script recieves a sigterm
+though in the form of ^C or a kill command it will stop cleanly but
+you do need to remember Your RuleManager will continue running if you
+don't stop it
+
 
 
 monitor
