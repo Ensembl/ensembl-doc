@@ -575,7 +575,7 @@ Don't start this stage until all the Targetted jobs are finished and checked.
 1. Edit GeneConf.pm and set length_runnables to be FPC_BlastMiniGenewise
 
 2. run make_bsubs.pl - output will go into FPC_BlastMiniGenewise.jobs
-in the directory from which make_bsubs.pl was run
+in the directory specified in GB_OUTPUT_DIR
 
 3. run some test jobs as before - this stage is the most likely to
 cause database contentions so you really might need to stagger job
@@ -583,26 +583,39 @@ submissions.
 
 4. If all is well, submit the rest of the jobs as before
 
-Options to be set in GeneConf.pm:
-GB_SIMILARITY_DATABASES                 An array of hashes representing the sequence database(s) from which blast 
-					hits can be retrieved to seed the genewises. A separate entry must be filled 
-					in for each database, containing database type (db column in analysisprocess table), 
-					minimum score threshold and full path to sequence index that's rdisted across farm.
-GB_PROTEIN_INDEX			Path to index of all protein sequences eg swall, swissprot, trembl
-GB_SIMILARITY_TYPE			db entry from analysisprocess table for the protein blast features you'll be using eg swall
-GB_SIMILARITY_THRESHOLD			minimum score threshold for blast features to be used ni build eg 200
-GB_SIMILARITY_COVERAGE			minimum %ID between predicted and parent protein for a genewise prediction to be written to db eg 80 (keep it high to reduce low complexity dandruff)
-GB_SIMILARITY_MAX_INTRON		maximum intron size above which transcript will be split
-GB_SIMILARITY_MIN_SPLIT_COVERAGE	coverage level above which transcript will not be split even if it has very long introns.
+GB_SIMILARITY_DATABASES, this is a hash which contians information about each source of homologies you want to use
 
-If you're not sure about GB_SIMILARITY_COVERAGE,
-GB_SIMILARITY_MAX_INTRON and GB_SIMILARITY_MIN_SPLIT_COVERAGE, you
-should leave them alone.
+an example 
+GB_SIMILARITY_DATABASES => [
+					 # fill in one complete hash for each database from which blast 
+					 # features are to be retrieved
+					 {				  
+					  'type'       => 'Swall',
+					  'threshold'  => '200',
+					  'index'      => '/data/blastdb/Ensembl/swall_021116',
+					  'seqfetcher' => 'Bio::EnsEMBL::Pipeline::SeqFetcher::OBDAIndexSeqFetcher'
+					 }
+			     ],
+
+type is the logic name of the analysis type in the analysis table
+threshold is the score cut off used when fetching the blast hits
+index is the lodation of the index file
+seqfetcher is the type of seqfetcher object to be used to access the index file the example here is OBDAIndexSeqfetcher which is used to acess steve searles indicate indexs
+
+GB_SIMILARITY_COVERAGE minium coverage of protein
+GB_SIMILARITY_MAX_INTRON max intron size allowed
+GB_SIMILARITY_MIN_SPLIT_COVERAGE 
+GB_SIMILARITY_MAX_LOW_COMPLEXITY
+
+if you are unsure about what to use for this values stick with whats in the file already
+
+GB_SIMILARITY_GENETYPE this is the type which will be given to the gene and should be the same as the logic name of the analysis object in the table for this analysis
 
 5. Check for errors. One to look for at this stage is "Out of memory"
 - if you see this in any of the stderr files, you'll need to identify
 the regions that had problems, and rerun on smaller subsets of those
 regions
+
 
 eg if chr1.1-5000000 ran out of memory, set up new jobs to run that are only 1MB long:
 chr1.1-1000000
@@ -627,7 +640,7 @@ Don't start this stage until all the Similarity jobs are finished and checked, a
 1. Edit GeneConf.pm and set length_runnables to be Combine_Genewises_and_E2Gs
 
 2. run make_bsubs.pl - output will go into Combine_Genewises_and_E2Gs.jobs
-in the directory from which make_bsubs.pl was run
+in the directory specified in GB_OUTPUT_DIR
 
 3. run some test jobs as before.
 
@@ -637,16 +650,24 @@ in the directory from which make_bsubs.pl was run
 
 Options to be set in GeneConf.pm:
 
-GB_DBNAME	  name of interim build database (containing genewise genes)
-GB_DBHOST	  host for interim build database
-GB_DBUSER	  read/write user of interim build database
-GB_DBPASS         password for read/write user of interim build database
+GB_GW_DBHOST  this is information about where to get the genewise genes
+GB_GW_DBUSER  from
+GB_GW_DBNAME
+GB_GW_DBPASS
 
-Options to be set in ESTConf.pm:
+GB_cDNA_DBHOST this is information about where to get the cdna est2genome
+GB_cDNA_DBUSER genes from 
+GB_cDNA_DBNAME
+GB_cDNA_DBPASS
 
-EST_DBNAME	  name of database (containing cDNA genes)
-EST_DBHOST	  host of cDNA database
-EST_REFDBUSER	  (read only) user of EST database
+GB_COMB_DBHOST this is where to write the combined genes too
+GB_COMB_DBUSER
+GB_COMB_DBNAME
+GB_COMB_DBPASS
+
+GB_COMBINED_GENETYPE
+GB_cDNA_GENETYPE
+GB_COMBINED_MAX_INTRON
 
 G. Final genebuild
 -----------------
