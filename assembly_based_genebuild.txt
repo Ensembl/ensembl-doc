@@ -612,6 +612,9 @@ mysql > load data infile 'path/to/final_transcript.file' into table transcript;
 mysql > load data infile 'path/to/final_translation.file' into table translation;
 mysql > load data infile 'path/to/final_supporting_feature.file' into table supporting_feature;
 
+note: we might have to do something about tis supporting feature table, as it will contain evidence
+with analysis ids which are not in the analysisprocess table, e.g.: combined_e2g
+
 5. Transfer the analysisprocess entry relevant to genes of type ensembl into the shiny new db.
 
 Once all your post-build checks are run, you're done!
