@@ -31,75 +31,122 @@ User description (should this go elsewhere?):
 # places.  The blasting/clustering code is not (yet?) part of EnsEMBL; it
 # currently lives in Anton's acari home, ~ae1/{srs,bin,blast} etc.
 
+# First thing to do is to get the code
+
+    cd work  # or whereever you keep your working copies
+
+    cvs -d somewhere checkout ensembl-external # or cvs update, of course
+
+# set/adjust some environment variables (FAMPATH and PATH).
+# Look at ensembl-external/family/setenv.{shl,csh}.example; copy it and change
+# to needs, then source it
+
+    source setenv.sh
+
+# If you're doing the source inside ensembl-external/family, you won't need 
+# any adjustment (because it uses the value of `pwd`). It might be better to
+# hardcode this though (so you can source it from elsewhere).
+
+# Next, compile things
+
+    cd src
+
+    make
+
+# that should be it
+
 # ------------------------------------------------------------------------
 
+# Getting the data.
 # get swiss-prot/sptrembl data from SRS:
-$ cd  srs
-$  fetch.pl swissprot sptrembl
+
+    cd  srs
+
+    fetch.pl swissprot sptrembl
+
 
 # gets all vertebrate seqs into vertebrate.pep and seq_types (latter says
 # wether a seq camefrom swissprot or trembl; needed later during annotation
 # phase).
 
 # ------------------------------------------------------------------------
-# get ensembl data
-#  simply get it from the ensembl-ftp server or so.
+# get the EnsEMBL data
+#  simply get it from the ensembl-ftp server or so. You may in fact need to
+#  get several ensembl sets, e.g. mouse + human. 
 
 # ------------------------------------------------------------------------
 # concatenate:
 
-thedate=`date`
-$ cat ensembl.pep vertebrate.pep > $thedate.pep
+    thedate=`date`
 
-$ rm ensembl.pep vertebrate.pep # keep seq_types
+    cat ensembl.pep vertebrate.pep > $thedate.pep
+
+# or: cat ensembl.pep mouse.pep vertebrate.pep > $thedate.pep (etc.)
+
+    rm ensembl.pep vertebrate.pep # to save space. But keep seq_types
 
 # ------------------------------------------------------------------------
 # set the location of a scratch area, and create a directory for it:
-release=fam112  #or whatever
-work=/work1/$USER/$release # or whaterver
-mkdir $work
-cd $work
-$ mkdir $work/blast
-$ mkdir $work/blast/seq
-$ mkdir $work/blast/results
-$ cd $work/blast
-$ formatdb_2.0.11 -p T  -i $work/srs/$thedate.pep
+# (I'm using sh syntax; use  ``set foo = bar'' when using csh syntax):
 
-# results in $work/srs/$thedate.{pep,phr,pin,pesq}: the blast db to be run
+
+    release=fam112  # or whatever
+
+    work=/work1/$USER/$release # or whaterver
+
+    mkdir $work
+
+    cd $work
+
+    mkdir $work/blast
+
+    mkdir $work/blast/seq
+
+    mkdir $work/blast/results
+
+    cd $work/blast
+
+    formatdb_2.0.11 -p T  -i $work/srs/$release.pep
+
+
+# results in $work/srs/$release.{pep,phr,pin,pesq}: the blast db to be run
 # against
 
 # ------------------------------------------------------------------------
-# distribute the data:
+# distribute the databases to all the cluster nodes:
 
-$ cd /data/sync
-$ mkdir  $release
-$ cd $release
-$ cp $work/blast/$thedat.* ./
-$ sync-data
+    cd /data/sync
+
+    mkdir  $release
+
+    cd $release
+
+    cp $work/blast/$release.* ./
+
+    sync-data
 
 # this will copy everything locally to the farm machines; takes an hour
 # or so. 
 
 # ------------------------------------------------------------------------
-# split data into chunks:
+# split the data to be blasted into chunks:
 
-# when done:
+    cd $work/blast
 
-$ cd $work/blast
-chopper $work/srs/$thedate.pep -n 400  # see also -h
+chopper $work/srs/$release.pep -n 400  # see also -h
 # splits data into $work/blast/seq/
 
 # ------------------------------------------------------------------------
 # submit to blast: 
 
-$ cd $work/blast
-$ run-blasts.pl  /data/sync/$thedate.pep  # see also -h !
+    cd $work/blast
+
+    run-blasts.pl  /data/sync/$release.pep  # see also -h !
 
 # This will show what would be done, but not do it
 # If all seems well, do:
 
-$ run-blasts.pl  -g /data/sync/$thedate.pep
-
+    run-blasts.pl  -g /data/sync/$release.pep
 
 # ------------------------------------------------------------------------
 # when blast finished (10 hours or so)
@@ -108,17 +155,17 @@ $ run-blasts.pl  -g /data/sync/$thedate.pep
 
 # you can already check results during the running:
 
-run-blasts.pl -C /data/sync/$thedate.pep
+    run-blasts.pl -C /data/sync/$release.pep
 
 # and already re-submit the failed ones (still during running):
 
-run-blasts.pl -C -g  /data/sync/$thedate.pep
+    run-blasts.pl -C -g  /data/sync/$release.pep
 
 # If you're sure that missing results are not due to jobs that haven't
 # completed (e.g., if no lsf jobs are outstanding), then resubmit all those
 # whose counts don't add up:
 
-run-blasts.pl -C -f -g /data/sync/$thedate.pep
+    run-blasts.pl -C -f -g /data/sync/$release.pep
 
 # For e.g. testing, you can restrict the jobs to be checked/submitted using
 # the -n option
@@ -126,46 +173,57 @@ run-blasts.pl -C -f -g /data/sync/$thedate.pep
 # ------------------------------------------------------------------------
 
 # concatenate results and compress things
-$ concat-blasts.sh results/*.out.gz > results.parsed
+
+    concat-blasts.sh results/*.out.gz > $release.parsed
+
 # this will tell you how many peptides it found (on stderr), and this should
-# match the number of peptides in $thedate.pep
+# match the number of peptides in $release.pep
 
 # ------------------------------------------------------------------------
 # convert blast hits to a markov matrix:
 
-$ markov results.parsed2 
+    markov $release.parsed -ind $release.index -out $release.mci
 
-# this will produce proteins.index proteins.mcl, matrix.mcl ???
+# (you may need to play with the -chunk option; see markov -h)
 
-# takes 30 min.  or so
+# This may take 30-300 min, and 1.5 Gbyte of memory. 
 # ------------------------------------------------------------------------
 # run clustering algorithm on the matrix:
-$ mcl mtarix.mcl -I 3.0 -progress 100
 
-# takes 5 min or so. 
-# -I is the inflation parameter: the higher, the more families and the
-# smaller the families are. 
+    mcl $release.mci -I 3.0 -progress 100
 
-# this produces  out.mcl
+# takes 15 min or so. 
+
+# -I is the inflation parameter: the higher, the more (and smaller) families
+# will be.
+
+# this produces  out.mcl; rename it to something more specific
+  
+  mv out.mcl $release.mcl  
+
 # ------------------------------------------------------------------------
 # put the numbers and strings back together again:
 
-$ parse_mcl.pl out.mcl protein.index > ensembl.clusters
+    parse_mcl.pl $release.mcl $release.index > $release.clusters
+
+# This is a file of clusters-number, protein member (sorted by number of
+# members, so the biggest clusters is at the end; first ~ third of the file is
+# singletons)
 
 # ------------------------------------------------------------------------
 
 #  add the sp/trembl annotation lines (to each sp/trembl seq):
 
-$ annotate.pl $work/srs/$thedate.pep $work/srs/seq_types ensembl.clusters
-
-# this produces annotate.out, which is the input for the consensus script
+    add-annotations.pl $work/srs/$release.pep $work/srs/seq_types \
+       $release.clusters > $release.annotated
 
 # ------------------------------------------------------------------------
 
-# run the 'consifier', with swiss-prot as well as sptrembl annotation:
+# run the 'consensifier', with swiss-prot as well as sptrembl annotation:
 
-$ anotater_sprot annotate.out > consensus.swissprot
-$ anotater_sptre annotate.out > consensus.sptrembl
+    anotater_sprot annotate.out > consensus.swissprot
+
+    anotater_sptre annotate.out > consensus.sptrembl
 
 # by now, there are many non-hits that have dropped out (sequences that
 # did't even match themselves during the blast hits, due to low-complexity
@@ -175,8 +233,7 @@ $ anotater_sptre annotate.out > consensus.sptrembl
 
 # finally, put everything together using
 
-$ assembl2.pl annotate.out consensus.swissprot consensus.sptrembl > \
-   final.families
+    assembl2.pl annotate.out consensus.swissprot consensus.sptrembl >  final.families
 
 # have a look at assembl2.pl; you can skip annotation words there (e.g., new
 # id's of databases that are not particularly informative, like /RIK$/ or
@@ -188,17 +245,21 @@ $ assembl2.pl annotate.out consensus.swissprot consensus.sptrembl > \
 # If the ENSP's are not yet final (e.g., if they look like COBP or PGBP or
 # so), then remap the ID's, using
 
-scripts=$workingdir/ensembl-external/scripts
-$ $scripts/pep-id-remap.pl mapping.dat  < final.family > families.out
+    pep-id-remap.pl mapping.dat  < final.family > families.out
+
 
 # ------------------------------------------------------------------------
 
 # load the families into the database:
 
-$ tablesql=$work/head/ensembl-external/sql/family.sql
-$ ensdb='database=homo_sapiens_core_110;host=ensrv3;user=ensro'
-$ famdb='database=family110;host=ensrv3;user=***REMOVED***'
-$ perl $scripts/family-input.pl -r 3 -C $tablesql \
+    tablesql=$work/head/ensembl-external/sql/family.sql
+
+    ensdb='database=homo_sapiens_core_110;host=ensrv3;user=ensro'
+
+    famdb='database=family110;host=ensrv3;user=***REMOVED***'
+
+    perl $scripts/family-input.pl -r 3 -C $tablesql \
+
     -E $ensdb -F $famdb final.families  > famload.out 2> famload.err
 
 # this may fail if the database or tables already exist; if so, just leave
@@ -221,7 +282,7 @@ $ perl $scripts/family-input.pl -r 3 -C $tablesql \
 # Lastly, on the logfile from the loading (famload.err), run the statistics
 # script:
 
-$  $scripts/fam-stats.sh ensrv3 family110 ***REMOVED*** famload.err  > stat.out 2> stat.err
+     $scripts/fam-stats.sh ensrv3 family110 ***REMOVED*** famload.err  > stat.out 2> stat.err
 
 # The output gives a rough summary of the way things have  been going (in
 # particular, the gene->family assignents. They should be roughly equal
@@ -231,7 +292,7 @@ $  $scripts/fam-stats.sh ensrv3 family110 ***REMOVED*** famload.err  > stat.out 
 # If the gene-descriptions (see gene-descriptions.txt) have not been done
 # yet, do them, then run the script 
 
-$ ensembl/scripts/desc-from-fam.sh coreDB -h host -u user famDB
+    ensembl/scripts/desc-from-fam.sh coreDB -h host -u user famDB
 
 # and replace the existing gene-description table with the new one (which is
 # created in famDB.
