@@ -289,6 +289,16 @@ processing:
 
     (this will create a file pm_best.out in GeneConf::GB_PM_OUTPUT)
 
+NB If you have dumped one fasta file per chromosome then the output
+from pm_bestmatch is fine as it is. If you had one sequence per FPC
+contig (eg UCSC human data) then you need to use the -chromo_coords
+option with pm_bestmatch.pl to get the pmatch hits in chromosomal
+coordinates - this is essential later in the build!
+
+ie
+
+pm_bestmatch.pl -chromo_coords < all.pm.out
+
 For some assemblies you may need to split the protein file up into
 pieces and run pm_filter.pl on each chromosome with each piece - keep
 an eye on how big the script gets and split up the file as necessary.
