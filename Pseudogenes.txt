@@ -1,0 +1,217 @@
+last update: eae - Dec 2003
+
+############################
+#
+# (processed) PseudoGene Labelling
+#
+############################
+
+This analysis takes the genes you have predicted and runs
+a list of analyses. These analyses then yield a list of attributes for
+each transcript, which can then be used to select for processed pseudogenes.
+More on this below.
+
+What you need to run this:
+
+
+### Config file:
+
+In the directory ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/Config/PseudoGenes/
+copy PseudoGenes.pm.example into PseudoGenes.pm and fill in the relevant entries:
+
+
+	############################################################
+	# where the output and stuff will be sent
+	TMPDIR      => '/ecs2/work1/eae/RatPseudogenes_test/',
+        
+	############################################################
+	# the job file will be here (where the bsub lines will get writen)
+	BSUBS_FILE  => '/ecs2/work1/eae/RatPseudogenes_test/jobs',
+
+	############################################################
+	# some options for LSF: -C0 = don't core-dump on nodes, etc...
+        LSF_OPTIONS => ' -C0 -q acarichunky ',
+	      
+	############################################################
+        # compara database with the dna-dna alignments.
+	# we only need the compara db, and we only need the dna-dna alignments.
+	# We do not need the gene orthologs, neither the syntenic regions.
+	# We do not need either the Compara config file
+	COMPARA_DBNAME  => 'ensembl_compara_17_1',
+	COMPARA_DBHOST  => 'ecs2f',
+				
+	############################################################
+	# Species we compare to:
+	# these databases should contain the dna and assembly
+	# compatible with the compara database use above.
+	# 
+	# Note: these databases do not need to be the same ones
+	# used to build compara. They only need to have the same assembly
+	# and same dna.
+	FOCUS_SPECIES => 'Rattus norvegicus',
+	COMPARATIVE_DBS    => [
+				       {
+					SPECIES => 'Homo sapiens',
+					DBHOST  => 'ecs2f',
+					DBNAME  => 'homo_sapiens_core_17_33',
+					PATH    => 'NCBI33',
+				       },
+				       {
+					SPECIES => 'Mus musculus',
+ 					DBHOST  => 'ecs2',
+					DBNAME  => 'mus_musculus_core_16_30_ro',
+					PATH    => 'NCBIM30',
+				       },
+				      ],
+
+				      
+        ############################################################				      
+	# refdb: database  where the sequence for your species in question is
+	REF_DBNAME   => 'rattus_norvegicus_core_17_2',
+	REF_DBHOST   => 'ecs2f',	
+
+	############################################################
+	# database where the repeat features are
+	REPEAT_DBNAME  => 'rattus_norvegicus_core_17_2',
+	REPEAT_DBHOST  => 'ecs2f',
+
+	############################################################   
+	# script that calls the methods on each gene
+        LABEL_SCRIPT => '/nfs/acari/eae/ensembl/ensembl-pipeline/scripts/Pseudogenes/label_pseudogenes.pl',
+
+	############################################################
+	# pre-exec command for farm sanity
+	LABEL_PRE_EXEC   => '/nfs/acari/eae/ensembl/ensembl-pipeline/scripts/Pseudogenes/label_pseudogenes.pl -check',
+	
+	############################################################
+	# database where the genes to be labelled are
+	LABEL_DBNAME => 'rattus_norvegicus_core_17_2',
+        LABEL_DBHOST => 'ecs2f',
+	LABEL_PATH   => 'RGSC2',	
+
+
+
+Once this is filled in correctly, we can create the
+job file running
+.../ensembl-pipeline/scripts/Pseudogenes/make_PseudoGeneLabelling_bsubs.pl
+
+the jobs file should contain lines similar to this one:
+bsub  -C0 -q acarichunky  -o /ecs2/work1/eae/RatPseudogenes//results//11_out -e /ecs2/work1/eae/RatPseudogenes//results//11_err -E "/nfs/acari/eae/ensembl/ensembl-pipeline/scripts/Pseudogenes/label_pseudogenes.pl -check " /nfs/acari/eae/ensembl/ensembl-pipeline/scripts/Pseudogenes/label_pseudogenes.pl -gene_id  11
+
+There is one line per gene id.
+The script .../ensembl-pipeline/scripts/Pseudogenes/label_pseudogenes.pl is the one
+that fires the methods on the gene. In fact, the script makes use of only one method:
+
+Bio::EnsEMBL::Pipeline::Tools::PseudoGeneTests->pseudogene_test( $transcript, 
+					 $db,
+					 $compara_db, 
+					 $focus_db, $focus_species, 
+					 $target_db, $target_species,
+					 $target_db2, $target_species2,
+					 $threshold,\%gene_ref
+				       );
+
+The modules Bio::EnsEMBL::Pipeline::Tools::PseudoGeneTests,
+Bio::EnsEMBL::Pipeline::GeneComparison::ComparativeTools and
+Bio::EnsEMBL::Pipeline::Tools::TranscriptUtils contain all the methods
+that are called in pseudogene_test().
+
+Each job will write an STDOUT and an STDERR files in a subdirectory called 'results' in TMPDIR.
+The STDOUT contains the LSF diagnostics of the job.
+The STDERR conains the results of the analyses run on each gene. This is what we are interested in.
+
+The attributes are printed in a line per transcript in the folowing way:
+RESULT gene_id:10011	transcript_id:ENSRNOT00000013828	real_introns:20	frameshift:0	polyA:0	Met:1	spliced_elsewhere:0	ss_correct:20	homology1:99.96	homology2:100.00	introns_with_repeats:0	evidence:Q9DBS9 R000009B13 AK004768.1 NM_027881.1	trans_count:1
+
+To collect these results we run
+.../ensembl-pipeline/scripts/Pseudogenes/collect_PseudoGeneLabelling_output.pl /dir/with/results/
+and it will print out the result lines in a file called 'pseudogene_label.out'
+
+
+The meaning of the entries in the result line are:
+
+### gene_id = stable id || internal id
+
+### transcript_id = stable id || internal id
+
+### real_introns (takes a positive integer value or zero)
+
+Number of real introns = introns which are at lease 10bp long
+
+
+### frameshift (boolean: 0 or 1)
+
+this is equals to 1 if every intron in the transcript is a frameshift, i.e. less than 10bp length.
+Note that if the transcript contain some real introns the value will be 0 even though there might be some
+frameshifts.
+
+
+### polyA (boolean: 0 or 1)
+
+It is = 1 if the transcript has associated a polyA tail on the 3' genomic end.
+Processed pseudogenes are retro-transposed mRNAs, so they are likely to contain the
+polyA tail.
+
+
+### Met (boolean: 0 or 1 )
+
+It is 1 if the translation of the transcript starts with Methionine (M), 0 otherwise.
+The retro-transposition of the mRNA happens from 3' to 5' and it is not always complete.
+Thus although polyA tails are likely to be kept, the 5' end is usually truncated.
+
+
+### spliced_elsewhere (positive integer or zero)
+
+This measures for each evidence on which the current transcript is based, whether that evidence is
+alignable and spliced elsewhere in the genome. This only reports the spliced cases. This is regardless
+of whether the transcript being analyzed is spliced or not.
+
+
+### ss_correct (positive integer or zero)
+
+This measures the number of introns with the dinucleotide splice-site sequences correct.
+It checks for the three usually observed patterns: ###GT...AG###...   ...###AT...AC###...   ...###GC...AG###
+This only does the check in real introns (>9bp). 
+It should coincide with the number reported by real_introns. If not, and real_introns is not zero,
+it is either a misprediction, or perhaps an unprocessed pseudogene. The latter case is not handled here.
+
+
+### homology1, homology2 ( a number in the interval [0,100] )
+
+This measures homology against a couple of your favourite closely related genomes.
+This is specified in the Config file.
+Basically, this analysis will fetch homologous slices R1,R2, for the region R covering the transcript
+under inspection in two different genomes, if any homology is reported for R in the compara database
+being used. R is created as the genomic extent of the transcript plus some extra flanking sequence. 
+If there is homology, the slices R1,R2 are made at least as big as R. Then, tblastx is run for the transcript 
+on R1 and R2, and the coverage of the alignment is reported is it is above some specified threshold. At the
+moment the threshold is set to 40.
+
+
+### introns_with_repeats ( a positive integers or zero )
+
+This analysis measures howmany *real* introns in the transcript 
+are overlapped by repeats for at least 80% of the intron.
+Repeats are taken from an ensembl database with repeats.
+At the moment all repeats with logic_name='RepeatMask' are taken.
+
+
+### evidence
+
+This gives the list of supporting evidence for each transcript.
+This is useful when you want to trace transcripts based on a
+protein/cdna known to be problematic or of dubious quality.
+
+
+### trans_count ( an integer >= 1 )
+
+this simply reports the number of transcripts contained in the given gene_id. This
+is useful to know as processed pseudogenes are not expected to be part of a multi-transcript
+gene. Although anything could happen.
+
+
+
+Next, we need to filter those results to single out the candidate processed pseudogenes.
+We do this basically by greping the lines for a certain combination of attribute values. We explain 
+the logic to follow next:
+
