@@ -380,6 +380,10 @@ Running the known gene mapping, don't forget to specify that you are running it 
 The celera accession numbers (the ones used in the science issue) are automatically mapped (see the mapping configuration file). 
 NB: Genes submitted by Ensembl to Genbank end up in SPTREMBL, these are predictions. These genes are labelled in the mapping process as prediction\_SPTREMBL and are not considered as known genes.
 
+\subsection{Bacterial contamination}
+It seems that the assembly contains some contigs and scaffolds that derive from bacterial DNA in the original DNA preparation used to make libraries.  These may be chance bacterial occupants of the gut but could possibly include interesting symbionts. Ensembl transcript predictions may get built on such scaffolds (most likely via bacterial entries from SwissProt/SPTrEMBL and SNAP ab initio predictions). Several hendred possible bacterial contaminants were tagged as such in the initial annotation deposited in GenBank, but this step was misssed in the first Ensembl annotation.  The second Ensembl annotation (2a) also originally omitted this tagging.  A list of probable bacterial transcript predictions was supplied by Pier Bork.  346 proteins (343 genes) on scaffolds not mapped to a chromosome arm were removed from the protein set (but left as genes/transcripts tagged 'bacterial_contaminant') to produce a revised 2b set. A script to carry out the removal (including consequent id mapping) is here:
+ \texttt{ensembl/misc-scripts/anopheles\_scripts/remove\_proteins\_from\_db.pl}.
+
 \subsection{Moving data around}
 Don't forget about the EST genes database. This is is useful from the user point of view. However we don't need a specific EST database, thus dna\_align\_features from the EST gene database should be copied to the core database (also don't forget to copy the protein\_align\_feature if needed). Finally make sure that the analysis table is fine and if you have new logic names, let the web team know.
 
