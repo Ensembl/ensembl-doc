@@ -363,6 +363,12 @@ to ENSF; it may be better to use internal_id's at some point, but that is
 trivial to change. NOTE: to run the mapping, the gene/peptide id's that are
 read from the old and new databases must already have been mapped!
 
+For the 'after the fact' mapping from homo_sapiens_family_110 to
+homo_sapiens_family_120 (which has been caculated but never applied), the run
+took 5 hours, and resulted in loss of 15% old families, and new id's for 41%
+new families.
+
+
 Note on the algorithm: nothing fancy really, the two lists of families are
 sorted by size, then starting with the largest of the old families, the best
 matching family is greedily picked from the new list, and so on down till we
@@ -370,10 +376,14 @@ have run out of matches. The 'best matching' family is the one that has the
 largest MAX(overlap(SPTR), overlap(ENSPEP)), where overlap(X) is the
 percentage of matching cross-references to database X in the old and new
 family databases. The percentage used is
-100*accessions-in-both-old-or-new/those-in-either.
+100*accessions-in-both-old-or-new/those-in-either. If this max overlap
+percentage is > $minperc, the match is kept; otherwise, new id's will be
+used.  
 
-
-
+You may want to fiddle with the -minperc option; the default is 10.  (And for
+a twilight zone of $minperc + 10, the match is kept, but a warning is output;
+since the old and new family descriptions are printed to stderr, you can look
+through it to see if you trust it.
 
 # ------------------------------------------------------------------------
 
