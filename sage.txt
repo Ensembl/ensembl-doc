@@ -15,7 +15,11 @@ also download the BodyMap file
 
 and proceed to:
 
-MAPPING:
+MAPPING: 
+
+(in general: mapping may be done on stable (ENST-style) or
+internal transcript IDs - in the latter case there needs to be a
+conversion step at the end)
 
 Mapping scripts live in:
 ensembl-external/modules/Bio/EnsEMBL/ExternalData/Expression/scripts/mapping_scripts
@@ -38,8 +42,16 @@ h) perform third.pl to prepare seqtag_alias_before_sorting.txt (one more file he
 ich is derived from a dump from the expression table seqtag (select * from seqtag into outfile 'name_with_
 full_path';); only 1 and 3rd column from this are needed so do cat seqtag.txt | cut -f 1,3 > seqtag_id.txt
  before proceeding to third.pl)
-i) sort -un seqtag_alias_before_sorting.txt > seqtag_alias.txt
-j) mysqlimport -u root Expressio110 seqtag_alias.txt  
+i) sort -un seqtag_alias_before_sort.txt > seqtag_alias.txt
+j) ~michele/mysql/bin/mysqlimport -h ecs1d -u ***REMOVED*** -p
+homo_sapiens_expression_120 seqtag_alias.txt
+
+or, if that fails due to broken connections:
+
+load data infile '/nfs/acari/lh1/work/sage/for_release/seqtag_alias.txt'
+into table seqtag_alias;  (from normal client connection)
+
+=======================
 
 Tests:
 ELUS_ENSUtester.pl - compare mapping for known genes (ELUS vs ENUS
