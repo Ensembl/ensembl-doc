@@ -3,22 +3,26 @@ User description (should this go elsewhere?):
 
 Gene descriptions are intended to give rough idea of what the function of a
 gene might be; they are generated automatically as follows. EnsEMBL has a
-mapping from predicted peptides to a number of databases, SWISS-PROT and
-SP-TrEMBL among them. (For information on how this mapping is established,
-see protein.txt)
+mapping from predicted peptides to a number of databases, SWISS-PROT,
+SP-TrEMBL and RefSeq among them. (For information on how this mapping
+is established,see protein.txt)
 
-For each EnsEMBL gene, the mapping to SWISS-PROT or SP-TrEMBL of the
-corresponding EnsEMBL peptides is followed, and the SWISS-PROT/SP-TrEMBL
+For each EnsEMBL gene, the mapping to SWISS-PROT,SP-TrEMBL or RefSeq
+of the corresponding EnsEMBL peptides is followed, and the SWISS-PROT/SP-TrEMBL/RefSeq
 description line is taken as 'the gene description'. 
 
 Since one gene can have many peptides, and since one peptide can map to
-several different SWISS-PROT or SP-TrEMBL proteins, some precedence rules are
-in place. They are:
+several different SWISS-PROT, SP-TrEMBL or RefSeq proteins, some
+precedence rules are in place. They are:
 
- - SWISS-PROT takes precedence over SP-TrEMBL. If there are more than one
-   different SWISS-PROT proteins for an EnsEMBL gene, the first one
-   taken. This may sound arbitrary, but in practice, these descriptions are
-   very similar
+ - SWISS-PROT takes precedence over RefSeq and SP-TrEMBL. If there are
+   more than one different SWISS-PROT proteins for an EnsEMBL gene,
+   the best in term %id on query, then %id on target is choosen
+
+ - Ref-Seq takes precedence over SP-TrEMBL. If there are more than one
+   different Ref-Seq proteins for an EnsEMBL gene, the best in term
+   %id on Ref-Seq protein (query), then %id on Ensembl gene (target)
+   is choosen
 
  - If there are several SP-TrEMBL mappings, precedence is established on the
    basis of the occurrence of regular expression patterns in the description
@@ -32,13 +36,10 @@ in place. They are:
    bit arbitrary, and is bound to be 'tweaked' to get 'better' descriptions
    (see ensembl/scripts/gene-descriptions.pl for the most recent list)
 
-   We don't (yet) rank the descriptions using the similarity measure used in
-   establishing the mapping.
-
-At this stage, there are still many (perhaps half) of the genes without a
-description. For these, the consensus description of the family or 'Tribe' to
-which they belong are used to are transferred (see family.txt for a
-description of the Family database).
+At this stage, there are still many (in case of human ~1/3) of the
+genes without a description. For these, the consensus description of
+the family or 'Tribe' to which they belong are used to are transferred
+(see family.txt for a description of the Family database).
 
 Occasionally, peptides from one gene fall into different families. In these
 cases, the same ranking as described above for multiple SP-TrEMBL mappings is
@@ -48,43 +49,35 @@ used to choose a description.
 
 Maintainer description:
 
-Descriptions are taken from SWISS-PROT/TREMBL, and if no close enough mapping
-is found, from the family database. You can run the non-family bit already,
-so that if bad comes to worst, you at least already have the obvious bits
-(the family thing adds another 30% though, so it's well worth doing it). 
+Descriptions are taken from SWISS-PROT/RefSeq/SPTREMBL, and if no
+close enough mapping is found, then from the family database. You can run
+the non-family bit already, so that if bad comes to worst, you at
+least already have the obvious bits (the family thing adds another 30%
+though, so it's well worth doing it). 
 
  - make sure the peptide mapping has been done
 
- - get hold of the swissprot/trembl file used for the peptide mapping (it can
-   be big and can contain the swissprot internal bits, like {}
+ - get hold of the swissprot/trembl used for the peptide mapping (it can be
+   big and can contain the swissprot internal bits, like {} and RefSeq file
+   => Protein_database_file(s)
 
  - assuming ensembl/scripts is in your $PATH, do:
 
-     sp-descriptions.pl < swiss-prot-flatfile  > sp-descriptions.dat
+     gene-descriptions.pl -h host -u user -d database \
+     Protein_database_file(s) > gene-descriptions.tab
 
-   This produces a summary of sp/trembl -> descriptions mappings
-
- - next, on the database that contains the peptide mapping, do:
- 
-     sp-mapping-dump.sh -h host -u user database
-
-   This produces a file ens-sptr-mapping.dat (and .log), containing the ENSG
-   -> ENSP -> sp/trembl accnos mapping
-
- - Produce the tab-delimited data file to be loaded into the gene-description
+   This produces the tab-delimited data file to be loaded into the gene-description
    table:
-
-     gene-descriptions.pl sp-descriptions.dat ens-sptr-mapping.dat \
-       > gene-descriptions.txt
 
    Have a look at this file; if it contains too much junk  (like the
    2900010M17Rik cruft), filter it. It's easiest to do this inside the
    gene-descriptions.pl script itself (see towards the end of the script).
 
- - Load gene-descriptions.dat into a into an ensembl database, e.g. as
+ - Load gene-descriptions.tab into an Ensembl core database, e.g. as
 
-     echo "load data infile '`pwd`/gene-descriptions.txt' \
-             into table gene_description;" | mysql -u user -host databasename
+     gene-descriptions.pl -h host -u user -d database -pXXXX -load gene-descriptions.tab
+
+     you should have write access to the database in this step.
 
  - (preceeding steps should be integrated with the peptide mapping pipeline)
 
