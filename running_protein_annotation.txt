@@ -246,11 +246,14 @@ type=FILENAME
 [tmhmm]
 db=transmembrane
 program=/path/to/run_tmhmm
-program_file=/path/to/run_tmhmm
+program_file=/path/to/run_tmhmm 
 module=Protein/Tmhmm
 gff_source=Tmhmm
 gff_feature=annotation
 type=FILENAME
+
+#note run_tmhmm can be found in the cvs reposistory here
+# ensemb-pipeline/scripts/protein_pipeline/run_tmhmm
 
 [Prints]
 db=prints

@@ -115,7 +115,8 @@ General Objectives
    we should also look to optimise the code as the central loop of the
    RuleManager can take a long time to execute. The RuleManager and runner 
    should also probably be moved into the scripts directory as they are 
-   scripts rather than modules
+   scripts rather than modules. The batchsubmission checks for awol and 
+   pending job numbers can probably also be merged
 
    Configuration
    ************* 
