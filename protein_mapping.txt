@@ -160,3 +160,10 @@ as a note for elegans you don't need to do all this as wormbase
 provide a file containing all this mapping already
 
 
+ftp://ftp.sanger.ac.uk/pub/databases/wormpep/wormpep.table
+
+this means the only script you should need to run is 
+
+load_elegans_CE.pl
+
+
