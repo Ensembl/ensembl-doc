@@ -1,0 +1,127 @@
+Denormalizing mouse dna & features
+----------------------------------
+
+Val Curwen 31.5.2002
+
+NB This is intended for internal Hinxton use while I'm on maternity
+leave - it's all in a very hacky state. I accept no repsonsibility if
+you're trying to do this off campus without talking to me first ;-)
+
+Here are brief instructions for how to denormalize highly fragmented
+sequence data into larger, more regular contigs. For the last 2 mouse
+releases (4_2, 5_3) we have denormalized into 1MB contigs as any
+larger than this was causing major problems.
+
+1. You need two databases, 
+    - one with the non-denormalized data in it, plus an assembly (ie static_golden_path table must be populated)
+    - one with just the schema - we will be populating all the tables and making a fake golden path with type 'CHR'
+
+2. You will use 2 scripts - ensembl/scripts/denormalize and ensembl/scripts/denormalize_features.pl
+These two scripts could be readily combined but I haven't had time to do that yet. The -feature option to denormalize will not get all of the features over for you - it misses simple features. This script should be chnged when the new schema is used. Currently you need to hard code db details but obviously this can be changed to take command line options - time restriction again.
+
+3. I usually denormalise DNA and repeat features first, then while the
+Targetted build is running (and you can even do the cDNAs
+exonerate/filter jobs at this time too) I denormalise the similarity
+features as this is much slower.
+
+So, run denormalize on each chromosome (having first made sure you've entered db details correctly):
+
+denormalize -chrname 1 -repeat
+denormalize -chrname 2 -repeat
+
+Default is to use 1MB chunks
+
+4. Now you can start denormalizing the features. This is slow. If you
+can do any feature pruning before you start, that will help
+somewhat. You can either dump the insert statements out to file, or
+you can uncomment the last few lines in the script to get it to write
+features directly into the feature table of the new db.
+
+Note - this requires the hack to StaticContig I mentioned in email to
+allow you to get perc_id, e_value etc.
+
+4a. The denormalize_features.pl script needs chrname, start & end. I tend to do this in 1MB chunks. 
+Generate a whole bunch of chrname, start, end inputs - for example you could use code like this:
+
+#!/usr/local/bin/perl
+use strict;
+
+use Bio::EnsEMBL::Pipeline::GeneConf qw (
+					 GB_DBNAME
+					 GB_DBHOST
+					);
+
+use Bio::EnsEMBL::DBSQL::DBAdaptor;
+
+#my $size = 500000;
+my $size = 1000000;
+
+&get_chrlengths;
+
+### SUBROUTINES ###
+
+sub get_chrlengths{
+
+  my $db = new Bio::EnsEMBL::DBSQL::DBAdaptor(-host   => $GB_DBHOST,
+					      -user   => 'ensro',
+					      -pass   => undef,
+					      -dbname => $GB_DBNAME,
+					     );
+
+  my $q = "SELECT chr_name,max(chr_end) FROM static_golden_path GROUP BY chr_name";
+
+  my $sth = $db->prepare($q) || $db->throw("can't prepare: $q");
+  my $res = $sth->execute || $db->throw("can't execute: $q");
+  
+  while( my ($chr, $length) = $sth->fetchrow_array) {
+    my $count = 1;
+    
+    while ($count < $length) {
+      my $start = $count;
+      my $end   = $count + $size -1;
+      
+      if ($end > $length) {
+	$end = $length;
+      }
+      
+      print "$chr $start $end\n";
+      
+      $count = $count + $size;
+    }
+  }
+}
+
+which will give you entries like:
+
+1 1 1000000
+1 1000001 2000000
+1 2000001 3000000
+1 3000001 4000000
+1 4000001 5000000
+1 5000001 6000000
+1 6000001 7000000
+1 7000001 8000000
+1 8000001 9000000
+1 9000001 10000000
+
+etc.
+
+4b. Now run denormalize_features.pl on each chunk ie
+
+denormalize_features.pl -chrname 1 -start 1 -end 1000000 
+
+eg if your inputs are in a file called "input_ids" you could do
+
+perl -e 'while(<>){next unless /^(\S+)\s+(\S+)\s+(\S+)/; system("./denormalize_features.pl -chrname $1 -start $2 -end $3");}' < input_ids
+
+Alternatively set the script up to do then chunking for you in the
+same way as denormalize does it.
+
+Either capture the output to file and load it up by hand into the
+feature table later, or modify the script to do a direct db insert - I
+didn't do it this way last time as I was rather concerned about db
+locking if running all the chromosomes in parallel.
+
+That's pretty much it. Last time the DNA/repeat denormalisation was
+dine with a day, and the rest of the features took the best part of 4
+days to transfer.
