@@ -59,7 +59,8 @@ User description (should this go elsewhere?):
 
     cd src
 
-    make
+    make # this requires be GNU Make; often called /usr/local/bin/make or
+         # gmake
 
 # that should be it
 
@@ -89,6 +90,22 @@ User description (should this go elsewhere?):
 # get the EnsEMBL data
 #  simply get it from the ensembl-ftp server or so. You may in fact need to
 #  get several ensembl sets, e.g. mouse + human. 
+
+# It may well be that the ensembl peptides still have their preliminary,
+# internal_id's (which are just numbers). The peptide id's will be mapped to
+# stable_id's closer to the release. The family script still assume the old
+# system, in which the preliminary id's looked like 'COBP0000' etc. 
+# In order not to have to change things too much, I therefore faked this old
+# style, but prepending 'COBP' to each ensembl internal_id. In the future,
+# something cleverer will be needed, and some hard-coding (particularly in
+# family-input.pl, see later) will have to be removed. Singapore is already
+# working on this. 
+# 
+# This thing will become a bit more complicated if there are several
+# new releases of different species involved, as the internal_id's of
+# different species may conflict ! Currently, this should not be a problem,
+# since at  most one of the peptide sets contains internal_id's; the rest
+# should already have had  stable_id's assigned.
 
 # ------------------------------------------------------------------------
 # concatenate:
@@ -324,9 +341,17 @@ mkdir ../families
 # If the ENSP's are not yet final (e.g., if they look like COBP or PGBP or
 # so), then remap the ID's, using
 
-    universal-id-mapper.pl mapping.dat  < final.family > families.out
+    universal-id-mapper.pl translations.map  < $release.families > $release.fam
 
-# (universal-id-mapper.pl is in ensembl/scripts/)
+# (universal-id-mapper.pl is in ensembl/scripts/). The translations.map file
+# contains internal_id -> stable_id mappings for peptides, and is done by
+# Arne. If you used faked COBP-identifiers, then clear the translations.map
+# will have to be converted first to include the COBP-prefixes. 
+
+# If several new releases per species will have to be mapped, you may have to
+# use several steps of id mappings, by giving not one but several
+# translations.map files as arguments to universal-id-mapper.pl
+#
 
 # load the families into the database:
 
@@ -340,7 +365,7 @@ mkdir ../families
 
     perl $scripts/family-input.pl -r 3 -C $tablesql \
 
-    -E $ensdbs -F $famdbconnect final.families  > famload.out 2> famload.log
+    -E $ensdbs -F $famdbconnect $release.fam  > famload.out 2> famload.log
 
 # This may fail if the database or tables already exist, or if you have
 # access problems. If so, just leave out -C $tablesql (which creates the
