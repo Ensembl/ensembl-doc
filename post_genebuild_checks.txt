@@ -21,18 +21,23 @@ database is handed over to the post-compute team:
 
 2. check for sane exon coords
      select * from exon where seq_start < 1;
-     select exon_id from exon, contig where exon.contig_id =contig.internal_id and exon.seq_end > contig.length;
      select * from exon where seq_start > seq_end;
+     select exon_id from exon, contig where exon.contig_id =contig.internal_id and exon.seq_end > contig.length;
 
-     note that until we have a better way of storing genewise frameshifts we will have very small exons ( < 10bases ) so not much
-     point in testing seq_start=seq_end. 
+     note that until we have a better way of storing genewise frameshifts we will have very small exons ( < 10bases ) so not much point in testing seq_start=seq_end. 
 
 3. check for too short exons ( < 10 bases long ): Have a look to them and see whether they look real or not.
+     select (seq_end-seq_start+1) as s, sticky_rank, exon_id  from exon where (seq_end-seq_start+1)<10;
 
 4. check very short introns  ( < 50 bases long ): Have a look to them and see whether they look real or not.
 
 5. exons with no supporting feature data - there will be some but it should not be an enormous number!
      select count(exon.exon_id) from exon left join supporting_feature on exon.exon_id=supporting_feature.exon_id where supporting_feature.exon_id is NULL;
+
+6. check that all exons belong to some transcript:
+
+
+   select count(distinct e.exon_id) from exon e left join exon_transcript et on e.exon_id =et.exon_id where et.exon_id is null;
 
 
 
@@ -99,7 +104,12 @@ GENE: foreach my $gene($vc->get_Genes_by_Type($genetype)){
 
 
 5. check that there are no too-long single exon genes (>50kb)
-     start with select exon_id from exon where seq_end -seq_start > 50000; and pick out those that are single exon genes - should not be any.
+     start with 
+     select exon_id from exon where seq_end -seq_start > 50000; 
+     and pick out those that are single exon genes - should not be any.
+
+6. you can also have a look at how many single-exon genes there are
+     select count(*) as c,transcript_id from exon_transcript group by transcript_id having c=1;
 
 
 
