@@ -8,10 +8,9 @@ last update: eae - Dec 2003
 ############################################################
 ############################################################
 
-This analysis takes the genes you have predicted and runs
-a list of analyses. These analyses then yield a list of attributes for
-each transcript, which can then be used to select for *processed* pseudogenes.
-More on this below.
+This analysis takes the genes you have predicted and measures 
+a list of attributes for each one. The values for these attributes
+can then be used to select for candidates for processed pseudogenes.
 
 
 #######################################
