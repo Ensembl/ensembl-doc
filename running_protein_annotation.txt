@@ -203,8 +203,9 @@ proteome otherwise the code won't work. These are used for the programs
 which can run so quickly it is worth giving them the whole proteome at once
 like seg. 
 
-Here is an example of the conf file you may need to setup the analysis for
-the genebuild using the analysis_setup.pl script 
+Here is an example of the conf files you may need to setup the analysis and 
+rules for the protein annotation using the analysis_setup.pl and 
+rules_setup.pl scripts
 (see using_the_ensembl_pipeline.txt)
 
 In these analysis objects there are settings which are specific to the
@@ -215,7 +216,7 @@ type of a goal analysis isn't the same as the type of the conditional
 analysis you need an accumulator between the two and another condition
 of the same type to provide the appropriate input_ids
 
-
+#for the analysis
 
 [SubmitTranscript]
 input_id_type=TRANSLATIONID
@@ -309,3 +310,30 @@ module=Protein/Seg
 gff_source=Seg
 gff_feature=annotation
 input_id_type=PROTEOME
+
+
+#for the rules
+
+[pfscan]
+condition=SubmitProteome
+
+[Prints]
+condition=SubmitTranscriptChunk
+
+[Seg]
+condition=SubmitProteome
+
+[Pfam]
+condition=SubmitTranscript
+
+[ncoils]
+condition=SubmitTranscriptChunk
+
+[scanprosite]
+condition=SubmitTranscriptChunk
+
+[Signalp]
+condition=SubmitTranscriptChunk
+
+[tmhmm]
+condition=SubmitTranscriptChunk
