@@ -60,6 +60,7 @@ User description (should this go elsewhere?):
   make install
   make clean
 
+# mcl programs package is no longer in the ensembl-external cvs repository. 
 # If not already install in your machine, or if you want to install a
 # newer version, get the mcl source code from http://topaz.mdcc.cx/~flux/pub/mcl/
 #
