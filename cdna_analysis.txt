@@ -3,7 +3,7 @@ Running cDNA analysis in Ensembl
 
 Val Curwen 01.02.2002
 
-The method for running cDNA analyses in EnsEMBL is virtualy identical
+The method for running cDNA analyses in EnsEMBL is virtually identical
 to the method for running EST analysis, though there are a couple of
 differences in the configuration options used. The same modules are
 used for both, even though their names suggest they are EST specific
@@ -119,6 +119,30 @@ options ...
 B. Preparing cDNA sequences
 ---------------------------
 
+0. get the mRNA sequences:
+
+for refseq you have to go to the NCBI website:
+www.ncbi.nlm.nih.gov, go to ftp site, select refseq, h.sapiens, 
+
+If you have troubles getting there, try this mirror site:
+ftp://bio-mirror.net/biomirror/refseq/cumulative
+> ftp bio-mirror.net  (as usual, name: anonymous, password: email-address)
+ftp> cd biomirror/refseq/cumulative
+ftp> get rscu.gbff.Z
+ftp> bye
+unzip rscu.gbff.Z (this is a really huge multiple-entry genbank file)
+
+
+for embl_vertRNAs you have to check first where the latest version is
+(/data/blastdb/Ensembl/embl_vertrna-1  in plato or acari )
+Use the script ensembl-pipeline/ESTs to get the mRNAs you want from 
+this database.
+
+There may be repeats and pseudogenes in embl_vertrna-1. If you're using mRNAs
+only for adding UTRs to genewise genes, that should be fine. If you are going to use 
+their CDSs as well (perhaps in EST_GeneBuilder), they should be rejected.
+
+
 1. Make a file of the cDNAs/mRNAs you want to use. For human we use
 the human entries from embl_vertrna, and will be using Refseq NM_*
 sequences. The file should be a multiple entry fasta format file;
@@ -126,8 +150,9 @@ headers are best kept simple ie
 >Accession number 
 ATCGGCGGTTAGCA...
 
-2. Index the cDNA file so you can retrieve sequences later - as
-mentioned above we currently use James Cuff's makeseqindex to index
+2. Index the cDNA file so you can retrieve sequences later 
+
+You can use James Cuff's makeseqindex to index
 the file and getseqs to retrieve sequences but you can use any
 sequence fetcher you like as long as you have implemented an
 appropriate Bio::EnsEMBL::Pipeline::Seqfetcher module for it.
@@ -137,6 +162,38 @@ fasta file, avoid giving it a name that contains swall, humanest or
 EST, or you'll end up using the wrong parsing method and be unable to
 fetch any sequences.
 
+You can also use Steve Searle's indicate:
+	/nfs/acari/searle/progs/ensembl/ensembl-nci/src/bioglib/program/indicate
+
+	which creates the OBDA indexes.
+	( you may need some libraries:
+	setenv LD_LIBRARY_PATH /nfs/acari/searle/progs/local2/lib:${LD_LIBRARY_PATH} )
+
+	Example usage
+
+	1. Make a directory for the index
+	mkdir dbSTS
+
+	2. Run:
+
+	/nfs/acari/searle/progs/ensembl/ensembl-nci/src/bioglib/program/indicate
+	--data_dir /data/blastdb/Ensembl --file_prefix dbSTS- --index dbSTS
+	--parser dbParser
+
+	Where:
+	--data_dir is directory contain fasta files to index
+	--file_prefix is prefix of files to index (all files beginning with
+	  prefix and ending in a number will be indexed). If you want to index a single
+	  fasta file you can write here just the name of that file
+	--index directory created in step 1
+	--parser parser function to use (dbParser for db* databases,
+	  swallParser for swall, rikenParser for riken,... )
+	   ( if you only have 1-word display_ids in a multiple-entry fasta file
+	  the parser to use is 'singleWordParser')
+
+	The seqfetcher to use with this index is Bio::EnsEMBL::Pipeline::SeeFetcher::OBDAIndexSeqFetcher.pm
+	make sure that it is correctly defined in your Runnables
+
 3. distribute cDNA seqfile and indexfile somewhere where
 they can be seen from all run nodes 
 eg at Hinxton they need to be in /data/blastdb/Ensembl and rdisted over
@@ -145,6 +202,7 @@ the farm.
 options to be set in ESTConf.pm:
 
 EST_INDEX			location of the cDNA seqfile which can be seen from al run nodes
+
 
 4. run prepare_ests.pl
 All options are set in ESTConf.pm:
@@ -168,6 +226,14 @@ and have to resplit and rerun the troublesome chunks.
 Set ESTConf::EST_CHUNKNUMBER appropriately - this is the total number
 of chunks, not the number of sequences in each chunk!!!
 
+
+The spliting can be done by hand:
+
+    /acari/work2/gs2/gs2/bin/fastasplit <fastapath> <outputdir> <chunknum>
+ 
+ <fastapath> = the myltiple-entry fastA file with the ests
+ <outputdir> = dir where we're going to put the chunks
+ <chunknum>  = total number of chunks
 
 
 C. Preparing genomic sequence for exonerate
