@@ -3,3 +3,4 @@ File for listing all those jobs we want to do but haven't got round to yet.
 1. Slim & tidy Combine_Genewises_and_E2Gs.pm (vac, 10.01.2003).
 2. Pipeline the GeneBuils (lec 10.01.2003)
 3. Make base GeneBuild runnable (lec 10.01.2003)
+4. Make transcripts and Prediction transcripts complete transparent (lec 10.01.2003) 
