@@ -18,7 +18,7 @@ bioperl (we are currently using Bioperl 0.72, it will probably work
 
 these should all be availble on the web and from cvs
 
-Acess to at least one mysql instance
+Access to at least one mysql instance
 
 B. Overview
 -----------
@@ -104,9 +104,8 @@ stdout/stderr from the jobs, and for the data for the jobs.
 Get checkouts of the three pieces of code you need, ensembl, 
 ensembl-pipeline and bioperl and make sure they are in your PERL5LIB
 
-make sure you have access to binaries for pmatch and and genewise
-both of which are availble from the ensembl cvs under rd-utils and
-wise2 packages respectively
+make sure you have access to binaries for genewise which is availble 
+from the ensembl cvs under rd-utils and wise2 packages respectively
 
 setup the databases
 
@@ -247,6 +246,12 @@ GB_INPUTID_REGEX, the regular expression which should be used to
 		  separate values of 1, 1 and 100000 for the chromosome
 		  name, start and end
 
+GB_BMG_FILTER, whether to filter the hits from the reblast carried out
+	       in BlastMiniGenewise based on score, we generally don't 
+	       do this
+GB_BMG_SCORE_CUTOFF, the score to use if filtering 
+
+
 The other options are very rarely used by control how the blast hits
 from the reblast stage in the BlastMiniGenewise runnable are dealt with
 
@@ -280,7 +285,6 @@ GB_PROTEIN_SEQFETCHER, this should be the perl path to the
 		       we have code for can be found in here
 		       Bio::EnsEMBL::Pipeline::SeqFetcher
  
-GB_CDNA_INDEX is not used anywhere so doesn't need to be filled in
 
 
 
@@ -296,7 +300,7 @@ GB_GENEWISE_SUBS the subsititution error rate
 GB_GENEWISE_OPTIONS other genewise options
 
 the defaults in the Genewise.pm.example file are the standard settings
-we use for most builds. For teh briggsae genebuild we increased the 
+we use for most builds. For the briggsae genebuild we increased the 
 gap extension penalty as nematodes have significantly short introns
 than humans
 
@@ -346,3 +350,24 @@ weren't very good
 GB_SIMILARITY_BLAST_FILTER, this is an optional filter which
 can be applied to blast results before the proteins are passed to 
 BlastMiniGenewise
+
+
+Combined.pm, this is used by stages which combine the cdna based 
+predictions with the protein based predictions from genewise in
+order to add UTRs to them
+
+The important variables are
+
+GB_COMBINED_GENETYPE, the genetype to assign to the new genes
+
+GB_cDNA_GENETYPE, the gene type to fetch out of the cdna gene database
+
+
+GeneBuilder.pm, this is used in the Genebuild stage
+
+again most of this variables should be relatively self explainatory
+but here a a few which are important
+
+GB_USE_ABINITIO, this is a flag to switch on the use of 
+		 ab inition predictions in the genebuild run. Ab initio
+		 predictions are generally only now used in 
