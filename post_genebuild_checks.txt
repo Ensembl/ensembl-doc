@@ -153,32 +153,56 @@ where x is the assembly number
 2. remove blast features which score < 150
    ( maybe also prune similarity features with bit score < 80?)
 
-3. check analysisprocesses - there must be no features with an invalid analysis id!
+3. check analysis - there must be no features with an invalid analysis id!
 
      select analysis_id, logic-name from analsyis;
-     select analysis_id, count(*) from dna_align_feature;
-     select analysis_id, count(*) from protein_align_feature;
-     select analysis_id, count(*) from protein_feature;
-     select analysis_id, count(*) from simple_feature;
-     select analysis_id, count(*) from gene;
+     select analysis_id, count(*) from dna_align_feature group by analysis_id;
+     select analysis_id, count(*) from protein_align_feature group by analysis_id ;
+     select analysis_id, count(*) from protein_feature group by analysis_id ;
+     select analysis_id, count(*) from simple_feature group by analysis_id;
+     select analysis_id, count(*) from gene group by analysis_id;
   
-4. check that all features map to analysisprocess. All analyses have a 'db'. Logic names should be stable. 
+4. check that all features map to analysis. All analyses have a 'db'. Logic names should be stable. 
+
+Example for human:
+mysql> select logic_name, analysis_id, db, module, gff_feature, gff_source from analysis order by analysis_id ;
++---------------+-------------+--------------------+-----------------------+---------------+--------------+
+| logic_name    | analysis_id | db                 | module                | gff_feature   | gff_source   |
++---------------+-------------+--------------------+-----------------------+---------------+--------------+
+| human_cdna    |           1 | RefSeq-EMBL        | BlatToGene            | cdna          | blat         |
+| RepeatMask    |           2 | repbase            | RepeatMasker          | repeat        | RepeatMasker |
+| Genscan       |           3 | HumanIso.smat      | Genscan               | prediction    | genscan      |
+| tRNAscan      |           4 | tRNA               | tRNAscan_SE           | tRNA          | tRNAscan-SE  |
+| Swall         |           5 | swall              | BlastGenscanPep       | similarity    | wublastp     |
+| Dust          |           6 |                    | Slice_Dust            | dust          | dust         |
+| Vertrna       |           7 | embl_vertrna       | BlastGenscanDNA       | similarity    | wutblastn    |
+| CpG           |           8 | cpg                | CPG                   | cpg_island    | cpg          |
+| Unigene       |           9 | unigene.seq        | BlastGenscanDNA       | similarity    | wutblastn    |
+| Eponine       |          17 | NULL               | Slice_EponineTSS      | TSS           | Eponine      |
+| TRF           |          18 |                    | TRF                   | tandem_repeat | trf          |
+| Mapprimer130  |          50 | Markers.dat        | Slice_EPCR            | sts           | e-PCR        |
+| human_protein |          58 | RefSeq-SPproteomes | TargettedGenewise     | protein       | genewise     |
+| other_protein |          59 | swall              | FPC_BlastMiniGenewise | protein       | genewise     |
+| ensembl       |          61 | ensembl            | GeneCombiner          | gene          | ensembl      |
++---------------+-------------+--------------------+-----------------------+---------------+--------------+
+
+make sure things are properly defined and they have useful names
 
 5. check for sane feature coordinates
 
-     select * from dna_align_feature where hit_start > hit_end;
-     select * from dna_align_feature where hit_start < 1;
+     select count(*) from dna_align_feature where hit_start > hit_end;
+     select count(*) from dna_align_feature where hit_start < 1;
      
-     select * from protein_align_feature where hit_start > hit_end;     
-     select * from protein_align_feature where hit_start < 1;     
+     select count(*) from protein_align_feature where hit_start > hit_end;     
+     select count(*) from protein_align_feature where hit_start < 1;     
      
-     select * from dna_align_feature where contig_start > contig_end;
-     select * from dna_align_feature where contig_start < 1;
-     select dna_align_feature_id from dna_align_feature f, contig c where f.contig_id = c.contig_id and f.contig_end > c.length;
+     select coutn(*) from dna_align_feature where contig_start > contig_end;
+     select count(*) from dna_align_feature where contig_start < 1;
+     select count(dna_align_feature_id) from dna_align_feature f, contig c where f.contig_id = c.contig_id and f.contig_end > c.length;
 
-     select * from protein_align_feature where contig_start > contig_end;
-     select * from protein_align_feature where contig_start < 1;
-     select protein_align_feature_id from protein_align_feature f, contig c where f.contig_id = c.contig_id and f.contig_end > c.length;
+     select count(*) from protein_align_feature where contig_start > contig_end;
+     select count(*) from protein_align_feature where contig_start < 1;
+     select count(protein_align_feature_id) from protein_align_feature f, contig c where f.contig_id = c.contig_id and f.contig_end > c.length;
 
 6. prune duplicate features 
 
