@@ -1,6 +1,6 @@
 // $Id$
 
-This document descibes what you need in order to map genes in an
+This document describes what you need in order to map genes in an
 Ensembl database to other data sets e.g. refseq or swissprot.
 
 All references to pmatch are obsolete.  We're using exonerate
@@ -16,9 +16,9 @@ What you need
     * Ensembl core
     * ( rd-utils for the pmatch binary )   [pmatch isn't used anymore]
 
-    Those are all availible from cvs on the web
+    Those are all available from CVS on the web
 
-    * An Ensembl database containg genes
+    * An Ensembl database containing genes
 
 You will also need the data files to do the mapping what you
 need here very much depends on what you have, which species you
@@ -29,12 +29,12 @@ What to do
 ==========
 
 NB: In this mapping process the query are the known proteins
-(e.g. proteins from SWISSPROT) and target correspond to Ensembl
+(e.g. proteins from swissprot) and target correspond to Ensembl
 transcript translation.
 
-First of all you need to set up your configuration
+First of all you need to set up your configuration.
 
-All of the config lies in
+All of the configuration lies in
 
     ensembl/misc-scripts/protein_match/mapping_conf.pl
 
@@ -55,16 +55,16 @@ This first contains a set of general options.
         for entries specific to your organism.
 
     * sptr_fa
-        This should be a path to a fasta file which contains
+        This should be a path to a FastA file which contains
         entries for all the sptr protein you wish to map.
 
     * sptr_swiss
-        This should contain the same entries as the fasta file
+        This should contain the same entries as the FastA file
         but in sp format so information about links to embl_ids
         and other databases can be parsed out.
 
     * total_known_fa
-        A fasta file of all the proteins you wich to pmatch
+        A FastA file of all the proteins you which to pmatch
         against your genes, for human this would contain all
         human sptr and refseq sequences.
 
@@ -79,7 +79,7 @@ This first contains a set of general options.
         written.
 
     * refseq_fa
-        Location of the refseq entries in fasta format.
+        Location of the refseq entries in FastA format.
 
     * refseq_gnp
         Location of the refseq entries in genbank format.
@@ -147,7 +147,7 @@ about this can be found here:
 
 The external_db.txt contains all of the current entries.  If you
 have new xrefs to add you need to add them to this file.  The
-file can be loaded into the database using sql like this:
+file can be loaded into the database using SQL like this:
 
     load data infile 'path/to/external_db.txt' into table external_db
 
@@ -162,7 +162,7 @@ All these scripts are present in the
 ensembl/misc-scripts/protein_match directory.
 
 You first need to get the specific files for your organism.  The
-files which are needed for all mappping are the swissprot files.
+files which are needed for all mapping are the swissprot files.
 These can be got from here:
 
     ftp://ftp.ebi.ac.uk/pub/databases/SPproteomes/swissprot_files/proteomes/
@@ -177,20 +177,22 @@ The files are named by taxonomy id so 9606 files are human and
 10090 are mouse.  This taxonomy id is only used if you want to
 grep SPTR entry from a file containing all organisms.  If you
 have already the SPTR file specific to the organism, you don't
-need tp fill it in.
+need to fill it in.
 
 Alternatively you can the seq files by greping though a complete
-file of swall in sp format using the grep_sptr_entries.pl script.
+file of swall in sp format using the grep_sptr_entries.pl
+script.
 
-Some organisms also have refseq files these can be retrived from
-the ncbi ftp site.
+Some organisms also have refseq files these can be retrieved
+from the NCBI ftp site.
 
-Once the config has been filled in and all the prequiste files
-are present you first need to run the get_Xmapping.pl script.
+Once the configuration has been filled in and all the
+prerequisite files are present you first need to run the
+get_Xmapping.pl script.
 
     perl get_Xmapping.pl
 
-Theis paragraph is obsolete since we moved from pmatch to
+This paragraph is obsolete since we moved from pmatch to
 exonerate:
     { The you run pmatch.pl this will pmatch the transcript    }
     { peptides against the created peptide set form sptr and   }
@@ -198,7 +200,7 @@ exonerate:
     { to (ie every main id you have en try for in the output   }
     { from get_Xmapping.pl) the output will be written to      }
     { whatever location you have in mapping_conf.pl (this      }
-    { currently requires a specific version fo pmatch which    }
+    { currently requires a specific version of pmatch which    }
     { puts extra fields in the output, if you need a copy      }
     { of this version mail mongin@ebi.ac.uk we should be       }
     { change to use scanwisepep (from the wise2package soon    }
