@@ -1,5 +1,11 @@
  -*- mode: text -*-;
 
+WARNING: added august 19th 2003 
+This document is out of date, please consult the README
+file, in ensembl-external module,
+ensembl-external/family/scripts/README for up to date
+information. ensembl-doc/family.txt will be updated soon. 
+
 (For maintainer description, see below)
 
 User description (should this go elsewhere?):
