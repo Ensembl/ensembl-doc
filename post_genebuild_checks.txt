@@ -1,0 +1,107 @@
+Post genebuild checks
+---------------------
+
+VAC 11.1.2002
+
+This document describes the steps that we currently take to check data
+from the gene build. Where possible I've included sample sql or perl that
+should test for these things.
+
+These are the steps that currently need to be taken before a genebuild
+database is handed over to the post-compute tem:
+
+1. check for
+   - duplicate exons
+
+     select e1.exon_id as exon1, e2.exon_id as exon2 from exon e1, exon e2 where e1.seq_start = e2.seq_start and e1.seq_end=e2.seq_end and e1.strand=e2.strand and e1.phase=e2.phase and e1.end_phase=e2.end_phase and e1.exon_id != e2.exon_id;
+
+   - sane exon coords
+     select * from exon where seq_start < 1;
+     select exon_id from exon, contig where exon.contig_id =contig.internal_id and exon.seq_end > contig.length;
+     select * from exon where seq_start > seq_end;
+
+note that until we have a better way of storing genewise frameshifts we will have very small exons ( < 10bases ) so not much point in testing seq_start=seq_end. 
+
+   - all genes have transcripts
+     select count(gene.gene_id) from gene left join transcript on gene.gene_id=transcript.gene_id where transcript.gene_id is NULL;
+
+   - all transcripts have exons
+     select count(transcript.transcript_id) from transcript left join exon_transcript on transcript.transcript_id=exon_transcript.transcript_id where exon_transcript.transcript_id is NULL;
+
+   - all exons for a gene are on the same strand (VC not RC!)
+     done through object layer, one VC at a time:
+
+GENE: foreach my $gene($vc->get_Genes_by_Type($genetype)){
+  # check all exons are on the same strand
+  my $strand;
+  foreach my $exon($gene->get_all_Exons){
+    if(!defined $exon->strand || ($exon->strand != 1 && $exon->strand != -1)){
+      print STDERR "Exon " . $exon->dbID . " has no strand!!\n";
+      next GENE;
+    }
+    if(!defined $strand){ $strand = $exon->strand; }
+    if($exon->strand != $strand){
+      print STDERR "strand problem with gene " . $gene->dbID . "\n";
+      next GENE;
+    }
+  }
+
+   - exons with no supporting feature data - there will be some but it should not be an enormous number!
+     select count(exon.exon_id) from exon left join supporting_feature on exon.exon_id=supporting_feature.exon_id where supporting_feature.exon_id is NULL;
+
+2. check there are no
+   - folded transcripts
+ done through object layer, on VCs (also part of genebuild now so should be none.)
+GENE: foreach my $gene($vc->get_Genes_by_Type($genetype)){
+  foreach my $transcript($gene->each_Transcript){
+    my @exons = $transcript->get_all_Exons;
+    my $i;
+     for ($i = 1; $i < $#exons; $i++) {
+       if ($exons[0]->strand == 1) {
+	 if ($exons[$i]->start < $exons[$i-1]->end) {
+	   print STDERR "ERROR:  Transcript folds back on itself. Transcript : " . $transcript->dbID . "\n";
+	   next GENE;
+	 } 
+       } elsif ($exons[0]->strand == -1) {
+	 if ($exons[$i]->end > $exons[$i-1]->start) {
+	   print STDERR "ERROR:  Transcript folds back on itself. Transcript : " . $transcript->dbID . "\n";
+	   next GENE;
+	 } 
+       } else {
+	 print STDERR "EEEK:In transcript  " . $transcript->dbID . " No strand for exon - can't check for folded transcript\n";
+       }
+     }
+  }
+}
+
+   - long single exon genes (>50kb)
+     start with select exon_id from exon where seq_end -seq_start > 50000; and pick out those that are single exon genes - should not be any.
+
+3. dump out peptide file - there should be no transcripts that do not translate - if there are, they need to be got rid of
+
+4. remove blast features which score < 150
+
+5. move genewise supporting features into the feature table - check analysis id
+
+6. check analysisprocesses - there must be no features with an invalid analysis id!
+
+7. test function calls (these may not all be relevant, depending on organism):
+
+my @genes    = $vc->get_all_Genes_exononly();
+my @genes    = $vc->get_all_Genes('evidence');
+
+my @tmpgenes    = $vc->get_Genes_by_Type(***REMOVED***,'evidence');
+my @preds    = $vc->get_all_PredictionFeatures;
+
+
+@features  = $vc->get_all_SimilarityFeatures_above_score('cpg',25);
+@features  = $vc->get_all_SimilarityFeatures_above_score('trna',80);
+@features  = 
+$vc->get_all_SimilarityFeatures_above_score('unigene.seq',80);
+@features  =
+$vc->get_all_SimilarityFeatures_above_score('embl_vertrna',80);
+@features  = $vc->get_all_SimilarityFeatures_above_score('dbEST',1,0);
+@features  =  $vc->get_all_SimilarityFeatures_above_score('swall',1);
+@features  =  $vc->get_all_SimilarityFeatures_above_score('human_mrna',1);
+
+8. Make a backup!
