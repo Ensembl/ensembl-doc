@@ -1,114 +1,86 @@
-For maintainer description, see below. 
-User description (should this go elsewhere?):
+
+User documentation (should this go elsewhere?):
 
 Gene descriptions are intended to give rough idea of what the function of a
 gene might be; they are generated automatically as follows. EnsEMBL has a
-mapping from predicted peptides to a number of databases, SWISS-PROT,
-SP-TrEMBL and RefSeq among them. (For information on how this mapping
-is established,see protein.txt)
+mapping from predicted peptides to a number of databases, SWISSPROT,
+SPTREMBL and RefSeq among them. Sometimes to "consortium" databases,
+e.g. ZFIN for zebrafish, Anopheles_symbol for anopheles. The
+"consortium" file format should match this regexps /^(\S+)\t(.*)$/
+(For information on how this mapping is established,see protein.txt)
 
-For each EnsEMBL gene, the mapping to SWISS-PROT,SP-TrEMBL or RefSeq
-of the corresponding EnsEMBL peptides is followed, and the SWISS-PROT/SP-TrEMBL/RefSeq
+For each EnsEMBL gene, the mapping to SWISSPROT,SPTREMBL or RefSeq
+of the corresponding EnsEMBL peptides is followed, and the SWISSPROT/SPTREMBL/RefSeq
 description line is taken as 'the gene description'. 
 
 Since one gene can have many peptides, and since one peptide can map to
-several different SWISS-PROT, SP-TrEMBL or RefSeq proteins, some
+several different SWISSPROT, SPTREMBL or RefSeq proteins, some
 precedence rules are in place. They are:
 
- - SWISS-PROT takes precedence over RefSeq and SP-TrEMBL. If there are
-   more than one different SWISS-PROT proteins for an EnsEMBL gene,
+ - SWISSPROT takes precedence over RefSeq and SPTREMBL. If there are
+   more than one different SWISSPROT proteins for an EnsEMBL gene,
    the best in term %id on query, then %id on target is choosen
 
- - Ref-Seq takes precedence over SP-TrEMBL. If there are more than one
+ - Ref-Seq takes precedence over SPTREMBL. If there are more than one
    different Ref-Seq proteins for an EnsEMBL gene, the best in term
    %id on Ref-Seq protein (query), then %id on Ensembl gene (target)
    is choosen
 
- - If there are several SP-TrEMBL mappings, precedence is established on the
+ - If there are several SPTREMBL mappings, precedence is established on the
    basis of the occurrence of regular expression patterns in the description
    line. In order of increasing precerence, these patterns currently are:
 
       unknown hypothetical putative novel probable [0-9]{3} kDa fragment cdna
       protein. 
    
-   If after this, two SP-TrEMBL description lines still have equal
+   If after this, two SPTREMBL description lines still have equal
    precedence, the longest description is taken. This precedence list is a
    bit arbitrary, and is bound to be 'tweaked' to get 'better' descriptions
-   (see ensembl/scripts/gene-descriptions.pl for the most recent list)
+   (see ensembl/misc-scripts/gene-descriptions.pl for the most recent list)
 
-At this stage, there are still many (in case of human ~1/3) of the
-genes without a description. For these, the consensus description of
-the family or 'Tribe' to which they belong are used to are transferred
-(see family.txt for a description of the Family database).
-
-Occasionally, peptides from one gene fall into different families. In these
-cases, the same ranking as described above for multiple SP-TrEMBL mappings is
-used to choose a description.
+If a "consortium" is given, it precedence over SWISSPROT. (need to
+make that more generic so the user can customize the priority order
+himself, added in the TODO list)
 
 ------------------------------------------------------------------------
 
-Maintainer description:
+Maintainer documentation:
 
-Descriptions are taken from SWISS-PROT/RefSeq/SPTREMBL, and if no
-close enough mapping is found, then from the family database. You can run
-the non-family bit already, so that if bad comes to worst, you at
-least already have the obvious bits (the family thing adds another 30%
-though, so it's well worth doing it). 
+Descriptions are taken from "consortium"/SWISSPROT/RefSeq/SPTREMBL.
 
  - make sure the peptide mapping has been done
 
- - get hold of the swissprot/trembl used for the peptide mapping (it can be
-   big and can contain the swissprot internal bits, like {} and RefSeq file
+ - get hold of the "consortium"/SWISSPROT/RefSeq/SPTREMBL files used
+   for the peptide mapping (it can be big and can contain the
+   swissprot internal bits, like {} and RefSeq file
    => Protein_database_file(s)
 
- - assuming ensembl/scripts is in your $PATH, do:
+ - assuming ensembl/misc-scripts is in your $PATH, do:
 
-     gene-descriptions.pl -h host -u user -d database \
-     Protein_database_file(s) > gene-descriptions.tab
+     gene-descriptions.pl -h host -u user -d database -r \
+     -r species.regexps -consortium Anopheles_symbol\
+     Protein_database_file(s) > gene-descriptions.tab \
+     2> gene-descriptions.err
 
-   This produces the tab-delimited data file to be loaded into the gene-description
-   table:
+NB: I use to run that under bash. Make sure the > and 2> redirection
+work properly under the shell you use.
+
+   This produces the tab-delimited data file (gene-descriptions.tab)
+   to be loaded into the gene_description table:
 
    Have a look at this file; if it contains too much junk  (like the
-   2900010M17Rik cruft), filter it. It's easiest to do this inside the
-   gene-descriptions.pl script itself (see towards the end of the script).
+   2900010M17Rik cruft). If additional filtering is needed, feel free to
+   add/modify the species.regexps file, so you get cleaner description. 
+   There are some species.regexps files commited in
+   ensembl/misc-scripts, e.g. Homo_sapiens.regexps
+
+   Also check in gene-descriptions.err that the species.regexps is not
+   too strict and do not throw away nice descriptions...
 
  - Load gene-descriptions.tab into an Ensembl core database, e.g. as
 
      gene-descriptions.pl -h host -u user -d database -pXXXX -load gene-descriptions.tab
 
-     you should have write access to the database in this step.
+     you should have write access to the database at this step.
 
- - (preceeding steps should be integrated with the peptide mapping pipeline)
 
- - The next step is adding the family additions for genes that have no
-   description. This is done by running
-
-     ensembl/scripts/desc-from-fam.sh coreDB famDB DBNAME -h host -u user 
-
-   where coreDB is an ensembl database, famDB the family database, and DBNAME
-   the database name used inside famDB for looking up the ids. This will be
-   something like ENSEMBLGENE or ENSMUSPEPT or whatever (i.e., not the
-   prefix, but the thing that is used in the db_name column of the
-   family_members table).  The script will, in famDB, create a merged
-   gene_description table that is a replacement for the old one in coreDB
-   (note: famDB and coreDB should be on the same mysql server, otherwise you
-   can't do the required cross-database joins).
-
-   The script writes a few statistics to stdout.  If the numbers under
-   'all_old_descriptions' and 'all_new_descriptions' are the same, this means
-   that none have been added. This is likely the result of using the wrong
-   DBNAME. 
-
-   The merged gene description table that is created in famDB does not
-   automatically replace the old one in the core database; this has to be
-   done by hand. Go to the core database, and do:
-
-     delete from gene_description;
-     insert into gene_description select * from famDB.gene_description;
-
-   (assuming again famdb and coredb are on the same  server; if not you're
-   hosed by this time !)
-
-   After this, it's better to delete the gene_description table in the family
-   database, as it has no business there and takes up space. 
