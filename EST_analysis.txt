@@ -299,10 +299,8 @@ for ExonerateEST, FilterESTs_and E2G and EST_GeneBuilder.
     together with...
     
     the database where the chromosomes, contigs, etc... are:
-    EST_REFDBHOST    
-    EST_REFDBUSER		 
-    EST_REFDBNAME			
-
+    EST_REFDBNAME, etc ...
+  
     The size of the vcontigs in which we want to run	
     These two numbers should be the same so that we keep things
     falling off the contig to a minimum, we usually take 1Mb
@@ -317,7 +315,7 @@ for ExonerateEST, FilterESTs_and E2G and EST_GeneBuilder.
 
     The path to run_EST_RunnableDB
     EST_RUNNER
-					
+				
     Path where the file with all the ests sits
     (usually in /data/blastdb/Ensembl and mirrored over the farm)		       
     EST_FILE
@@ -344,7 +342,7 @@ The script make_bsubs.pl also creates the directories for the out and err files,
 E. ExonerateEST
 ---------------
 
-1.- check that the bsub commands look something like:
+1. check that the bsub commands look something like:
 
 bsub -q acari -C0 
 -o /scratch2/ensembl/eae/est_NCBI_28//exonerate_est/bsub/stdout/human.ests_chunk_0000056 
@@ -352,7 +350,14 @@ bsub -q acari -C0
 -E "/nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/EST//check_node.pl human.ests_chunk_0000056" 
 /nfs/acari/eae/ensembl-branch-121/ensembl-pipeline/scripts/EST//exonerate_est.pl -chunkname human.ests_chunk_0000056
 
-2. submit the jobs
+2. Also check that the path to the exonerate executable is correctly spexified in
+   EST_EXONERATE               
+   We use currently '/work2/gs2/gs2/bin/exonerate-0.3d'
+    				
+   with arguments " -w 14 -t 65 -H 100 -D 15 -m 500 " (specified in ExonerateESTs.pm)
+
+		       
+3. submit the jobs
 
    We ALWAYS check a few jobs by hand to make sure the output directories
    are set up right, and there are going to be no nasty bouncing jobs due
@@ -394,7 +399,7 @@ according to the behaviour observed in the test jobs run by hand above)
      submit.pl  ( or submit_jobs.pl -file ) <EST_EXONERATE_BSUBS>         
     
 
-3. checking for failed jobs 
+4. checking for failed jobs 
 ExonerateEST is prompt to produce memory problems in the farm, check for 
 	     
      grep -il glib *.stderr 
@@ -412,7 +417,7 @@ ExonerateEST is prompt to produce memory problems in the farm, check for
      Cat those together, resplit in smaller chunks and rerun.
 
 
-4. Load results into the database
+5. Load results into the database
 cd to the place where you have specified output files to go (ESTConf::EST_TMPDIR)
 then use load_exonerates.pl to load up the data:
 
@@ -449,7 +454,7 @@ Note: you may need to dump out golden contig ids first.
     You can find these two scripts in ~eae/ensembl-scripts/ESTs/ if they aren't checked in yet
 
 
-5. read estlengths, hid's etc...
+6. read estlengths, hid's etc...
    (/work2/vac/ensembl-scripts/)get_estlengths > estlengths
    
    check for duplicates. i.e.
