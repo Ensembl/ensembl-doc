@@ -122,10 +122,18 @@ B. Preparing cDNA sequences
 0. get the mRNA sequences:
 
 for refseq you can get them from the NCBI ftp site:
+ftp://ftp.ncbi.nih.gov/refseq/H_sapiens/mRNA_Prot/
+
+hs.fna.gz contains the cdnas
+
+or at the command line:
+
 ftp ftp.ncbi.nih.gov
+
 # for human
 ftp>cd refseq/H_sapiens/mRNA_Prot/
 ftp>get hs.fna.gz 
+
 # for mouse
 ftp>cd refseq/M_musculus/mRNA_Prot/
 ftp>get mouse.fna.gz 
@@ -138,7 +146,6 @@ ftp> cd biomirror/refseq/cumulative
 ftp> get rscu.gbff.Z
 ftp> bye
 unzip rscu.gbff.Z (this is a really huge multiple-entry genbank file)
-
 
 for embl_vertRNAs you have to check first where the latest version is
 (/data/blastdb/Ensembl/embl_vertrna-1  in plato or acari )
