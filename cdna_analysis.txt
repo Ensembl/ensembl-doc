@@ -328,6 +328,14 @@ EST_REFDBNAME		      name of reference database
 EST_EXONERATE_BSUBS	      location to write jobs file for ExonerateEST jobs
 EST_FILTER_BSUBS	      location to write jobs file for FilterEsts_and_E2G jobs
 EST_QUEUE		      queue (plus any host restricting options) where jobs are to be run
+
+    Jobs will run by default on any machine type (alpha on acaris and Linux on Blades). 
+    If you want to restrict your jobs to alpha machines (for example, if you're running genewise,
+    which is much faster on the  alphas) you will need to specify -Ralpha in
+    your job submissions.  Likewise -Rlinux will restrict your jobs to
+    the blades, which you might wist to do for algorithms which run better on them (e.g. exonerate).
+
+
 EST_SCRIPTDIR		      full path to ensembl-pipeline/script/EST
 EST_CHUNKNUMBER		      number of chunks the cDNA file has been split into
 EST_FILTERCHUNKSIZE	      size of genomic chunk for running est2genome jobs; we tend to use 1000000 bases

@@ -367,7 +367,13 @@ for ExonerateEST, FilterESTs_and E2G and EST_GeneBuilder.
 
     in which queue we will run the jobs							
     EST_QUEUE	  
-					
+    
+    Jobs will run by default on any machine type (alpha on acaris and Linux on Blades). 
+    If you want to restrict your jobs to alpha machines (for example, if you're running genewise,
+    which is much faster on the  alphas) you will need to specify -Ralpha in
+    your job submissions.  Likewise -Rlinux will restrict your jobs to
+    the blades, which you might wist to do for algorithms which run better on them (e.g. exonerate).
+		
     the path to ensembl-pipeline/scripts/EST
     EST_SCRIPTDIR
 
