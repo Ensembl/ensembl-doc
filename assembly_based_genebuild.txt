@@ -628,13 +628,19 @@ mysql > load data infile 'path/to/final_transcript.file' into table transcript;
 mysql > load data infile 'path/to/final_translation.file' into table translation;
 mysql > load data infile 'path/to/final_supporting_feature.file' into table supporting_feature;
 
-note: we might have to do something about tis supporting feature table, as it will contain evidence
+note: we might have to do something about this supporting feature table, as it will contain evidence
 with analysis ids which are not in the analysisprocess table, e.g.: combined_e2g
 
 5. Transfer the analysisprocess entry relevant to genes of type ensembl into the shiny new db.
 
 Once all your post-build checks are run, you're done!
 
+
+###########
+Otherwise, you can just use the same database of the final genebuild and put in there the dna table from the 
+interim database. You won't need to move the exons/genes/etc around. You'll have to prune the features and 
+convert the supporting evidence anyway.
+###########
 
 
 ##################
@@ -648,7 +654,7 @@ mysql> select * from feature into outfile 'path/to/interim_feature_before_prunin
 parse the feature file and reject all those BLAST features (and only BLAST features) with score below 150.
 
 delete the feature table from the interim database ( make sure you have a back-up and
-that you are deleting the right table from teh right database )
+that you are deleting the right table from the right database )
 and load the resulting features back into the feature table
 
 mysql > load data infile 'path/to/pruned_features' into table feature;
