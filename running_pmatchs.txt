@@ -135,6 +135,10 @@ gene sequences and having out of sync files can cause problems
 for other species such are briggsae closely related proteins files
 are used in this case wormpep
 
+once you have the proteome file look for any proteins with long stretches
+of X's and delete them as otherwise it will cause pmatch to below up in
+memory as it matches X to any other amino acid
+
 =========================
 =Setting up the Database=
 =========================
@@ -186,8 +190,10 @@ run before it can run the accumulator and hence the BestPmatch analysis
 
 You also need to fill out the input_id_analysis table with input ids
 
-
 Once you have filled out all the tables you need to run the RuleManger
 script which again is described in the using_the_ensembl_pipeline.txt
 document
+
+
+
 
