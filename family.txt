@@ -425,7 +425,7 @@ mkdir ../families
 # If the gene-descriptions have not been done yet, do them first, then run
 # the script
 
-    ensembl/scripts/desc-from-fam.sh coreDB MUSG -h host -u user famDB
+    ensembl/scripts/desc-from-fam.sh coreDB DBNAME -h host -u user famDB
 
 # and replace the existing gene-description table with the new one (which is
 # created in famDB.  See also ensembl-doc/gene-descriptions.txt
