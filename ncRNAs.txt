@@ -81,19 +81,19 @@ input_id_type=GENOME
 [RfamBlast]
 db=Rfam
 db_version=1
-db_file=/data/BLASTdb/Rfam/Rfam.fasta
-program=wuBLASTn
+db_file=/data/blastdb/Rfam/Rfam.fasta
+program=wublastn
 program_version=1
-program_file=wuBLASTn
+program_file=wublastn
 module=Bio::EnsEMBL::Analysis::RunnableDB::BlastRfam
 input_id_type=SLICE
 
 [BlastmiRNA]
 db=hairpin.fa
 db_version=1
-db_file=/pfam/db/miRNA/BLASTDB/hairpin.fa
-program=wuBLASTn
-program_file=wuBLASTn
+db_file=/pfam/db/miRNA/blastdb/hairpin.fa
+program=wublastn
+program_file=wublastn
 parameters=-hitdist=40, cpus = 1
 module=Bio::EnsEMBL::Analysis::RunnableDB::BlastmiRNA
 input_id_type=SLICE
@@ -104,7 +104,7 @@ input_id_type=ACCUMULATOR
 
 [ncRNA]
 db=Rfam
-db_file=/data/BLASTdb/Rfam/
+db_file=/data/blastdb/Rfam/
 program=cmsearch
 module=Bio::EnsEMBL::Analysis::RunnableDB::Infernal
 gff_source=ensembl
