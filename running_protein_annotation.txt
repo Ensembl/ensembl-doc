@@ -8,7 +8,7 @@ What you need
 
 In order to run this you need
 
-Bioperl.0.72
+bioperl-release-1-2-3
 core ensembl
 ensembl-pipeline
 
@@ -112,12 +112,12 @@ achieved by using the -single_name option in the make_input_ids script
 Now all these set up steps have been carried out it is time to run the
 RuleManager script.
 
-The current rulemanager script used is RuleManager3.pl and this can be
-found in Bio/EnsEMBL/Pipeline/
+The current rulemanager script used is rulemanager.pl and this can be
+found in ensembl-pipeline/scripts
 
 The commandline should look something like:
 
-perl RuleManager3.pl -dbname elegans_95 -dbhost ecs1b -dbuser ***REMOVED*** 
+perl rulemanger.pl -dbname elegans_95 -dbhost ecs1b -dbuser ***REMOVED*** 
 -dbpass **** -shuffle 
 
 
@@ -132,26 +132,8 @@ my $dbpass    = $ENV{'ENS_DBPASS'};
 
 The other options which you can use are explaining in 
 using_the_ensembl_pipeline.txt or you can pass a -help option to the
-RuleManager script
+rulemanager.pl script
 
-
-Loading the Interpro data 
-
-
-A link is needed between the signatures ids  (eg: Pfam, Prints, Prosite)
-and the interpro accessions. Two files are needed, interpro.txt goes 
-into the interpro table and  interpro_desc.txt goes into the xref table.
-A simple load data infile should be enough to load the data into a core 
-database
-
-An updated version of these 2 files should be found in the 
-following directory: /acari/analysis/iprscan/interpro_update/
-
-mysql to use: 
-
-load data infile '/acari/analysis/iprscan/interpro_update/interpro.txt' 
-into table interpro;
-load data infile '/acari/analysis/iprscan/interpro_update/interpro_desc.txt' into table xref;
 
 
 Checklist
