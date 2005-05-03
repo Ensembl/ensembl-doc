@@ -1,0 +1,245 @@
+Running ncRNA annotation in the Ensembl pipeline
+================================================
+
+Pipeline procedure
+==================
+
+The pipeline is run as part of the genebuild and so uses the
+Bio::EnsEMBL::Analysis::Config::Databases.pm module to obtain dna DB and the
+location of the DB to write the non coding genes to.
+The pipeline consists of :
+	2 sets of BLAST runnables, 
+	2 sets of gene identifying / writing runnables,
+	1 script. 
+Both sets of BLAST modules can run on the same set of input ids, the most
+effective results seem to be obtained using slices of around 200 kb.
+
+Things to note:
+The Infernal runnables need to be run on the IBM blades as they are not
+compiled to run on the alphas
+You will need the flag table in your pipeline database 
+(ensembl-pipeline/sql/flag.sql)
+
+If the analysis and rules are set up correctly (see example below ) running
+the pipeline should be straightforward.
+
+1. make the input ids (slices 200k)
+
+2. run the rule manager - runs both BLASTs (miRNA and ncRNA)
+
+3. Accumulator job will run when the miRNA BLAST jobs finish, the miRNA
+analysis should then run and write miRNA genes into the final genebuild
+database.
+
+4. run the predict_ncRNA script - identifies likely ncRNAs, makes input ids
+for the Infernal module. (ensembl-pipeline/scripts/ncRNA/predict_ncRNA.pl)
+
+ie : perl predict_ncRNA -dbname name -dbuser ***REMOVED*** -dbport 3306 -dbpass
+******* -dbhost ecs1a -aln ncRNA -dln DummyFlag -chunk 50
+
+5. re-run the rule manager - infernal will run and write ncRNA genes into
+the final genebuild database
+
+Dependancies:
+=============
+
+     DummySlice		 SubmitmiRNA
+     	SLICE		   GENOME
+    ^		^	      ^
+    |		|	      |
+ RfamBlast BlastmiRNA	      /
+  SLICE       SLICE	     /
+                ^           /
+(run script)    |  	   /
+	     BlastWait    /
+DummyFlag   ACCUMULATOR  /
+  FLAG 	        ^       /
+   ^		|      /
+   |		|     /
+Infernal	miRNA  
+  FLAG	        GENOME   
+
+
+Example config:
+===============
+
+Analysis:
+=========
+
+[DummyFlag]
+module=Dummy
+input_id_type=FLAG
+
+[DummySlice]
+module=Dummy
+input_id_type=SLICE
+
+[SubmitmiRNA]
+module=Dummy
+input_id_type=GENOME
+
+[RfamBlast]
+db=Rfam
+db_version=1
+db_file=/data/BLASTdb/Rfam/Rfam.fasta
+program=wuBLASTn
+program_version=1
+program_file=wuBLASTn
+module=Bio::EnsEMBL::Analysis::RunnableDB::BlastRfam
+input_id_type=SLICE
+
+[BlastmiRNA]
+db=hairpin.fa
+db_version=1
+db_file=/pfam/db/miRNA/BLASTDB/hairpin.fa
+program=wuBLASTn
+program_file=wuBLASTn
+parameters=-hitdist=40, cpus = 1
+module=Bio::EnsEMBL::Analysis::RunnableDB::BlastmiRNA
+input_id_type=SLICE
+
+[BlastWait]
+module=Accumulator
+input_id_type=ACCUMULATOR
+
+[ncRNA]
+db=Rfam
+db_file=/data/BLASTdb/Rfam/
+program=cmsearch
+module=Bio::EnsEMBL::Analysis::RunnableDB::Infernal
+gff_source=ensembl
+gff_feature=gene
+input_id_type=FLAG
+
+[miRNA]
+module=Bio::EnsEMBL::Analysis::RunnableDB::miRNA
+input_id_type=GENOME
+
+Rules:
+======
+
+[BlastmiRNA]
+condition=DummySlice
+[RfamBlast]
+condition=DummySlice
+[ncRNA]
+condition=DummyFlag
+[BlastWait]
+condition=BlastmiRNA
+[miRNA]
+condition=BlastWait
+condition=SubmitmiRNA
+
+
+Modules overview:
+=================
+
+ncRNA annotation is divided into 3 parts:
+	General ncRNA identification using Infernal
+	Specific ncRNA annotation : miRNAs, tRNAs
+
+tRNAs 
+=====
+
+These are already annotated as part of the raw compute process using
+tRNAscan SE.
+
+Micro RNAs
+==========
+
+miRNAs share very high sequence identity across species, subsequently most
+miRNAs are detectable by BLAST. The miRNA pipeline consists of a BLAST step
+using : 
+      	Bio::EnsEMBL::Analysis::Runnable::BlastmiRNA 
+	Bio::EnsEMBL::Analysis::RunnableDB::BlastmiRNA
+	
+These modules are extend the BLAST runnables to allow clustering of 
+overlapping BLAST hits and storing of the BLAST coverage.
+(DnaAlignfeature score field is used to store coverage).
+
+Following the BLAST step the miRNAs are identified and stored in the DB
+using:
+	Bio::EnsEMBL::Analysis::RunnableDB::miRNA
+	Bio::EnsEMBL::Analysis::Runnable::miRNA
+	
+These runnables run on all the miRNA BLAST hits and so the module is
+dependent on an accumulator job that waits for the miRNA BLASTs to finish.
+They group the BLAST hits by miRNA family and ignore families with more
+than 50 members as there is a high proboblilty that they are hitting
+repetitive sequences. miRNAs are identified from BLAST alignments that
+contain the complete mature miRNA sequences and are able to fold into
+hairpin structures as determined by RNAfold (part of the ViennaRNA
+package).
+The modules create and store single exon gene objects to represent the
+miRNAs. Predicted secondary structure and the position of the mature miRNA
+are stored on the transcript.
+
+Other ncRNAs
+============
+
+Generally ncRNAs are more difficult to detect by Blast than miRNAs, this is
+because they can have very different sequences yet share exactly the same
+structures. Because of this a program called cmsearch is used that is a
+part of the Infernal suite of programs:
+SR Eddy, BMC Bioinformatics 3:18, 2002. 
+These use covariance models to identify ncRNAs based on structure as well as
+sequence information.
+Because the Infernal programs are quite slow, an initial BLAST step is used
+to narrow the search. Sequence identity within families can be low, so the 
+BLAST search is quite sensitive and can overpredict.
+
+These are the ncRNA BLAST modules:
+	Bio::EnsEMBL::Analysis::RunnableDB::BlastRfam
+	Bio::EnsEMBL::Analysis::Runnable::BlastRfam
+	
+Similarly to the miRNA BLAST runnables; these modules store coverage in the 
+score field of the resulting dna align features and cluster overlapping 
+results.Representative sequences are taken for each ncRNA family in each
+cluster. Coverage cutoffs are used  to reduce over prediction.
+Finally the modules run two different BLAST runs, a WuBLAST on a database
+of high copy number ncRNAs that align to repetitive sequences and a
+sensitive  NCBI BLAST on a database of ncRNA sequences that are hit less
+frequently.
+
+predict_ncRNA.pl
+================
+
+Once the BLAST step is complete it is necessary to run a script that
+reduces the amount of overprediction in the BLAST results by grouping the
+hits into families and taking a maximum of 2000 of the highest scoring hits
+from any one family for cmsearch to run on.
+The script uses the Flag table to identify the sequences that are likely
+candidates and creates and stores input ids based on flag ids for the
+Infernal module to run on.
+script is ensembl-pipeline/scripts
+ie:
+perl predict_ncRNA -dbname name -dbuser ***REMOVED*** -dbport 3306 -dbpass
+******* -dbhost ecs1a -aln ncRNA -dln DummyFlag -chunk 50
+
+-aln is the analysis logic name for the Infernal module
+-dln is the dummy analysis that will have the input ids for Infernal
+-chunk the number of flag ids to use in each job
+
+Because there can be large numbers of BLAST hits generated by the BLAST 
+runnables,the script proceeds on a family by family basis to avoid running
+out of memory, the run time varies from a few minutes to seversl hours 
+depending on how many BLAST hits are in the pipeline database. Generally
+the script is fairly quick if the number of hits is less than about 2 million.
+
+The Infernal modules:
+	Bio::EnsEMBL::Analysis::RunnableDB::Infernal
+	Bio::EnsEMBL::Analysis::Runnable::Infernal
+	
+These run over the filtered BLAST hits and make the ncRNA genes where the
+Infernal scores are higher than the pre-defined thresholds for each family.
+The modules create and store single exon gene objects and store the predicted
+secondary structutre of the ncRNA as a trancript attribute.
+
+
+Simon White
+
+sw4@sanger.ac.uk
+
+3/5/2005 
+
+
