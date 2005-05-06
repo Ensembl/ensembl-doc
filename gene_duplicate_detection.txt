@@ -1,0 +1,264 @@
+Dan Andrews (dta@sanger.ac.uk) 6th May 2005
+
+
+How to run the gene duplication detection pipeline
+--------------------------------------------------
+
+Running the duplication detection pipeline is a very easy thing to do.
+Really.  Providing that you manage to correctly set the odd thousand
+configuration parameters before commencing your production run all
+should be fine.  If you want to make sure that you get this bit right
+keep reading, this is actuallywhat this document is about.
+
+
+1 - Overview
+------------
+
+The pipeline for identifying recently duplicated genes within a single
+species has been designed with production efficiency in mind.
+Especially, this efficiency is aimed at minimising the amount of human
+tinkering required during production runs.  The pipeline will probably
+seem fiddly to set up, especially in preparing the data sources, but
+once this is done it does not require intermediate manual attention.
+In building this pipeline, the most significant design imperative was
+to shoe-horn all the computation into a single runnable object.  Hence
+the production process really just involves running a single step.
+
+
+2 - Code Overview
+-----------------
+
+The gene duplication identification code-base consists of:
+
+Bio::EnsEMBL::Pipeline::RunnableDB::DuplicationFinder
+Bio::EnsEMBL::Pipeline::GeneDuplication::Finder
+Bio::EnsEMBL::Pipeline::GeneDuplication::CodonBasedAlignment
+Bio::EnsEMBL::Pipeline::GeneDuplication::PAML
+Bio::EnsEMBL::Pipeline::Config::GeneDupl
+
+The Finder module inplements the entirity of the algorithm used to
+identify recent gene duplications.
+
+The following modules, while not being strictly part of the pipeline,
+are heavily relied upon and were more-or-less written for this pipeline:
+
+Bio::EnsEMBL::Pipeline::Runnable::MinimalBlast
+Bio::EnsEMBL::Pipeline::SeqFetcher::FetchFromBlastDB
+
+Key bioperl code dependencies are:
+
+Bio::Tools::Phylo::PAML
+Bio::Tools::Run::Alignment::Clustalw
+
+The PAML related modules in Bioperl are much better in recent
+releases, hence using bioperl 1.4 (or at a pinch 1.2) is advised.  I
+am aware that it is possible to run codeml from the PAML package
+using new bioperl modules.  These did not exist when work began on
+this project and this is why a completely independent module has been
+written within ensembl.
+
+
+3 - Pipeline Flow
+-----------------
+
+The main process of the pipeline looks like this:
+
+- Dump longest transcripts from each genome and create blast
+databases.
+
+- Configure production pipeline jobs.  Basically, take the
+gene_stable_id for every gene and use this as input_id.  Using the
+hive system, these input_ids are uploaded into the analysis_job
+table.  A script exists to make this a little easier.
+
+- Configure output directories and/or compara output database.  If
+using database output, this includes populating the compara database
+with the relevant data, which normally would have already been done
+for an in-progress production database.  More on this later.  Don't
+forget to create the pairwise_track table if using database output.
+
+- Fill-in the GeneDupl.pm configuration file.
+
+- Activate pipeline.
+
+- If using file output, run post-processing script.
+
+
+4 - Production instructions
+---------------------------
+4.1 - Choosing the blast databases to create.
+---------------------------------------------
+
+For every species in which duplications are to be identified, there
+needs to be a blast database in which sequence homologues can be
+found.
+
+While all species in a production run could share one huge blast
+database, it greatly increases efficiency if several smaller databases
+are constructed with specific target species in mind.  In the case of
+the human genome where mouse and rat genes are used as outgroups for
+establishing what is and isn't a recent paralogue, a database
+containing all human, mouse and rat genes should be built.  Likewise,
+this same database can be used for determining mouse and rat
+duplicates.  For species that do not have an appropriate outgroup, due
+to their relative evolutionary isolation, they should have their own
+separate blast database.  Generally, a genome pair should not have
+diverged for more than 150 million years if one is to serve as a
+useful outgroup to the other.
+
+In recent production runs the human, mouse, rat and dog gene sets have
+been grouped into a single blast database, while all other species
+have had their own separate databases.
+
+
+4.2 - Dumping data sources and creating blast databases.
+--------------------------------------------------------
+
+Once the composition of the blast databases has been decided, the
+longest transcript set from each species is dumped from the relevant
+ensembl core database.  Do this using the script
+dump_longest_transcripts.pl, which can be found at
+ensembl-pipeline/scripts/dump_longest_transcripts.pl.  This script has
+takes the following command-line arguments:
+
+-dbname		    name of core database 
+-dbhost		    database hostname
+-dbuser		    username
+-dbport		    database port (optional)
+-dbpass		    password (optional)
+-gene_prefix	    prefix for gene ids (optional)
+-transcript_prefix  prefix for transcript ids (optional)
+-protein_prefix	    prefix for protein ids (optional)
+
+Output from this script is fasta format sequences printed to STDOUT.
+This should be re-directed to an output file.
+
+Of note, the gene_prefix, transcript_prefix and protein_prefix
+arguments allow an optional string prefix to be attached to each
+sequence identifier before it is dumped.  This is useful when the
+sequence ids for an organism don't have a uniform structure.  The
+pipeline needs information from the sequence input_id to guess the
+organism from which the sequence originates - and this is made easier
+in some cases by adding a prefix to the gene/transcript/translation ids.
+
+Importantly, the description line for each dumped gene contains the
+transcript and translation ids of the gene.  These are needed if the
+output from the pipeline is to be stored as protein alignments.
+
+Once the fasta dumps for each organism have been made, these can be cat'd
+together to form combined file, where appropriate.  Blast databases
+are then made (for WashU blast at least) using the command:
+
+xdformat -n <filename>
+
+These files should then probably be distributed to the farm
+filesystems before starting the pipeline.
+
+
+4.3 - Load input_ids into pipeline system.
+------------------------------------------
+
+The only input that each RunnableDB object will need is an input id.
+A set of all gene ids can easily be parsed from the blast databases,
+which can then be loaded directly into the pipeline management system
+of your choice.  A very simple script exists to do this and create an
+output file that can be loaded into the Hive system.
+
+Use the script ensembl-pipeline/scripts/extract_gene_ids_for_hive.pl.
+The following command-line arguments are recognised:
+
+-analysis_id		   hive analysis id (optional)(defaults 1)
+-status			   status string (optional)(default 'READY')
+-file			   blast db filename
+
+Redirect the output from this script to a file and then load this
+directly into the analysis_job table of the hive database.
+
+
+4.4 - Set configuration in Bio::EnsEMBL::Pipeline::Config::GeneDupl.pm
+----------------------------------------------------------------------
+
+This is probably the most important item of configuration.  This file
+can become quite involved when conducting a production run for 10 or
+so species.  Comments within this file should make for a slightly
+easier time in achieving a sensible configuration - the following is
+an extention on this internal documentation.
+
+The most config is held in GD_OPTIONS and is a reference to a hash.  This
+contains the species-specific information regarding the species name,
+the location of blast
+databases and output directories, the respective identity, coverage and
+distance cut-offs that are to be applied and a number of very
+important regexes.
+
+Regular expressions.  The GD_OPTIONS hash is actually keyed according
+to species specific regular expressions.  The pipeline determines
+which species an input id is from by using these regular expressions.
+Hence it is very important that these regular expressions uniquely
+match the prefix of the gene id from the appropriate species.  Use the
+example file as a guide - these regexes are easy to generate for
+species that use ensembl-style stable ids, but can be problematic
+where ids have no uniform species-specific structure (in this case a
+prefix may be need adding during the sequence dumps in section 4.2).
+Three other regular expressions are also required for each species.
+GD_INGROUP_REGEX, GD_OUTGROUP_REGEXES are used for parsing the gene
+ids to distinguish ingroup sequences from outgroup sequences.  There
+is little reason why the GD_INGROUP_REGEX should be different to the
+regex key used for each species, but is included as an extra option
+for code efficiencies elsewhere.  The GD_OUTGROUP_REGEXES option
+should be a reference to a list of regexes that allow identification
+of ids from outgroup sequences.  In the case of the human config,
+these regexes should match the ids from mouse and rat - see the
+example config for pointers.  The final GD_TRANSL_REGEX regex should match the
+translation_id of each gene of a certain species.  This is used
+towards the end of the pipeline when storing data as protein
+alignments.  This regex provides a means by which to parse translation
+ids from the description line for each gene (dumping genes from the
+core databases includes the attachment of the correct protein id).  It
+is also most important that these regexes should parse and remove any
+temporary prefix from an id, if these have been needed - read below
+about regex Kung-Fu.
+
+
+Cutoff values.  While the distance cut-off, whether dynamically or
+statically applied (according to whether a good
+outgroup sequence is found), smaller changes to the output generated
+can occur through altering the coverage cutoff.  A particularly low
+coverage cutoff is not advisable as this will allow partially aligning
+sequences to be incorporated into the result set.  Ideally, each
+recent duplicate gene identified should be an almost complete copy,
+hence a coverage cutoff of better than 80 percent is a good idea.  To
+a lesser extent the identity cutoff is important, but only in cases
+where the distance cut-off is set very low.  A high identity cutoff
+will cause matches to be lost, even if a good outgroup sequence is
+found - so it is probably best to keep this value proportionately
+lower than the distance cut-off.  As a rule of thumb (and very prone
+to error), a genetic distance of Ks = 0.6 equates very
+roughly/generally to an identity of about 50%.  Hence, keep the
+identity cutoff less than 100x the distance cutoff.
+
+
+
+
+* Using Kung-Fu in the protein id regexes where a prefix has been
+appended to the stable id.
+
+
+4.5 - Configure output directories and/or database.
+---------------------------------------------------
+
+Depending on the configuration options chosen in the next section
+
+
+4.6 - Run pipeline.
+-------------------
+
+4.7 - File output post-processing.
+----------------------------------
+
+
+
+
+
+
+
