@@ -1,14 +1,14 @@
-Dan Andrews (dta@sanger.ac.uk) 6th May 2005
+Dan Andrews (dta@sanger.ac.uk) 20th May 2005
 
 
 How to run the gene duplication detection pipeline
 --------------------------------------------------
 
-Running the duplication detection pipeline is a very easy thing to do.
-Really.  Providing that you manage to correctly set the odd thousand
-configuration parameters before commencing your production run all
-should be fine.  If you want to make sure that you get this bit right
-keep reading, this is actuallywhat this document is about.
+Running the duplication detection pipeline is not so hard.  The main
+thing is that you manage to correctly set the configuration parameters
+before commencing your production run.  This document is about the
+process invovled in running the gene duplication pipeline, especially
+getting the configuration right.
 
 
 1 - Overview
@@ -149,7 +149,10 @@ Once the fasta dumps for each organism have been made, these can be cat'd
 together to form combined file, where appropriate.  Blast databases
 are then made (for WashU blast at least) using the command:
 
-xdformat -n <filename>
+xdformat -I -n <filename>
+
+The -I flag is specified so that these blast databases can be used for
+sequence fetching.
 
 These files should then probably be distributed to the farm
 filesystems before starting the pipeline.
@@ -209,20 +212,29 @@ for code efficiencies elsewhere.  The GD_OUTGROUP_REGEXES option
 should be a reference to a list of regexes that allow identification
 of ids from outgroup sequences.  In the case of the human config,
 these regexes should match the ids from mouse and rat - see the
-example config for pointers.  The final GD_TRANSL_REGEX regex should match the
-translation_id of each gene of a certain species.  This is used
+example config for pointers.  The final GD_TRANSL_REGEX regex should
+match the translation_id of each gene of a certain species.  This is used
 towards the end of the pipeline when storing data as protein
 alignments.  This regex provides a means by which to parse translation
 ids from the description line for each gene (dumping genes from the
 core databases includes the attachment of the correct protein id).  It
 is also most important that these regexes should parse and remove any
-temporary prefix from an id, if these have been needed - read below
-about regex Kung-Fu.
+temporary prefix from an id, if these have been needed you will have
+to perform some regex Kung-Fu.
 
+Using regex Kung-Fu - this is need in the protein id regexes where a
+prefix has been appended to the stable id.  Basically, this is not so
+difficult and requires the judicious use of bracketing '()' to keep
+the part of the id that is needed.  The protein id regex should parse
+the WHOLE protein id, not just match a prefix.  In writing this regex,
+insert brackets around the part of the match that should be kept.
+When the code runs it will use whatever is in $1 as the protein id.
+Hence, if your id with an artificial prefix is 'MMU_Y98790.5', where
+the prefix is 'MMU_', the protein I regex should be 'MMU_(.+)'.
 
 Cutoff values.  While the distance cut-off, whether dynamically or
-statically applied (according to whether a good
-outgroup sequence is found), smaller changes to the output generated
+statically applied (according to whether a good outgroup sequence is
+found), smaller changes to the output generated
 can occur through altering the coverage cutoff.  A particularly low
 coverage cutoff is not advisable as this will allow partially aligning
 sequences to be incorporated into the result set.  Ideally, each
@@ -237,11 +249,40 @@ to error), a genetic distance of Ks = 0.6 equates very
 roughly/generally to an identity of about 50%.  Hence, keep the
 identity cutoff less than 100x the distance cutoff.
 
+Blast options.  The pipeline has been built to use either WU blast and
+NCBI blast.  The option GD_BLAST_EXE and GD_BLAST_VARIANT should both
+be set in harmony and use the same blast flavour.  WU blast is what
+has been most used in testing, so this might be the version to use if
+you have a choice.  The GD_BLAST_VARIANT relates to the way that the
+blast database was formatted, which the pipeline needs for choosing the
+appropriate blast and sequence fetching commands.  See the docs within
+the config file for more information.
+
+Output method.  The output from the pipeline can be issued in two
+ways.  It can write to files, which are automatically placed in a
+fine-grained directory structure, or it can write directly to a
+Compara database.  The GD_OUTPUT_METHOD is where this option is set.
+If files are used, specify an output directory in GD_OUTPUT_DIR for
+each species.  This directory has the potential to become quite large,
+so check that adequate space exists.  Where database output is chosen
+a number of Compara specific need to be set (GD_REGISTRY_CONF,
+GD_COMPARA_DBNAME, GD_COMPARA_TYPE, GD_COMPARA_DESCRIPTION,
+GD_COMPARA_PEP_SOURCE, GD_COMPARA_GENE_SOURCE).  These mainly contain
+the details of the Compara database and the relevant logic/analysis
+names within it.  Check the docs in the config file for more information.
+
+Distance method.  There are currently two choices of distance method,
+set in the option GD_DISTANCE_METHOD.  This sets the particular
+algorithm used within PAML to calculate intergenic distance.
+
+Output type.  When writing output to files, the output can be with
+reference to nucleotide or amino acid sequences.  This changes the
+coordinate scheme of the CIGAR lines and whether to calculate protein
+similarity.  This option is set in GD_OUTPUT_TYPE.  If database output
+is chosen, output is in amino acid coordinates, as this is the context
+in which Compara operates.
 
 
-
-* Using Kung-Fu in the protein id regexes where a prefix has been
-appended to the stable id.
 
 
 4.5 - Configure output directories and/or database.
