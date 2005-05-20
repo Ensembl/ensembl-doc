@@ -284,20 +284,46 @@ in which Compara operates.
 
 
 
-
 4.5 - Configure output directories and/or database.
 ---------------------------------------------------
 
-Depending on the configuration options chosen in the next section
+Importantly, when database output is chosen an extra table must be
+added to the standard Compara schema.  The SQL file to write this
+table can be found at XXXXXX.  This table allows redundancy checks to
+be made at time of database write so that duplicate pairwise matches
+are not stored.  This table can be deleted after the production run is
+completed.
+
 
 
 4.6 - Run pipeline.
 -------------------
 
+
 4.7 - File output post-processing.
 ----------------------------------
 
+No post-processing is required when the database output option is
+chosen, although remember to delete the temporary table that was
+created to avoid redundancy.
 
+
+When file output if chosen, this output has to be post processed to
+remove redundant matches.  This is not so hard though, as a script
+exists to do this.  XXXXXXX/rework_output.pl takes the location of the
+output directory as an argument, and crawls through the output
+directory structure deriving a set of results, which are written to
+STDOUT.
+
+
+Some organisms have problems where certainly evidence has been used to
+predict very large numbers of genes.  This evidence is usually
+undesirable, as it contains fragments of repetitive elements and would
+normally be on the pipeline evidence kill list.  Where genes based on
+this evidence slip into the gene set, some very large clusters are
+realized.  A script found at XXX can be used to identify large gene
+duplication groups.  With this information it is possible to then use
+the script XXXX/xxx to build a final dataset minus these annoying matches.
 
 
 
