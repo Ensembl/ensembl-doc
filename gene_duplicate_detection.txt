@@ -294,10 +294,32 @@ be made at time of database write so that duplicate pairwise matches
 are not stored.  This table can be deleted after the production run is
 completed.
 
+The Compara database that matches are written into needs to be
+pre-loaded with all the usual things.  There need to be entries in the
+genome and member tables, plus all the other things that a normal
+Compara production database has.
+
 
 
 4.6 - Run pipeline.
 -------------------
+
+This pipeline has been most used with Hive.  A few production issues
+are:
+
+* If file output, limit the number of jobs running at any one time to
+avoid clogging NFS.  Up to 60 jobs has never been a problem.  Maybe
+more can be run at once.
+
+* Watch that the file output directories don't completely fill.
+
+* Some jobs always come out with status 'FAILED'.  Despite much
+investigation, the source of these failed jobs is unknown.  However,
+it does seem that these failed jobs are harmless and mostly for	genes
+without duplicate matches.  Don't loose too much sleep over these
+failed jobs.  It's a fair bet that this is a PAML-related issue.
+
+* Watch your regular expressions are parsing the right things.
 
 
 4.7 - File output post-processing.
@@ -314,7 +336,6 @@ exists to do this.  XXXXXXX/rework_output.pl takes the location of the
 output directory as an argument, and crawls through the output
 directory structure deriving a set of results, which are written to
 STDOUT.
-
 
 Some organisms have problems where certainly evidence has been used to
 predict very large numbers of genes.  This evidence is usually
