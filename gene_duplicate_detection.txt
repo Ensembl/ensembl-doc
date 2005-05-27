@@ -31,13 +31,15 @@ the production process really just involves running a single step.
 The gene duplication identification code-base consists of:
 
 Bio::EnsEMBL::Pipeline::RunnableDB::DuplicationFinder
+Bio::EnsEMBL::Pipeline::DBSQL::PairwiseTrack
 Bio::EnsEMBL::Pipeline::GeneDuplication::Finder
 Bio::EnsEMBL::Pipeline::GeneDuplication::CodonBasedAlignment
 Bio::EnsEMBL::Pipeline::GeneDuplication::PAML
 Bio::EnsEMBL::Pipeline::Config::GeneDupl
 
 The Finder module inplements the entirity of the algorithm used to
-identify recent gene duplications.
+identify recent gene duplications.  The database adaptor PairwiseTrack
+is only used if output is written directly to a compara database.
 
 The following modules, while not being strictly part of the pipeline,
 are heavily relied upon and were more-or-less written for this pipeline:
@@ -288,11 +290,18 @@ in which Compara operates.
 ---------------------------------------------------
 
 Importantly, when database output is chosen an extra table must be
-added to the standard Compara schema.  The SQL file to write this
-table can be found at XXXXXX.  This table allows redundancy checks to
-be made at time of database write so that duplicate pairwise matches
-are not stored.  This table can be deleted after the production run is
-completed.
+added to the standard Compara schema.  This table allows redundancy
+checks to be made at time of database write so that duplicate pairwise
+matches are not stored.  The table, called pairwise_track, is
+extremely simple and has just one field.  It can be created with the
+SQL:
+
+CREATE TABLE pairwise_track (unique_id varchar(40) UNIQUE NOT NULL);
+
+An adaptor exists to manage all database activity involving this
+table, and this can be found at
+Bio::EnsEMBL::Pipeline::DBSQL::PairwiseTrack.  This table can be
+deleted when the production run is completed.
 
 The Compara database that matches are written into needs to be
 pre-loaded with all the usual things.  There need to be entries in the
@@ -329,22 +338,27 @@ No post-processing is required when the database output option is
 chosen, although remember to delete the temporary table that was
 created to avoid redundancy.
 
-
-When file output if chosen, this output has to be post processed to
+When file-based output is chosen, this has to be post-processed to
 remove redundant matches.  This is not so hard though, as a script
-exists to do this.  XXXXXXX/rework_output.pl takes the location of the
-output directory as an argument, and crawls through the output
-directory structure deriving a set of results, which are written to
-STDOUT.
+exists to do this.
+ensembl-pipeline/scripts/rework_paralogues_output.pl takes the
+location of the output directory as an argument, and crawls through
+the output directory structure deriving a set of results, which are
+written to STDOUT.
 
-Some organisms have problems where certainly evidence has been used to
+Some organisms have problems where certain evidence has been used to
 predict very large numbers of genes.  This evidence is usually
 undesirable, as it contains fragments of repetitive elements and would
 normally be on the pipeline evidence kill list.  Where genes based on
 this evidence slip into the gene set, some very large clusters are
-realized.  A script found at XXX can be used to identify large gene
-duplication groups.  With this information it is possible to then use
-the script XXXX/xxx to build a final dataset minus these annoying matches.
+realized.  A script found at
+ensembl-pipeline/scripts/find_big_clusters.pl can be used to
+identify large gene duplication groups, using a set cutoff for the
+maximum allowed cluster size (default 50).  This script produces a
+kill list of genes that should be ignored.  With this list information
+it is possible to then use the script
+ensembl-pipeline/scripts/rework_minus_big_clust.pl to build a
+final dataset minus these annoying matches.
 
 
 
