@@ -139,6 +139,17 @@ and I scp'd it from ecs2:3364 to from my own copy on ecs4:3352 using a command l
 scp data_3364/databases/homo_sapiens_core_29_35b/* \
 ecs4c:/mysql-3352/databases/vivek_homo_sapiens_core_29_35b_affy
 
+--- note ---
+If you don't have soft-repeat-dusted sequence, you can create it
+using this script in ensembl-pipeline (this is an example for Chicken):
+                                                                                                                            
+perl $AFFYPIPECODEDIR/scripts/Sequence/bsub_for_getting_chr_sequence.pl \
+-dbname vivek_gallus_gallus_core_31_1g_affy -dbhost ecs4 \
+-outdir /ecs2/work3/vvi/affy_june_2005/data/sequence/ -dbuser ensro -dbport 3351 \
+-coord_system chromosome -coord_system_version WASHUC1
+------------
+
+
 5. CONFIGURE THE ANALYSES
 -------------------------
 -------------------------
@@ -217,19 +228,22 @@ think these affy analyses care about any of this, though.
 ----------------------------------
 ----------------------------------
 
-This doesn't need a pipeline to be set up: as run it is one big job. It should be farmed
-out to a big-memory node, though, just for safety's sake. For this reason I insert a record
+This doesn't need a pipeline to be set up, since it is run as one big job. It should be farmed
+out to a big node, though, just for safety's sake. For this reason I insert a record
 into the analysis table that points to the right runnabledb:
 
 mysql -hecs4 -u***REMOVED*** -***REMOVED*** -P3352 -Dvivek_homo_sapiens_core_29_35b_affy \
 -e"insert into analysis set analysis_id = 5000, logic_name = 'CollapseAffyProbes', module='CollapseAffyProbes'"
+
+and submit the job to the farm:
 
 bsub -q long -R model=IBMBC2800 -o collapse_affy.out \
 -e collapse_affy.err $EXPANALYSISCODEDIR/scripts/test_RunnableDB \
 -dbhost ecs2 -dbport 3352 -dbuser ensro -dbname  vivek_homo_sapiens_core_29_35b_affy\
 -input_id whatever -logic_name 'CollapseAffyProbes' -write
 
-Memory usage on current human probes seems to remain constant at about 1.7Gb. 
+Memory usage for current human probes (about 4million probes)
+seems to climb up to, then remain constant at about 1.7Gb. 
 For me, this job runs in close to one half hour.
 
 How many non-redundant probes does the job produce?
@@ -335,8 +349,11 @@ where asm_seq_region_id = 966001 and cmp_seq_region_id = 965890"
 
 The alignment analysis takes 100-sequence pieces of the set of non-redudundant affy probes
 generated in the first step, and maps them to the genome. It does need farming, as there
-will be (for human) about 2.2 million / 100 = 22000 jobs to be handled. I choose to do
-this using the 'hive' system, but you can do what you like.
+will be (for human) about 2.2 million / 100 = 22000 jobs to be handled
+(actually it's 22683 jobs). The input id fed into each affy alignment job looks like
+"1:22683", "2:22683"..."22683:22683" (choose chunk 'n' out of 22683 chunks). 
+I will do this using the ensembl-hive job control system, but you can also use
+ensembl-pipeline, if that's your thing.
 
 1. Create the hive admin database inside our human db:
 mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
@@ -510,4 +527,845 @@ select * from analysis_job where hive_id = 586 brings back nothing.
 Check the output directory:
 <outputdir>/worker_586/ has only one job - job_1675.err - which has a crash in it (which, mercifully,
 happened before any affy features were written).
+
+11. DEALING WITH PROBLEMS 
+-------------------------
+-------------------------
+
+Grep through output for problems:
+
+ggrep -r EXCE *
+
+worker_1012/job_7072.out:-------------------- EXCEPTION --------------------
+worker_1203/job_8179.out:-------------------- EXCEPTION --------------------
+worker_1260/job_9514.out:-------------------- EXCEPTION --------------------
+worker_1304/job_13327.out:-------------------- EXCEPTION --------------------
+worker_1525/job_15661.out:-------------------- EXCEPTION --------------------
+worker_1631/job_16609.out:-------------------- EXCEPTION --------------------
+worker_1748/job_17722.out:-------------------- EXCEPTION --------------------
+worker_1870/job_19642.out:-------------------- EXCEPTION --------------------
+worker_1906/job_20947.out:-------------------- EXCEPTION --------------------
+worker_1938/job_21490.out:-------------------- EXCEPTION --------------------
+worker_586/job_1675.out:-------------------- EXCEPTION --------------------
+worker_883/job_6541.out:-------------------- EXCEPTION --------------------
+
+AND Look in the hive table as well:
+mysql> select * from hive where cause_of_death = 'FATALITY';
++---------+-------------+-----------+------------+-------------+-----------+---------------------+---------------------+---------------------+----------------+
+| hive_id | analysis_id | beekeeper | host       | process_id  | work_done | born                | last_check_in       | died                | cause_of_death |
++---------+-------------+-----------+------------+-------------+-----------+---------------------+---------------------+---------------------+----------------+
+|     586 |        5001 | LSF       | rlx-1-6-24 | 2867346[14] |         0 | 2005-03-03 16:43:51 | 2005-03-03 16:44:48 | 2005-03-03 16:44:48 | FATALITY       |
+|     883 |        5001 | LSF       | rlx-1-0-20 | 2867472[2]  |         0 | 2005-03-03 17:41:46 | 2005-03-03 17:45:38 | 2005-03-03 17:45:38 | FATALITY       |
+|    1012 |        5001 | LSF       | rlx-1-0-20 | 2867480[39] |         0 | 2005-03-03 17:46:36 | 2005-03-03 17:50:19 | 2005-03-03 17:50:19 | FATALITY       |
+|    1203 |        5001 | LSF       | rlx-1-0-20 | 2867493[29] |         0 | 2005-03-03 17:54:44 | 2005-03-03 17:58:25 | 2005-03-03 17:58:25 | FATALITY       |
+|    1260 |        5001 | LSF       | rlx-1-0-20 | 2867500[13] |         0 | 2005-03-03 18:04:44 | 2005-03-03 18:08:25 | 2005-03-03 18:08:25 | FATALITY       |
+|    1304 |        5001 | LSF       | rlx-1-0-20 | 2867538[8]  |         0 | 2005-03-03 18:34:59 | 2005-03-03 18:38:48 | 2005-03-03 18:38:48 | FATALITY       |
+|    1525 |        5001 | LSF       | rlx-1-0-20 | 2867565[49] |         0 | 2005-03-03 19:00:12 | 2005-03-03 19:03:55 | 2005-03-03 19:03:55 | FATALITY       |
+|    1631 |        5001 | LSF       | rlx-1-0-20 | 2867578[41] |         0 | 2005-03-03 19:10:23 | 2005-03-03 19:14:01 | 2005-03-03 19:14:01 | FATALITY       |
+|    1748 |        5001 | LSF       | rlx-1-0-20 | 2867584[46] |         0 | 2005-03-03 19:20:30 | 2005-03-03 19:24:12 | 2005-03-03 19:24:12 | FATALITY       |
+|    1870 |        5001 | LSF       | rlx-1-6-24 | 2867591[4]  |         0 | 2005-03-03 19:35:39 | 2005-03-03 19:36:33 | 2005-03-03 19:36:33 | FATALITY       |
+|    1906 |        5001 | LSF       | rlx-1-6-24 | 2867596[7]  |         0 | 2005-03-03 19:45:46 | 2005-03-03 19:46:37 | 2005-03-03 19:46:37 | FATALITY       |
+|    1938 |        5001 | LSF       | rlx-1-0-20 | 2867599[35] |         0 | 2005-03-03 19:50:48 | 2005-03-03 19:54:35 | 2005-03-03 19:54:35 | FATALITY       |
++---------+-------------+-----------+------------+-------------+-----------+---------------------+---------------------+---------------------+----------------+
+
+-- so this is in exact correspondence with the output that has EXCEPTION in it.
+What went wrong? A case-by-case examination shows all fatalities were a result of the exonerate
+'could not close command' problem, hence no records were written in that case.
+
+The actual analysis-job's were reset (stored in state 'READY') and picked up by other workers
+after these ones died, so this is not a problem for completion (lucky!).
+
+After 12 hours we have one overdue job:
+
+Worker 1667 in the hive table has no cause of death, and the job is still running. 
+1. bkill the job - it's clearly stuck.
+2. How do we know the worker has claimed the job? 
+   Worker = row in hive table.
+   job: select * from analysis_job where hive_id = 1667: 
+
++-----------------+----------------------+-------------+-------------+--------------------------------------+---------+---------+-------------+---------------------+-------------+--------------+-------------+
+| analysis_job_id | prev_analysis_job_id | analysis_id | input_id    | job_claim                            | hive_id | status  | retry_count | completed           | branch_code | runtime_msec | query_count |
++-----------------+----------------------+-------------+-------------+--------------------------------------+---------+---------+-------------+---------------------+-------------+--------------+-------------+
+|           16927 |                    0 |        5001 | 16927:22683 | FB2435B8-8C17-11D9-B766-8C303770C80F |    1667 | RUN     |           0 | 0000-00-00 00:00:00 |           1 |            0 |           0 |
+|           16928 |                    0 |        5001 | 16928:22683 | FB2435B8-8C17-11D9-B766-8C303770C80F |    1667 | CLAIMED |           0 | 0000-00-00 00:00:00 |           1 |            0 |           0 |
+|           16929 |                    0 |        5001 | 16929:22683 | FB2435B8-8C17-11D9-B766-8C303770C80F |    1667 | CLAIMED |           0 | 0000-00-00 00:00:00 |           1 |            0 |           0 |
++-----------------+----------------------+-------------+-------------+--------------------------------------+---------+---------+-------------+---------------------+-------------+--------------+-------------+
+
+WHICH MEANS that three analysis-job's were reserved by this worker: it got stuck on the first job,
+and never got to the next two. The worker itself is DEAD - I killed it - so I think I can reset these
+three jobs by:
+update hive set cause_of_death = 'FATALITY' where hive_id = 1667; #would remove the worker
+update analysis_job set job_claim = null, hive_id = 0, status = 'READY' where analysis_job_id in (16927, 16928, 16929);
+update analysis_stats object to set unclaimed_job count=>3 and status=>WORKING
+
+Now restart the lsf_beekeeper -
+
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
+
+And this completes all the jobs! Yaay!
+
+12. CHECKING THE RESULT
+-----------------------
+-----------------------
+
+mysql -hecs4 -P3352 -Dvivek_homo_sapiens_core_29_35b_affy\
+-u***REMOVED*** -***REMOVED*** \
+-e "select affy_array.name array_name, affy_probe.probeset, affy_probe.name probe_name, seq_region.name,\
+affy_feature.seq_region_start, affy_feature.seq_region_end, affy_feature.seq_region_strand \
+into outfile '/ecs2/work3/vvi/affy_march_2005/check3/all_new_affy_features.txt'\
+from \
+affy_array, affy_probe, affy_feature , seq_region \
+where \
+(affy_feature.analysis_id = 5001 or affy_feature.analysis_id = 5003) and \
+affy_array.affy_array_id = affy_probe.affy_array_id and \
+affy_probe.affy_probe_id = affy_feature.affy_probe_id and \
+seq_region.seq_region_id = affy_feature.seq_region_id"
+
+sort all_new_affy_features.txt > all_new_sorted_affy_features.txt
+uniq all_new_sorted_affy_features.txt > all_new_unique_sorted_affy_features.txt
+
+mysql -hecs2 -P3365 -Dhomo_sapiens_core_28_35a\
+-u***REMOVED*** -***REMOVED*** \
+-e "select affy_array.name array_name, affy_probe.probeset, affy_probe.name probe_name, seq_region.name,\
+affy_feature.seq_region_start, affy_feature.seq_region_end, affy_feature.seq_region_strand \
+into outfile '/ecs2/work3/vvi/affy_march_2005/check/all_old_affy_features.txt'\
+from \
+affy_array, affy_probe, affy_feature , seq_region \
+where \
+affy_array.affy_array_id = affy_probe.affy_array_id and \
+affy_probe.affy_probe_id = affy_feature.affy_probe_id and \
+seq_region.seq_region_id = affy_feature.seq_region_id"
+
+sort all_old_affy_features.txt > all_old_sorted_affy_features.txt
+uniq all_old_sorted_affy_features.txt > all_old_unique_sorted_affy_features.txt
+
+diff all_new_unique_sorted_affy_features.txt all_old_sorted_affy_features.txt > diff_affy_features-new-old.txt
+
+There are 30000 misses - where 
+ecs4a[vvi]145: grep ">" diff_affy_features-new-old.txt > diff_affy_features_misses.txt
+ecs4a[vvi]146: grep "<" diff_affy_features-new-old.txt > diff_affy_features_adds.txt
+ecs4a[vvi]147: wc diff_affy_features*
+     13013    104104    736646 diff_affy_features_adds.txt
+     30087    240696   1725729 diff_affy_features_misses.txt
+
+So there are 30000 misses. Take the first one - 
+
+> HG-Focus      121_at  91:241; 2       113691170       113691193       -1
+
+What happened to it? Why was it present in the old features, and not in the new?
+
+a. Does this probe exist in the current array/probe set?
+SELECT * FROM `affy_probe` where affy_array_id = 108 and probeset = '121_at' and name = '91:241;
++---------------+---------------+----------+---------+
+| affy_probe_id | affy_array_id | probeset | name    |
++---------------+---------------+----------+---------+
+|       6377717 |           108 | 121_at   | 91:241; |
++---------------+---------------+----------+---------+
+YES.
+So where did this particular probe hit, and why doesn't it hit at the old location?
+
+Here's the probe:
+>6377717
+GACTCAATAAACCATTGCTCTTCAA
+
+In the db - 
+select * from affy_probe where affy_probe_id = 6377717
++---------------+---------------+----------+----------+
+| affy_probe_id | affy_array_id | probeset | name     |
++---------------+---------------+----------+----------+
+|       6377717 |           102 | 121_at   | 298:367; |
+|       6377717 |           104 | 121_at   | 338:319; |
+|       6377717 |           108 | 121_at   | 91:241;  |
+|       6377717 |           109 | 121_at   | 61:379;  |
+|       6377717 |           111 | 121_at   | 952:611; |
++---------------+---------------+----------+----------+
+
+So it appears in a number of arrays, as part of the same probeset, but with different names.
+What are the features for this probe?
+select * from affy_feature where affy_probe_id = 6377717
+NOTHING - so this probe just didn't place!
+(
+WHEREAS, IN THE OLD DATA, WE HAVE
+select * from affy_feature where seq_region_id =965894 and seq_region_start = 113691170 and 
+seq_region_end = 113691193 and seq_region_strand = -1
+yielding -
++---------------+
+| affy_probe_id |
++---------------+
+|       2111085 |
+|       2111086 |
+|       2111087 |
+|       2111088 |
+|       2111089 |
++---------------+
+which shows affy probes:
++---------------+---------------+----------+----------+
+| affy_probe_id | affy_array_id | probeset | name     |
++---------------+---------------+----------+----------+
+|       2111085 |            96 | 121_at   | 61:379;  |
+|       2111086 |            89 | 121_at   | 952:611; |
+|       2111087 |            95 | 121_at   | 91:241;  | <====== so the feature is certainly there
+|       2111088 |            92 | 121_at   | 338:319; |
+|       2111089 |            99 | 121_at   | 298:367; |
++---------------+---------------+----------+----------+
+)
+
+So none of the hits for this feature seem to get written:
+So to get to the bottom of this,
+rerun exonerate-0.8.3 (my alias!) on just this probe, over the whole genome,
+with the specific params in the application:
+
+exonerate-0.8.3 --query single.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted \
+--showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\n"  \
+--bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 25 --dnawordthreshold 11 
+===> No hit, running on ecs4
+
+So Steve suggests dropping the dnawordlen to 24, to see if it places:
+ecs4b[vvi]124: exonerate-0.8.3 --query single.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted --showsugar
+false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\\n" --bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 24 --dnawordthreshold 11 --querytype dna --targettype dna
+Command line: [exonerate-0.8.3 --query single.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted --showsugar
+false --showvulgar false --showalignment false --ryo RESULT: %S %pi %ql %tl %g %V\\n --bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 24 --dnawordthreshold 11 --querytype dna --targettype dna]
+Hostname: [ecs4b]
+RESULT: 6377717 24 0 - chromosome:NCBI35:2:1:242818229:1 113691169 113691193 + 120 100.00 25 242818229 . M 24 24\n-- completed exonerate analysis
+
+So it does actually place in the right position, with a wordlen of 24 - and one mismatch! The
+ExonerateAffy step will see a score of 24, record a mismatch of 1, and record the feature OK.
+
+OK, 
+1. Alter the config so the dnawordlen is dropped to 24,
+2. Rerun the actual alignment runnable, with only this single probe, to see if it correctly
+creates the affy feature despite the mismatch: alter the config to make the query fasta 
+one sequence long, and try this:
+$EXPANALYSISCODEDIR/scripts/test_RunnableDB \
+-dbhost ecs4 -dbport 3352 -dbuser ensro -dbname  vivek_homo_sapiens_core_29_35b_affy \
+-input_id 1:1 -logic_name 'AlignAffyProbes' 
+
+Result:
+feature: 113691170-113691193
+There were 1 features found
+
+So this does pick up the probe, and does place it on chr 2 (though not on the other three regions).
+OK, try a second affy alignment analysis, call it AlignAffyProbes2:
+--rerun scripts/load_hive_analysis.pl to insert an analysis called 'AlignAffyProbes2',
+and 22638 jobs into the analysis_job table: The analysis_stats are the same as before - batch_size = 3
+and hive_capacity = 600
+
+Now change the config file back to the old non-redundant sequence file,
+and alter the hive output directory (stored in the meta table) to point to 
+/ecs2/scratch1/vvi/affy_output2/
+Now restart the lsf beekeeper -
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
+
+Process finishes:
+mysql> select count(*), analysis_id from affy_feature group by analysis_id;
++----------+-------------+
+| count(*) | analysis_id |
++----------+-------------+
+|  3583774 |        5001 |
+|  8191264 |        5002 |
++----------+-------------+
+
+(compared to the reference of 3630229)
+-- so I don't think this is really going to help.
+
+Go back to the initial 35k. I have a clear discrepancy in the number of affy features.
+Instead of an SQL statement printing out the diff, try for a straight API-dump,
+which will correspond exactly to the numbers?
+
+Try the second differing affy feature:
+
+> HG-Focus      200004_at       172:283;        16      66047318        66047341        1
+
+This exists (1 affy feature record, 6 probe records, one for each array) in the old db.
+mysql> select * from affy_probe where probeset = '200004_at' and name = '172:283;';
++---------------+---------------+-----------+----------+
+| affy_probe_id | affy_array_id | probeset  | name     |
++---------------+---------------+-----------+----------+
+|       6569649 |           108 | 200004_at | 172:283; |
++---------------+---------------+-----------+----------+
+
+mysql> select * from affy_feature where affy_probe_id = 6569649;
++-----------------+---------------+------------------+----------------+-------------------+------------+---------------+-------------+
+| affy_feature_id | seq_region_id | seq_region_start | seq_region_end | seq_region_strand | mismatches | affy_probe_id | analysis_id |
++-----------------+---------------+------------------+----------------+-------------------+------------+---------------+-------------+
+|        13138180 |        965898 |         10775453 |       10775477 |                -1 |       NULL |       6569649 |        5001 |
++-----------------+---------------+------------------+----------------+-------------------+------------+---------------+-------------+
+
+What does exonerate yield for this probe?
+>6569649
+GTATATTGCCTGTATTTCTACCTCT
+
+exonerate-0.8.3 --query single2.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted \
+--showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\\n"  \
+--bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 25 --dnawordthreshold 11
+RESULT: 6569649 25 0 - chromosome:NCBI35:11:1:134452384:1 10775452 10775477 + 125 100.00 25 134452384 . M 25 25
+
+So this result is in keeping with the affy features written.
+-- in this case changing the dnawordlen to 24 doesnt change anything. Hmmm what's going on here?
+
+Try another case -
+> U133_X3P      g9789008_3p_at  934:979;        5       180476552       180476576       1
+
+mysql> select * from affy_probe where probeset = 'g9789008_3p_at' and name = '934:979;'
+    -> ;
++---------------+---------------+----------------+----------+
+| affy_probe_id | affy_array_id | probeset       | name     |
++---------------+---------------+----------------+----------+
+|       7372232 |           105 | g9789008_3p_at | 934:979; |
++---------------+---------------+----------------+----------+
+1 row in set (0.08 sec)
+
+mysql> select * from affy_feature where affy_probe_id = 7372232;
+
+exonerate-0.8.3 --query single3.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted \
+--showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\n"  \
+--bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 25 --dnawordthreshold 11
+
+RESULT: 7372232 0 25 + chromosome:NCBI35:2:1:242818229:1 212571976 212572001 + 125 100.00 25 242818229 . M 25 25
+RESULT: 7372232 25 0 - chromosome:NCBI35:1:1:245442847:1 184108924 184108949 + 125 100.00 25 245442847 . M 25 25
+RESULT: 7372232 0 25 + chromosome:NCBI35:8:1:146274826:1 15846113 15846138 + 125 100.00 25 146274826 . M 25 25
+RESULT: 7372232 0 25 + chromosome:NCBI35:6:1:170972699:1 73364613 73364638 + 125 100.00 25 170972699 . M 25 25
+RESULT: 7372232 25 0 - chromosome:NCBI35:4:1:191401218:1 89718785 89718810 + 125 100.00 25 191401218 . M 25 25
+RESULT: 7372232 25 0 - chromosome:NCBI35:1:1:245442847:1 238857795 238857820 + 125 100.00 25 245442847 . M 25 25
+RESULT: 7372232 0 25 + chromosome:NCBI35:2:1:242818229:1 74330864 74330889 + 125 100.00 25 242818229 . M 25 25
+RESULT: 7372232 24 0 - chromosome:NCBI35:X:1:154824264:1 83647805 83647829 + 120 100.00 25 154824264 . M 24 24
+RESULT: 7372232 0 24 + chromosome:NCBI35:X:1:154824264:1 55194145 55194169 + 120 100.00 25 154824264 . M 24 24
+RESULT: 7372232 24 0 - chromosome:NCBI35:2:1:242818229:1 88200929 88200953 + 120 100.00 25 242818229 . M 24 24
+RESULT: 7372232 0 25 + chromosome:NCBI35:8:1:146274826:1 13743847 13743872 + 116 96.00 25 146274826 . M 25 25
+RESULT: 7372232 0 25 + chromosome:NCBI35:2:1:242818229:1 209517821 209517846 + 116 96.00 25 242818229 . M 25 25
+RESULT: 7372232 25 0 - chromosome:NCBI35:6:1:170972699:1 132168994 132169019 + 116 96.00 25 170972699 . M 25 25
+RESULT: 7372232 25 0 - chromosome:NCBI35:5:1:180837866:1 111877605 111877630 + 116 96.00 25 180837866 . M 25 25
+RESULT: 7372232 0 25 + chromosome:NCBI35:13:1:114127980:1 108721501 108721526 + 116 96.00 25 114127980 . M 25 25
+>> RESULT: 7372232 0 25 + chromosome:NCBI35:5:1:180837866:1 180476551 180476576 + 116 96.00 25 180837866 . M 25 25
+RESULT: 7372232 0 25 + chromosome:NCBI35:11:1:134452384:1 77141242 77141267 + 116 96.00 25 134452384 . M 25 25
+RESULT: 7372232 25 0 - chromosome:NCBI35:17:1:78654742:1 21875474 21875499 + 116 96.00 25 78654742 . M 25 25
+RESULT: 7372232 25 0 - chromosome:NCBI35:4:1:191401218:1 104585126 104585151 + 116 96.00 25 191401218 . M 25 25
+RESULT: 7372232 0 25 + chromosome:NCBI35:17:1:78654742:1 21358183 21358208 + 116 96.00 25 78654742 . M 25 25
+RESULT: 7372232 25 0 - chromosome:NCBI35:19:1:63806651:1 10810355 10810380 + 116 96.00 25 63806651 . M 25 25
+RESULT: 7372232 0 25 + chromosome:NCBI35:22:1:49534710:1 48654730 48654755 + 116 96.00 25 49534710 . M 25 25
+
+Alter the config to point to single3.fa and rerun using test_RunnableBD
+$AFFYANALYSISCODEDIR/scripts/test_RunnableDB \
+-dbhost ecs4 -dbport 3352 -dbuser ensro -dbname vivek_homo_sapiens_core_29_35b_affy \
+-input_id 1:1 -logic_name 'AlignAffyProbes'
+
+So this also confirms the result, over ecs4, rlx-blades and bc-nodes.
+Which job had this particular probe in it?
+The probe occurrs in line: 4535469 out of a total of 4536548.
+Total number of sets: 22683. 4536548 / 22683 = 199.99, so 200 lines each.
+So 4535469 / 200 = 22677.345
+So I expect the sequence to be picked up in set 22678:22683
+
+So which job ran 22678:22683
+mysql> select * from analysis_job where input_id = '22678:22683';
+        22678 |                    0 |        5001 | 22678:22683 | 33DA04A0-8C1D-11D9-A01F-EE7AB80C2746 |    2036 | DONE
+So grep workers for worker_2036, job 22678:
+Now modify the stderr so that I print out the list of probes actually involved? No, but I can at least
+print out the exonerate return lines --
+ 
+Rerun that particular job with test_RunnableDB and capture the output.
+$AFFYANALYSISCODEDIR/scripts/test_RunnableDB \
+-dbhost ecs4 -dbport 3352 -dbuser ensro -dbname vivek_homo_sapiens_core_29_35b_affy \
+-input_id 22679:22683 -logic_name 'AlignAffyProbes' -verbose
+
+SOLUTION: the last 520 probes were never run: must be an arithmetic bug in
+Guy's code: gather them together and rerun as a separate set:
+select max(affy_probe_id) from affy_feature where analysis_id = 5001
+7372149
+select max(affy_probe_id) from affy_probe:
+7372771
+So split out probe 7372150->7372771 into a separate flat file:
+/ecs2/work3/vvi/affy_march_2005/data/last_622_nr_probes.fa
+Now set up an analysis to run this with:
+AlignRemainingAffyProbes,
+and run load_hive_analysis to do this, with input_id's 1:7 -> 7:7
+
+-------
+Undo the assembly exceptions, and put the hap seq regions & assembly back to the
+'native' state:
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "delete from assembly_exception";
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update seq_region set length = 139182 where seq_region_id = 966000"
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update seq_region set length = 150447 where seq_region_id = 966001"
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly set asm_start = 1, asm_end = 99464 \
+where asm_seq_region_id = 966000 and cmp_seq_region_id = 412319 "
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 99465, asm_end = 123383 \
+where asm_seq_region_id = 966000 and cmp_seq_region_id = 317628 "
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 123384, asm_end = 139182 \
+where asm_seq_region_id = 966000 and cmp_seq_region_id = 412299"
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 1, asm_end = 90547 \
+where asm_seq_region_id = 966001 and cmp_seq_region_id = 965889"
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 90548, asm_end = 150447 \
+where asm_seq_region_id = 966001 and cmp_seq_region_id = 965890"
+-------
+
+update hive_output_dir in the meta table to point to the new analysis:
+/ecs2/scratch1/vvi/affy_remaining_output/
+
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -logic_name AlignRemainingAffyProbes -loop
+
+DONE. This added less than one thousand extra affy features.
+
+Re-start the check dump (using the dump sql above):
+
+ecs4a[vvi]170: wc -l diff_affy_features*
+      8827 diff_affy_features_adds.txt
+     24821 diff_affy_features_misses.txt
+
+So still a 24000 miss.
+
+Try a missing case with exonerate-0.6.7
+exonerate-0.6.7 --query single.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted \
+--showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\n"  \
+--bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 25 --dnawordthreshold 11
+The actual tweaked command line is:
+ecs4b[vvi]111: exonerate-0.6.7 --query single.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted/5.fa --showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\n" --fsmmemory 256 --hspthreshold 116 --dnawordlen 25 --wordthreshold 11
+-- ie it can't be run on a directory. SO this requires so much tweaking, it can't possibly be what Yuan was doing.
+Back to the drawing board.
+
+Try the last probe in the misses file again:, to see if we get it / don't get it:
+U133_X3P      g9966910_3p_at  292:131;        1       224654086       224654110       1
+
+select * from affy_probe where name = '292:131;' and probeset = 'g9966910_3p_at'
++---------------+---------------+----------------+----------+
+| affy_probe_id | affy_array_id | probeset       | name     |
++---------------+---------------+----------------+----------+
+|       6127278 |           105 | g9966910_3p_at | 292:131; |
++---------------+---------------+----------------+----------+
+select * from affy_feature where affy_probe_id = 6127278;
+empty set.
+
+put the seqfrom 6127278 into check3/single.fa
+>6127278
+AGAGATGTTGATATGCCTTGCAGCT
+
+exonerate-0.8.3 --query single.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted \
+--showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\\n"  \
+--bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 25 --dnawordthreshold 11
+
+ecs4a[vvi]179: exonerate-0.8.3 --query single.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted --showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\\n" --bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 25 --dnawordthreshold 11
+Command line: [exonerate-0.8.3 --query single.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted --showsugar false --showvulgar false --showalignment false --ryo RESULT: %S %pi %ql %tl %g %V\\n --bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 25 --dnawordthreshold 11]
+Hostname: [ecs4a]
+-- completed exonerate analysis
+
+I am NOT imagining this! (moreover, a quick check of the results in 3362/vivek_homo_sapiens_test_26_35 actually
+shows that the hit was PRESENT in the old database, so I DID see the hit before. I am NOT imagining this!)
+Try with a wordlen of 24 - THAT doesn't work either.
+So where was the original hit?
+mysql> select * from affy_feature where seq_region_start = 224654086;
++-----------------+---------------+------------------+----------------+-------------------+------------+---------------+-------------+
+| affy_feature_id | seq_region_id | seq_region_start | seq_region_end | seq_region_strand | mismatches | affy_probe_id | analysis_id |
++-----------------+---------------+------------------+----------------+-------------------+------------+---------------+-------------+
+|         9951699 |        965892 |        224654086 |      224654110 |                 1 |          1 |       2105492 |        1305 |
++-----------------+---------------+------------------+----------------+-------------------+------------+---------------+-------------
+
+So the claim is that this feature had one error. Why didn't we see it on chr 1? We tried matching with a wordlen of 24 and didn't work.
+Try wordlen of 23:
+cs4d[vvi]117: exonerate-0.8.3 --query single.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted/1.fa --showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\n" --bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 23 --dnawordthreshold 11
+Command line: [exonerate-0.8.3 --query single.fa --target /data/blastdb/Ensembl/Human/NCBI35/softmasked_dusted/1.fa --showsugar false --showvulgar false --showalignment false --ryo RESULT: %S %pi %ql %tl %g %V\n --bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 23 --dnawordthreshold 11]
+Hostname: [ecs4d]
+RESULT: 6127278 0 25 + chromosome:NCBI35:1:1:245442847:1 224654085 224654110 + 116 96.00 25 245442847 . M 25 25
+
+So you get a 1-miss hit with a seed word match of 23.
+
+One attempt at resolution:
+Write a script
+read_diffs.pl that 
+- reads the current list of non-redundant probes by id and caches the id and sequence
+- reads through the diff file to get name/probeset/array for each missing probe, and 
+- retrieves the affy probe id for the specific missing probe name/probeset, then 
+- prints out the affy probe id and sequence.
+
+This gives us 13005 missing probes. OK, now we rerun these specific missing probes
+through the pipeline:
+Create an analysis 'RealignMissingAffyProbes' using load_hive_config.pl with 
+inputids: 1:130 -> 130:130 using these altered configs:
+
+QUERYSEQS => '/ecs2/work3/vvi/affy_march_2005/data/missing_affy_probes.fa',
+OPTIONS => ' --bestn 100 --dnahspthreshold 116 --fsmmemory 256 --dnawordlen 20 --dnawordthreshold 11 '
+
+FIRST - try a test_RunnableDB on a tiny subset to see what differences we 
+get from two runs: one with a dnawordlen of 25 (the original) and the
+next with a dnawordlen of 20 (we expect few/no placements from the first run,
+and significantly more from the second - also we expect those new placements to 
+be where the probes _used_ to place in previous runs).
+
+$AFFYANALYSISCODEDIR/scripts/test_RunnableDB \
+-dbhost ecs4 -dbport 3352 -dbuser ensro -dbname vivek_homo_sapiens_core_29_35b_affy \
+-input_id 1:5000 -logic_name 'RealignMissingAffyProbes'
+
+So here's a probe id that was deemed missing:
+5192571
+and here's the line in the diff file:
+> HG-Focus      200012_x_at     179:341;        17      25067782        25067805        -1
+
+So do we have this hit in the new run, and not in the old? In fact, we do!
+How many hits in the old run for probe id 5192571 ? 45 This is the same number that was 
+recorded in the current run's db.
+How many hits in the new run for probe id 5192571 ? 46. So the new run seems to fill in 
+_exactly_ this (previously missing) probe hit.
+
+What about the two remaining hits in the new run that were not present in the old? Are they
+somewhere in the diff file?
+RESULT: 6377717 24 0 - chromosome:NCBI35:2:1:242818229:1 113691169 113691193 + 120 100.00 25 242818229 . M 24 24
+-- yes, this is in the diff file, and 
+RESULT: 6569649 1 25 + chromosome:NCBI35:16:1:88822254:1 66047317 66047341 + 120 100.00 25 88822254 . M 24 24
+-- yes, this is in the diff file.
+
+SO this is looking quite promising, as long as we can accept that there will be some
+redundant hits coming in from probes already present.
+
+Get the output directory right:
+/ecs2/scratch1/vvi/affy_missing_output/
+
+We have the hive tables filled in, so we need to run 130 jobs -
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -logic_name RealignMissingAffyProbes -loop
+
+Now which features should we keep? Certainly not the redundant ones...how many of the new ones
+are redundant?
+
+
+--------------------
+start a new set of diffs in the check4 directory.
+
+mysql -hecs4 -P3352 -Dvivek_homo_sapiens_core_29_35b_affy\
+-u***REMOVED*** -***REMOVED*** \
+-e "select affy_array.name array_name, affy_probe.probeset, affy_probe.name probe_name, seq_region.name,\
+affy_feature.seq_region_start, affy_feature.seq_region_end, affy_feature.seq_region_strand \
+into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/check4/all_new_affy_features.txt'\
+from \
+affy_array, affy_probe, affy_feature , seq_region \
+where \
+(affy_feature.analysis_id = 5001 or affy_feature.analysis_id = 5003 or affy_feature.analysis_id = 5004) and \
+affy_array.affy_array_id = affy_probe.affy_array_id and \
+affy_probe.affy_probe_id = affy_feature.affy_probe_id and \
+seq_region.seq_region_id = affy_feature.seq_region_id"
+
+ecs4b[vvi]139: wc -l all_new_affy_features.txt
+   5867482 all_new_affy_features.txt
+
+sort all_new_affy_features.txt > all_new_sorted_affy_features.txt
+uniq all_new_sorted_affy_features.txt > all_new_unique_sorted_affy_features.txt
+
+ecs4b[vvi]155: wc -l all_new_unique_sorted_affy_features.txt
+   5117600 all_new_unique_sorted_affy_features.txt
+   
+   -- so there was significant redundancy in the new set, and this was cut down by the uniq
+
+diff all_new_unique_sorted_affy_features.txt all_old_unique_sorted_affy_features.txt > diff_affy_features-new-old.txt
+grep ">" diff_affy_features-new-old.txt > diff_affy_features_misses.txt
+ecs4b[vvi]157: wc -l diff_affy_features_misses.txt
+      1399 diff_affy_features_misses.txt
+
+grep "<" diff_affy_features-new-old.txt > diff_affy_features_adds.txt
+ecs4b[vvi]156: wc -l diff_affy_features_adds.txt
+     13665 diff_affy_features_adds.txt
+     
+One thing still to do - since I didn't remove the assembly exceptions before THIS run,
+I have to increment the start-points of the affy-features that fell into the 
+DR-seq_regions:
+select count(*) from affy_feature where analysis_id = 5004 and (seq_region_id = 966000 or seq_region_id = 966001)
+result: 444. So this is 444 features with the wrong seq_region_start/end's on them. 
+Do the following to increment these features:
+
+update affy_feature set seq_region_start = seq_region_start+32511422, \
+seq_region_end = seq_region_end+32511422 \
+where analysis_id = 5004 and seq_region_id = 966000
+
+update affy_feature set seq_region_start = seq_region_start+32503397, \
+seq_region_end = seq_region_end+32503397\
+where analysis_id = 5004 and seq_region_id = 966001
+
+DONE! So that changed 444 rows altogether, and has resolved the glitch around the 
+HAP regions.
+
+First - how is it that we can overshoot by 10% of the hits (300k) and still only
+have 13000-odd over-hits? What is the makeup of the 400000 hits in the last analysis?
+
+Delete the affy_features' with analysis_id = 5002 - this is the dud 'extra' analysis
+delete from affy_feature where analysis_id = 5002;
+Query OK, 8191264 rows affected (336.66) sec
+
+select count(*) from affy_feature
+3967611
+
+How redundant is affy_feature now?
+mysql -hecs4 -u***REMOVED*** -***REMOVED*** -P3352 -Dvivek_homo_sapiens_core_29_35b_affy \
+-e"select affy_probe_id, seq_region_id , seq_region_start, seq_region_end, seq_region_strand \
+into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/check4/new_affy_table_dump.txt' \
+from affy_feature"
+sort new_affy_table_dump.txt > tmp
+uniq tmp > tmp2
+wc -l tmp2:
+3603328
+
+mysql -hecs2 -u***REMOVED*** -***REMOVED*** -P3364 -Dhomo_sapiens_core_30_35c \
+-e"select affy_probe_id, seq_region_id , seq_region_start, seq_region_end, seq_region_strand \
+into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/check4/old_affy_table_dump.txt' \
+from affy_feature"
+sort old_affy_table_dump > tmp3
+uniq tmp3 > tmp4
+ecs4a[vvi]168: wc -l tmp4
+   3630229 tmp4
+
+Hmmm, so we have an undershoot of 3630229 - 3603328 = 26k. 
+Currently I record a diff of 13k+1.5k = 14.5k using my other dumps, so I'm a little
+stymied by this number.
+   
+Now we make a backup of affy_array, affy_probe and affy_feature tables, and then alter
+the analysis_id from 5003->5000, and 5004->5000.
+
+mysql -hecs4 -u***REMOVED*** -***REMOVED*** -P3352 -Dvivek_homo_sapiens_core_29_35b_affy \
+-e"select affy_probe_id, seq_region_id , seq_region_start, seq_region_end, seq_region_strand \
+into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/check4/new_affy_table_dump_5000_5003.txt' \
+from affy_feature where analysis_id = 5001 or analysis_id = 5003"
+
+ecs4a[vvi]173: wc -l new_affy_table_dump_5000_5003.txt
+   3584571 new_affy_table_dump_5000_5003.txt
+   
+sort new_affy_table_dump_5000_5003.txt > tmp6
+uniq tmp6 > tmp7
+wc -l tmp7:
+3584571
+-- so all the redundancy is in the new features.
+
+Decision from Steve: keep analyses 5000 and 5002, but NOT 5004. That is, we'll go with the
+original undershooting bunch.
+
+13. RESTORING THE ASSEMBLY EXCEPTIONS 
+-------------------------------------
+-------------------------------------
+
+Put back the assembly exceptions by copying from another db:
+
+mysql -hecs2 -P3365 -u***REMOVED*** -***REMOVED*** -Dhomo_sapiens_core_28_35a \
+-e"select * into outfile '/nfs/acari/vvi/assembly_exception.txt' from assembly_exception;"
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy\
+-e"load data infile '/nfs/acari/vvi/assembly_exception.txt' into table assembly_exception;"
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update seq_region set length = 170972699 where seq_region_id = 966000"
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update seq_region set length = 170972699 where seq_region_id = 966001"
+
+Restore the HAP regions - these, for h sapiens - are:
+>chromosome:NCBI35:DR52:1:139182:1 chromosome DR52
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+| asm_seq_region_id | cmp_seq_region_id | asm_start | asm_end  | cmp_start | cmp_end | ori |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+|            966000 |            412319 |  32511423 | 32610886 |         1 |   99464 |  -1 |
+|            966000 |            317628 |  32610887 | 32634805 |         1 |   23919 |  -1 |
+|            966000 |            412299 |  32634806 | 32650604 |     60000 |   75798 |  -1 |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly set asm_start = 32511423, asm_end = 32610886\
+where asm_seq_region_id = 966000 and cmp_seq_region_id = 412319 "
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 32610887, asm_end = 32634805\
+where asm_seq_region_id = 966000 and cmp_seq_region_id = 317628 "
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 32634806, asm_end = 32650604\
+where asm_seq_region_id = 966000 and cmp_seq_region_id = 412299"
+
+>chromosome:NCBI35:DR53:1:150447:1 chromosome DR53
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+| asm_seq_region_id | cmp_seq_region_id | asm_start | asm_end  | cmp_start | cmp_end | ori |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+|            966001 |            965889 |  32503398 | 32593944 |         1 |   90547 |  -1 |
+|            966001 |            965890 |  32593945 | 32653844 |         1 |   59900 |   1 |
++-------------------+-------------------+-----------+----------+-----------+---------+-----+
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 32503398, asm_end = 32593944\
+where asm_seq_region_id = 966001 and cmp_seq_region_id = 965889"
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "update assembly \
+set asm_start = 32593945, asm_end = 32653844\
+where asm_seq_region_id = 966001 and cmp_seq_region_id = 965890"
+
+Now alter the affy features which are placed on seq regions 960000 and 960001, so that
+their coords are increased by 32511422 or 32503397, resp.
+
+update affy_feature set seq_region_start = seq_region_start+32511422, \
+seq_region_end = seq_region_end+32511422 \
+where seq_region_id = 966000
+
+update affy_feature set seq_region_start = seq_region_start+32503397, \
+seq_region_end = seq_region_end+32503397\
+where seq_region_id = 966001
+
+14. COPY INTO THE TARGET DATABASE
+---------------------------------
+---------------------------------
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/affy_array' from affy_array"
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/affy_probe' from affy_probe"
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+-e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/affy_feature' from affy_feature \
+where analysis_id = 5001 or analysis_id = 5003"
+
+Handoff to the affy-mapping crew.
+
+15. REPEAT FOR DOG AFFYS
+--------------------------------------
+--------------------------------------
+
+This gets a big weird because we are using the same codebase, but a different core db to administer
+and run the analyses. So db and analysis references in the CODE are overlapping, even
+though the db's are distinct.
+
+Copy the core db:
+scp -r canis_familiaris_core_30_1a ecs4c:/mysql-3352/databases/vivek_canis_familiaris_core_30_1a_affy
+
+There is only one array for dog:
+/ecs2/work3/vvi/affy_march_2005/dog/data/Canine_probe_fasta
+
+Copy the admin tables into the db:
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_canis_familiaris_core_30_1a_affy \
+-e "source /ecs2/work3/vvi/affy_march_2005/code/ensembl/ensembl-hive/sql/tables.sql"
+
+$AFFYROOT/dog/scripts/load_hive_analyses.pl to set up the hive admin for the next step.
+...and add the row for the hive_output_dir into meta:
+|      100 | hive_output_dir        | /ecs2/scratch1/vvi/affy_dog_output    |
+
+mysql -hecs4 -u***REMOVED*** -***REMOVED*** -P3352 -Dvivek_canis_familiaris_core_30_1a_affy \
+-e"insert into analysis set analysis_id = 5000, logic_name = 'CollapseAffyProbes', module='CollapseAffyProbes'"
+mysql -hecs4 -u***REMOVED*** -***REMOVED*** -P3352 -Dvivek_canis_familiaris_core_30_1a_affy \
+-e"insert into analysis set analysis_id = 5100, logic_name = 'AlignDogAffyProbes', module='AlignAffyProbes'"
+
+and submit the job to the farm:
+
+bsub -q long -R model=IBMBC2800 -o collapse_affy.out \
+-e collapse_affy.err $EXPANALYSISCODEDIR/scripts/test_RunnableDB \
+-dbhost ecs2 -dbport 3352 -dbuser ensro -dbname  vivek_homo_sapiens_core_29_35b_affy\
+-input_id whatever -logic_name 'CollapseDogAffyProbes' -write
+
+$EXPANALYSISCODEDIR/scripts/test_RunnableDB \
+-dbhost ecs4 -dbport 3352 -dbuser ensro -dbname  vivek_canis_familiaris_core_30_1a_affy\
+-input_id whatever -logic_name 'CollapseAffyProbes'
+
+bsub -q long -R model=IBMBC2800 -o collapse_affy.out \
+-e collapse_affy.err $EXPANALYSISCODEDIR/scripts/test_RunnableDB \
+-dbhost ecs4 -dbport 3352 -dbuser ***REMOVED*** -dbpass ensembl -dbname  vivek_canis_familiaris_core_30_1a_affy\
+-input_id whatever -logic_name 'CollapseDogAffyProbes' -write
+
+NOTE - 
+1. we have to submit jobs with a resource req of -Rlargedata (which is basically
+the bc-nodes and the ecs4-nodes, because that's the place where the seq dumps are
+visible. So add a switch -Rlargedata directly into the bsub line in lsf_beekeeper
+
+2. we have to make changes in the code:
+The fasta headers of the chromosomes look like this:
+>10.1-72717409
+So when we get a hit from exonerate, the seqname stamped onto the affy_feature
+is "10.1-72717409", which is a problem, because I try to load a slice
+directly by its name. So try to insert this hard-coded stuff into the
+AlignAffyProbe runnabledb:
+    my $seqname = $affy_feature->seqname;
+    $seqname =~ /(\d+).(\d+)-(\d+)/;
+    my $chr = $1;
+    my $start = $2;
+    my $end = $3;
+    my $slice_id = "chromosome:BROADD1:$chr:$start:$end:1";
+    print STDERR "AlignAffyFeatures fetching slice for name: $slice_id\n";
+
+    if ( not exists $genome_slices{$slice_id} ) {
+      # assumes genome seqs were named in the Ensembl API Slice naming
+      # convention, i.e. coord_syst:version:seq_reg_id:start:end:strand
+      print STDERR "AlignAffyFeatures -- have to fetch with adaptor\n";
+      $genome_slices{$slice_id} = $slice_adaptor->fetch_by_name($slice_id);
+    }
+    my $slice = $genome_slices{$slice_id};
+
+Test a single dog job:
+
+$AFFYANALYSISCODEDIR/scripts/test_RunnableDB \
+-dbhost ecs4 -dbport 3352 -dbuser ensro -dbname vivek_canis_familiaris_core_30_1a_affy\
+-input_id 1:3000 -logic_name 'AlignDogAffyProbes'
+
+3. Debug why we are getting a mismatch count of NULL instead of 0 or 1. Because
+AffyFeature's constructor is buggered.
+
+Run the runWorker
+runWorker.pl -bk LSF -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -limit 1 -job_id 1 This works. And the job is set to DONE.
+
+Now let the system go: 
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -loop
+
+Crash: 
+-------------------- EXCEPTION --------------------
+MSG: seq_region_name argument is required
+STACK Bio::EnsEMBL::DBSQL::SliceAdaptor::fetch_by_region /ecs2/work3/vvi/affy_march_2005/code/ensembl/ensembl/modules//Bio/EnsEMBL/DBSQL/SliceAdaptor.pm:180
+STACK Bio::EnsEMBL::DBSQL::SliceAdaptor::fetch_by_name /ecs2/work3/vvi/affy_march_2005/code/ensembl/ensembl/modules//Bio/EnsEMBL/DBSQL/SliceAdaptor.pm:372
+STACK Bio::EnsEMBL::Analysis::RunnableDB::AlignAffyProbes::clean_affy_features /ecs2/work3/vvi/affy_march_2005/code/ensembl/ensembl-analysis/modules//Bio/EnsEMBL/Analysis/RunnableDB/AlignAffyProbes.pm:231
+STACK Bio::EnsEMBL::Analysis::RunnableDB::AlignAffyProbes::write_output /ecs2/work3/vvi/affy_march_2005/code/ensembl/ensembl-analysis/modules//Bio/EnsEMBL/Analysis/RunnableDB/AlignAffyProbes.pm:189
+STACK Bio::EnsEMBL::Hive::Worker::run_module_with_job /ecs2/work3/vvi/affy_march_2005/code/ensembl/ensembl-hive/modules/Bio/EnsEMBL/Hive/Worker.pm:475
+STACK Bio::EnsEMBL::Hive::Worker::run /ecs2/work3/vvi/affy_march_2005/code/ensembl/ensembl-hive/modules/Bio/EnsEMBL/Hive/Worker.pm:393
+STACK (eval) ./runWorker.pl:165
+STACK toplevel ./runWorker.pl:165
+
+-- so the problem was that I couldn't properly parse the 'X' chromosome.
+This is fixed by altering the parsing code:
+    my $seqname = $affy_feature->seqname;
+    $seqname =~ /(\S+).(\d+)-(\d+)/;
+    my $chr = $1;
+
+Now reset the hive:
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -reset_all_jobs_for_analysis_id 5101
+
+
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_canis_familiaris_core_30_1a_affy\
+-e "delete from affy_feature"
+
+and restart:
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***:ensembl@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -loop
+
+OK, this completes, creates 330213 affy features, uniformly distributed
+across all the seq regions.
+
+Copy into staging dog:
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_canis_familiaris_core_30_1a_affy -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_array' from affy_array"
+                                                                                
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_canis_familiaris_core_30_1a_affy -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_probe' from affy_probe"
+                                                                                
+mysql -hecs4 -P3352 -u***REMOVED*** -***REMOVED*** -Dvivek_canis_familiaris_core_30_1a_affy -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_feature' from affy_feature 
+
+mysql -hecs2 -P3364 -u***REMOVED*** -***REMOVED*** -Dcanis_familiaris_core_30_1a \
+-e "load data infile \
+'/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_array' \
+into table affy_array"
+
+mysql -hecs2 -P3364 -u***REMOVED*** -***REMOVED*** \
+-Dcanis_familiaris_core_30_1a -e \
+"load data infile \
+'/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_probe' \
+into table affy_probe"
+
+mysql -hecs2 -P3364 -u***REMOVED*** -***REMOVED*** -Dcanis_familiaris_core_30_1a \
+-e "load data infile \
+'/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_feature' \
+into table affy_feature"
 
