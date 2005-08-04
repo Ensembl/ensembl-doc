@@ -1,0 +1,297 @@
+This document gives an overview of the Ensembl pipeline, analysis
+system and points the reader to documents with more detail about
+setting up and using specific aspects of the system.
+
+
+Introduction
+------------
+
+The Ensembl pipeline and analysis system exist to allow easy
+automated annotation of genome sequences. The system is designed to
+allow analyses that are dependent on one another to be sent
+simultaneously to a compute resource. It has the capability to catch
+and register errors and to retry failed analyses.
+
+Details of the pipeline system (how it is set up, our standard usages
+patterns and how to customise it) are described in another document.
+*[insert ref to pipeline document]
+
+
+Code requirements
+-----------------
+
+To run any piece of the Ensembl software you need the following.
+Versions are current at the time of writing and will work with the
+Ensembl code (you can try using more recent versions but we can't
+guarantee they will work).
+
+Perl 5.8, including the DBI and DBD::Mysql modules
+MySQL (version 4.1)
+Bioperl (version 1.2.3)
+
+Bioperl can be obtainned using CVS like this:
+cvs -d :pserver:cvs@cvs.open-bio.org:/home/repository/bioperl login
+(when prompted, the password is 'cvs') then: cvs -d :pserver:cvs@cvs.open-bio.org:/home/repository/bioperl checkout
+-r bioperl-release-1-2-3 bioperl-live
+
+
+You also need some Ensembl-specific Perl code:
+
+ensembl
+ensembl-pipeline
+ensembl-analysis
+
+These are all available using CVS like this:
+cvs -d :pserver:cvsuser@cvsro.sanger.ac.uk:/cvsroot/CVSmaster login
+(when prompted the password is CVSUSER) then checkout the three
+modules:
+cvs -d :pserver:cvsuser@cvsro.sanger.ac.uk:/cvsroot/CVSmaster checkout
+-r branch-ensembl-32 ensembl ensembl-pipeline ensembl-analysis
+
+This will checkout the three required modules on a cvs branch called
+branch-ensembl-32. This is currently the most stable branch of the
+pipeline and analysis code. It may work with more recent versions of
+the core (ensembl) code but we can only guarantee that it will work if
+you use the same branch for the core code.
+
+
+The Ensembl build process
+-------------------------
+
+The Ensembl analysis of most genomes is very similar and follows the
+same basic structure.
+
+First the sequence and assembly details are loaded into an Ensembl
+MySQL database.
+*[insert ref to loading document]
+
+Once loaded the actual analysis can begin. It usually consists of the
+following stages.
+
+Overview of stages
+------------------ 
+Sequence and assembly loading
+1. Raw compute 
+2. Genebuild
+   a Targetted Build
+   b Similarity Build
+   c UTR Addition
+   d GeneBuilder
+   e GeneCombiner
+3. ncRNA analysis
+4. Pseudogene analysis
+5. Protein annotation
+6. ID cross mapping (Xrefs)
+7. EST Genebuild
+
+
+1. The Raw Compute
+==================
+
+We call the first stage of analysis the 'raw compute' stage. This
+stage involves running several different analyses to find different
+features in the genome. These include:
+
+a. Repeat finding analyses
+b. Ab initio genefinders, like Genscan
+c. Blast hits using standard databases such as Uniprot and Unigene
+d. Programs to find features like CpG islands and tRNAs in the genome
+e. Placing markers on the genome
+
+*[insert ref to raw compute document(s)]
+
+
+2. The Genebuild
+================
+
+Next the Gene building steps are run. The overall aim is to produce the
+best possible genome-wide set of transcript and gene structures. The
+Genebuild involves several distinct stages.
+
+a. Targetted Genebuild
+----------------------
+
+The Targetted Genebuild involves two main stages:
+i.  Species-specific proteins are aligned to the genome using pmatch
+    and subsequently filtered to get the best-in-genome hit(s) for each
+    protein.
+ii. Filtered pmatch hits from (i) are used to seed BLASTs in a
+    specific region of the genome, and then the program Genewise is run to
+    build a transcript structure for the protein on the genome.
+
+b. Similarity Genebuild
+-----------------------
+
+The Targetted Genebuild is followed by the Similarity Genebuild. In
+this step the protein-based blast results obtained from the Raw
+Compute stage are used.  The process is very similar process to the
+Targetted Genebuild, but the protein alignments being used to seed the
+Genewise runs can come from different species.
+
+For those species which have a lot of experimentally generated protein
+sequence data, the Targetted Genebuild stage tends to provide the bulk
+of genes in the build, as the Similarity Genebuild generated genes are
+only used where a Targetted Genebuild gene is absent. However, in less
+studied organisms less species-specific protein sequences will be
+available and hence the similarity build plays a much more important
+role in predicting genes.
+
+c. UTR Addition
+---------------
+
+After these protein-based transcript predictions have been made, an
+attempt is made to add UTR (untranslated region) sequences to the
+ends. If cDNA sequences for the species in question are available,
+these sequences are mapped to the genome using a program called
+exonerate and the resultant genome-cDNA alignments are filtered to
+only include the the 'best in genome' match. Where cDNAs mapped in
+this manner overlap transcripts predicted in the preceding stages,
+any non-translated region from the cDNA is spliced onto the prediction
+as UTR.
+
+At this stage a set of so called Blessed Genes can be added. Blessed
+genes are genes whose structure is already known, for example from
+manually curated gene sets, or special cases where we know that the
+standard pipeline can't predict correctly (e.g. selenocysteine
+genes). These genes are treated more carefully and, while they may
+have UTR added, the process ensures that the CDS structure remains
+unchanged.
+
+d. The Genebuilder
+------------------
+
+Each of the prior stages of the genebuild process creates a set of
+transcripts which may be partially redundant to one another. These
+sets need to be merged to create a single non-redundant set of
+transcripts. This reconciliation is performed by the Genebuilder
+module. The Genebuilder compares transcripts from the different sets
+and tries to combine or merge identical transcripts. When transcripts
+are combined the supporting evidence for each prediction is transfered
+to the new transcript. Overlapping transcripts are clustered into
+genes.
+
+e. The GeneCombiner
+-------------------
+
+If your species has a lot of cDNAs you may want to considered running
+the GeneCombiner stage. First you need to collapse down your cDNA
+alignments (made during the UTR addition stage) into a non redundant
+set of transcripts with open reading frames. These transcripts are
+then used by the GeneCombiner module to fill gaps in the gene set.
+The module can also be used to add alternative transcripts to existing
+genes.
+
+
+Once a 'final' gene set has been obtained, a number of post-processing
+procedures are applied to filter and annotate the predicted genes.
+
+3. ncRNA Annotation
+==================
+
+ncRNA annotation is split into 2 stages which can run simultaneously:
+miRNA detection.
+ncRNA detection using Infernal
+(tRNAs are already identified as part of the raw computes)
+Further details about how to run all 3 stages are availiable in ncRNA.txt
+
+4. Pseudogene Analysis
+======================
+
+Pseudogene analysis can have upto 3 stages:
+Identification of genes with no 'real' exons,
+Identification of retrotransposed genes,
+Identification of pseudogenes using PSILC,
+Generally only the first stage is run as the latter stages are prone to 
+missanotate real genes as pseudogenes. 
+Further details about how to run all 3 stages are availiable in Pseudogene.txt
+
+5. Protein Annotation
+=====================
+
+Next the translations are dumped out of the database and a protein
+annotation stage is performed. This serves to identify protein domains
+from databases like Pfam or Prosite and features such as signal
+peptides (with the program SignalP) and transmembrane domains (with
+the program tmhmm).
+
+
+6. ID mapping, Xrefs
+====================
+
+Ensembl stable identifiers (ENSGxxx, ENSTxxx, ENSPxxx, ENSExxx) are
+assigned by mapping these IDs across from the previous Ensembl gene
+set. New identifiers are assigned for any entities where we fail to
+map an existing identifier.
+
+We also run a cross-reference ('Xref') analysis, which maps each
+protein from our own genes to entries in other databases such as
+UniProt (SwissProt/TrEMBL), Refseq and species-specific gene name
+databases (e.g. HGNC for human). This mapping provides links between
+an Ensembl gene and these other databases, providing access to extra
+information about the potential functionality of the gene.
+
+
+7. EST Genebuild
+================
+
+For most species, EST-based gene predictions don't contribute to the
+main Ensembl gene set. Instead we use this process to produce a
+separate set of EST genes. The process is very similar to the cDNA
+analysis. First the EST sequences are aligned to the genome using
+exonerate. These alignments are then collapsed down into a non
+redundant set of transcripts with open reading frames based on
+clusters of overlapping ESTs.
+
+
+
+Other useful documents in the ensembl-doc cvs module
+----------------------------------------------------
+
+* loading_sequence_into_ensembl.txt
+This describes how to load sequences from fasta files and assemblies
+from agp files into your Ensembl database
+
+* the_ensembl_pipeline_infrastructure.txt
+This describes the pipeline infrastructure system and how to set it up
+to run different analyses
+
+* quick_start_pipeline_guide.txt
+This describes how to get a test setup running for the pipeline on the
+basis of ensembl-pipeline/test_system
+
+* running_the_rawcomputes.txt
+This describes how to run the raw compute stage of our analysis system
+
+* running_the_markers.txt
+This describes how to map STS markers from dbSTS and other sources
+onto a genome
+
+* running_the_genebuild.txt
+This describes the processes of running the genebuild
+
+* ncRNA.txt
+This describes how to run annotation for non coding RNA
+
+* Pseudogenes.txt
+This describes how to run pseudogene annotation
+
+* est_cdna_genebuild.txt
+This describes the processes of running an EST or cDNA based genebuild
+
+* running_the_protein_annotation.txt
+This describes how to run the protein annotation stage
+
+* using_the_xref_system.txt
+This describes how to use our xref system
+
+* custom_analyses.txt
+This describes the sort of things you may want to consider if you are
+setting up custom analyses in our system
+
+* using_blast_in_the_pipeline.txt
+This describes how our blast system functions and how best to use it
+
+* batchsubmission_systems.txt
+This describes how our various batch submission systems work and how
+to set up a module for your system
+

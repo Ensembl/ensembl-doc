@@ -1,0 +1,115 @@
+This document will describe how to run the our xref system to cross link
+genes in an ensembl database with other databases identifiers.
+
+There is a more detailed document in the ensembl code which gives you an 
+overview of how the system works 
+
+ensembl/misc_scripts/xref_mapping/ensembl_xrefs.pdf
+
+
+Code
+----
+
+Before you do this you will need a couple of pieces of code:
+
+ensembl
+exonerate
+
+Both of which are availible from teh sanger cvs repository.
+
+You also need bioperl which is again freely availible
+
+bioperl-live (bioperl-release-1-2-3)
+
+The overview document should describe how to get these.
+
+
+Setup
+-----
+
+You first need to check the sql file 
+ensembl/misc_scripts/xref_mapping/sql/populate_metadata.sql to make sure
+all the URLS which points to the data for your species or generic data 
+sets are correct.
+
+The xref database is setup by the xref_parser.pl script
+
+You also need a config file.
+
+This file is a series of key values pairs which show the xref_mapper.pl
+script where to look for its data.
+
+First with the header xref you need details of your xref database:
+
+
+xref
+host=yourhost
+port=3306
+dbname=xref_db_name
+user=username
+password=passworld
+dir=/path/to/ensembl/misc-scripts/xref_mapping/xref
+
+Then you need details for the databases you want to load xrefs into:
+
+species=homo_sapiens
+host=yourhost
+port=3306
+dbname=species_db_bane
+user=username
+password=password
+dir=/path/to/ensembl/misc-scripts/xref_mapping/test
+
+Note the species name needs to be in the form genus_species other formats
+or alias won't work.
+
+
+If you want to create the xref database before running anything else
+you can do this using the sql in 
+ensembl/misc-scripts/xref_mapping/sql/table.sql but the first script you
+run can do this for you so it isn't obligatory.
+
+
+Runing the xrefs
+----------------
+
+Once you have all this setup you can run the process. Both scripts
+discussed here can be found in ensembl/misc_scripts/xref_mapping.
+
+First run xref_parser.pl. This script takes database arguments a
+list of species delimted by commas and a create flag to indicate whether to
+create the xref database.
+
+An example commandline for this script would look like this:
+
+perl xref_parser.pl -user user -pass pass -host host -port 3306 
+-dbname xref_db_name -species species_name -create
+
+This would create the specified database and load all the data. 
+You can also specify source if you don't want all the data in the 
+meta data file loaded. Note both species and source can appear
+on the commandline multiple times.
+
+
+With the xref database loaded you can now run the mapping. This process
+using LSF to submit jobs to a cpu farm. Currently there is no other
+way to run this process.
+
+xref_mapper.pl takes the config file to find out where the data is kept and
+where to load it. Other script arguments include dumpcheck which ensures 
+only files which don't already exist are dumped, useexistingmapping, using 
+the existing .map files, upload load the data to the tables and 
+deleteexisting delete any existing mapping
+
+an example commandline would be
+
+perl xref_mapping.pl -file xref_mapping.input -dumpcheck
+-upload
+
+This would run the mapping and then load the tables.
+
+On our 1000CPU farm this generally takes about 11/2hrs for a species like
+human. Excessively different numbers of genes from usual can alter this 
+timing.
+
+

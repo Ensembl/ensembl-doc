@@ -1,0 +1,326 @@
+Blast is the starting point for many sequence analyses methods.
+
+The ensembl-analysis code provides a set of modules for running 
+blast. This document will describe then and talk about how they
+may be used in different systems.
+
+
+Code
+----
+
+The blast needs a couple sets of perl code in order to run. These
+are all freely availible via CVS (see overview.txt).
+
+These are required
+
+ensembl
+ensembl-analysis
+ensembl-pipeline
+
+you also need bioperl which is again freely availible
+
+bioperl-live (bioperl-release-1-2-3)
+
+All analyses used by the pipeline require a RunnableDB and a Runnable.
+These are the modules which are responsible communicating with the 
+database both to read input data and write output data and to call any
+binary analysis program and parse its output. Most of the modules for 
+the raw compute are found in the ensembl-analysis cvs module
+
+
+The modules
+-----------
+
+Blast itself has a runnable/runnabledb pair called unsurprising 
+Blast.pm. 
+
+Bio::EnsEMBL::Analysis::RunnableDB::Blast
+=========================================
+
+The runnabledb is very basic and simple fetched sequence
+from the database, masked if requested, passes it to the runnable
+and writes the returned align features to the database. This means
+while it is very good at its job which is running blast inside the
+pipeline it isn't much use for anything else.
+
+The Blast runnabledb needs configuration. 
+Bio:EnsEMBL::Analysis::Config::Blast is discussed further down.
+
+Note the runnables BlastGenscanPep and BlastGenscanDna which blast
+genscan predicted peptides against protein and dna databases 
+respectively also work in basically the same way as Blast but they
+pass in Bio::Seqs of the genscan peptides rather than 
+Bio::EnsEMBL::Slices
+
+Bio::EnsEMBL::Analysis::Runnable::Blast
+=======================================
+
+The Blast runnable is also very simple. This just takes sequence,
+a database name and constructs a commandline to run the blast. It can
+make both ncbi and wublast commandlines. It then will hand the output
+file to a parser object which will turn the results into an acceptable
+form. You can also optionally pass in a filter object which will 
+filter the results for you.
+
+Bio::EnsEMBL::Analysis::Config::Blast
+=====================================
+
+This contains all the information about running a specific blast 
+analysis. If you are happy to run blast in an out of the box manner
+then all you need to ensure is that this file exists which means
+changing Blast.pm.example to Blast.pm. This will run blast with
+the default parser, (Uses BPlite and does no filtering) taking the
+first id from the fasta header, with no filtering and assuming your
+blast is wu.
+
+If you want analyses specific configuration you need to create a
+hash like the default one but with the analysis logic name as the 
+key rather than DEFAULT. The variables the has can container are
+
+BLAST_PARSER, perl path to a parser object
+PARSER_PARAMETERS, any constructor args for the parser
+BLAST_FILTER, perl path to filter object
+FILTER_PARAMS, any constructor args for the filter
+BLAST_PARAMS, any constructor args for the blast runnable
+
+e.g
+Uniprot =>{
+       BLAST_PARSER => 'Bio::EnsEMBL::Analysis::Tools::FilterBPlite',
+       PARSER_PARAMS => {
+                         -regex => '^\w+\s+(\w+)',
+                         -query_type => 'dna',
+                         -database_type => 'pep', 
+                         -threshold_type => 'PVALUE',
+                         -threshold => 0.01,
+                        },
+       BLAST_FILTER => 'Bio::EnsEMBL::Analysis::Tools::FeatureFilter',
+       FILTER_PARAMS => { },
+       BLAST_PARAMS => {
+                        -unknown_error_string => 'FAILED',
+                        -type => 'wu',
+                       },
+          }
+
+
+There is also a static variable
+
+BLAST_AB_INITIO_LOGICNAME which is used by the BlastGenscan modules
+to determine which prediction transcripts to run the blast with.
+
+The different parser and filter object currently availible will be
+discussed further down. Currently only the Blast runnabledbs use the
+configuration. You can use the runnable without needing to consider 
+this module as all its information comes through the constructor.
+The Blast RunnableDB contains code for parsing the contig so if you
+do want to take avantage of the config but not use the Blast 
+RunnableDB it would probably be best to inherit from it so to be
+isolated from any config file structure changes.
+
+
+Parser objects
+--------------
+
+The parser objects exists to isolate the blast module from the parsing
+of the output and the creation of features. In the old ensembl blast 
+system the blast runnable was more than 1000 lines of code and had
+become quite complex and also very firmly tied to BPlite the
+actual code for parsing the blast output. In order to make it easier
+to change the parsing and make the blast run more flexiable we 
+decided to introduce this abstraction.
+
+The blast runnable needs a parser object to have one method, 
+parse_files and this method must take an arrayref of results files
+and then parse the files into suitable output features, returning
+an arrayref of features.
+
+Currently two parser objects exist in ensembl-analysis. They both 
+don't actually parse the blast output themselves but act as wrappers
+for Ian Korfs BPlite parser.
+
+Bio::EnsEMBL::Analysis::Tools::BPliteWrapper
+============================================
+
+This module is a straight wrapper for BPlite. It simply takes
+the hsps returned by BPlite and transforms them into ensembl align 
+features.
+
+Its constructor takes 4 arguments
+
+REGEX, the regular expression to parse the fasta header with
+QUERY_TYPE, whether the query sequence is protein or dna
+DATABASE_TYPE, whether the database sequences are protein or dna
+ANALYSIS, an analysis object to attach to the results.
+
+Note if no regex is defined then it will default to (\w+)\s+. Also
+if no query or database type are specified the code will break.
+
+
+Bio::EnsEMBL::Analysis::Tools::FilterBPlite
+===========================================
+
+This module was designed to mimic the behaviour of the old blast
+system which did both pre and post filtering of the results.
+
+This module inherits from BPliteWrapper and takes advantage of its
+existing functionailty but it has some extra constructor arguments
+and the parse_results method is different
+
+The extra constructor args are
+
+THRESHOLD_TYPE, what variable to filter the results on, PID, SCORE
+                and PVALUE are recognised
+THRESHOLD, what level to throw out after
+
+COVERAGE, what coverage value to consider
+
+FILTER, filter object (described below)
+
+
+
+Filter objects
+--------------
+
+The filter object should filter a passed in set of results on a
+defined set of criteria. The object should present a filter_results
+method to the blast runnable which takes an arrayref of features and
+returns an arrayref of features. Currently only one filter object 
+exist in ensembl-analysis for blast results.
+
+
+Bio::EnsEMBL::Analysis::Tools::FeatureFilter
+============================================
+
+This module filters the data on 3 criteria, minimum bit score, 
+maximum pvalue and coverage. The coverage filtering is done twice
+though under slightly different conditions. 
+
+These are the constructor args:
+
+MIN_SCORE, the minimum score required (defaults to -10000)
+MAX_PVALUE, the maximum pvalue required (defaults to 0.1)
+COVERAGE, the maximum number of hits which can cover a single 
+          basepair of the query sequence (defaults to 10)
+PRUNE, binary toggle to indicate use of the second set of coverage
+       criteriq
+HARD_PRUNE, binary toggle to make the second set of coverage criteria
+            more stringent
+FILTER_ON_COVERAGE, binary toggle to indicate to filter by coverage
+                    this default to 1
+
+The minimum score and max pvalues are used to filter features. The
+features are first grouped by hit name and keep any set which contains
+at least one features with a score greater than the minimum and an
+pvalue greater than the maximum.
+
+When filtering by coverage the code calculates how many basepairs
+of the query sequence are covered by the features and then
+filtered the features on that criteria, throwing out lower 
+scoring features first.
+
+For coverage first a relatively undemanding set of criteria are used
+the features are iterated through and provided one basepair of the
+hit sequence covers less than the max coverage value all features
+are kept. This is calculated across all the features.
+
+If prune is switched on the features are then considered on a hitname
+basis and if a feature has at least one basepair which cover the query
+sequence to a level greater than the maximum coverage it is thrown out
+
+For example in this diagram if the coverage was set to 5
+
+                                 bit score
+                ---------------- 50
+ ---------------------           100
+               ---------         250
+           ---------------       500
+    -------------------          750
+                    -----------  1000
+ --------------------------      1250
+NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN
+1   5    1    1    2    2    3
+         0    5    0    5    0
+
+In this system there are no min scores and coverage is set to 5 but 
+nothing is thrown away by the initial coverage filter as every feature 
+has at least on base pair whose coverage is below 5. The features with 
+bits scores of 50 and 100 though would be thrown away by prune as base 
+21 is covered by 7 features and these are the lowest scoring of those 
+7 features if normal prune was used these features would all need to 
+share the same hit id but if hard prune was used that would not be true
+
+Using this system
+-----------------
+
+If you want to run a blast using this code there are a couple of 
+approaches you can take. If you have a core ensembl database the 
+easiest thing to do would probably be run the test_RunnableDB script
+
+Before your run it you will need to change the config file from
+.pm.example to .pm. Also if you want any analyses specific settings
+you will need to create a hash keyed with the logic_name you will use.
+
+You will also need to create an analysis object in the analysis table
+you can do this using a script from ensembl-pipeline called 
+add_Analysis
+
+The commandline for that would look something like this
+
+perl add_Analysis -dbhost host -dbuser user -dbpass pass -dbport 3306
+-dbname your_db -logic_name ProteinBlast -program_file wublastx
+-db_file Uniprot -module Blast
+
+Once you have done that this is the commandline you would use
+to run test_RunnableDB
+
+perl test_RunnableDB -dbhost host -dbuser user -dbpass pass 
+-dbport 3306 -dbname your_db -logic_name ProteinBlast 
+-input_id contig:version:seq_region_name:1:n:1 -write
+
+This would run your analysis and write the results back to the 
+database.
+
+If you don't have a core database you would need slightly more
+code. The script would want to look a bit like this
+
+use strict;
+use Bio::SeqIO;
+use Bio::EnsEMBL::Analysis;
+use Bio::EnsEMBL::Analysis::Tools::BPliteWrapper;
+use Bio::EnsEMBL::Analysis::Runnable::Blast;
+
+
+my $seqfile = shift;
+my $seqio = Bio::SeqIO->new(
+                            -file => $seqfile,
+                            -format => 'fasta',
+                           );
+
+my $analysis = Bio::EnsEMBL::Analysis->new(
+                                         -logic_name => 'ProteinBlast',
+                                          );
+
+my $parser = Bio::EnsEMBL::Analysis::Tools::BPliteWrapper->new
+               (
+                QUERY_TYPE => 'dna',
+                DATABASE_TYPE => 'protein',
+                ANALYSIS => $analysis,
+               );
+
+my $blast = Bio::EnsEMBL::Analysis::Runnable::Blast->new
+             (
+              -query => $seqio->next_seq,
+              -program => 'wublastx',
+              -parser => $parser,
+              -database => 'Uniprot',
+              -analysis => $analysis,
+             );
+
+$blast->run;
+my $features = $blast->output;
+
+print "Have ".@{$features}." features from blast\n";
+
+foreach my $f(@{$features}){
+  print $f->start." ".$f->end." ".$f->strand." ".$f->seqname." ".
+        $f->hstart." ".$f->hend." ".$f->hseqname."\n";
+}

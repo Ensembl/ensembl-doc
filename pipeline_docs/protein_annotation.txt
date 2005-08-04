@@ -1,0 +1,372 @@
+This document should describe what you need to do in order to run the
+protein annotation pipeline. The protein annotation pipeline is a system for
+assigned domains from databases like pfam and finding signatures like signal
+peptides in the protein set the genebuild has predicted.
+
+If you have any questions about this process please contact: 
+ensembl-dev@ebi.ac.uk
+
+Code
+----
+
+The ensembl pipeline like the ensembl core is coded in perl. In order to
+run the ensembl pipeline you need perl and mysql installed. You also need
+some ensembl specific code which are freely availible from cvs
+
+These are required
+
+ensembl
+ensembl-pipeline
+
+you also need bioperl which again, is freely availible
+
+bioperl-live (bioperl-release-1-2-3)
+
+
+Currently the stable branch of the pipeline and analysis code is 
+branch-ensembl-29. This code may work with more recent versions of the
+core code but we can only guarrentee it will work with the same branch
+
+The document overview.txt should give you instructions on how to download 
+these pieces of code
+
+The pipeline runs analyses by use of Runnables and RunnableDBs. These modules 
+are there to communicate between the databases and the analysis program being 
+run and parse the results from the program back into ensembl to be stored in 
+the database
+
+The Runnable/RunnableDB pairs which run the protein annotation are all found in
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/RunnableDB/Protein which means
+either the column module in the analysis table needs to be Protein/RunnableDB 
+name or the runnabledb_path in BatchQueue.pm (see 
+the_ensembl_pipeline_infrastructure.txt) needs to be 
+Bio::EnsEMBL::Pipeline::RunnableDB::Protein.
+
+The Runnable/RunnableDBs used are 
+
+Pfam (Hmmpfam), 
+Signalp, 
+Tmhmm, 
+Prints (FingerPRINTScan), 
+ncoils, 
+pfscan, 
+Scanprosite (scanregexpf.pl), 
+Seg.
+
+Some of the programs also need an installation of an accompanying database files:
+
+Pfam - Pfam_fs, 
+Prints - prints.pval, 
+pfscan - prosite_prerelease.prf,
+Scanprosite - prosite.patterns
+
+some of these are freely availible on the web, other need licenses
+
+You also need a core database which contains a set of transcripts which
+translate.
+
+Schema
+------
+
+protein_feature
+===============
+
+All the results from the protein annotation are stored in the protein_feature
+table. This is defined in the core schema which can be found in 
+ensembl/sql/table.sql
+
+These are the columns :
+
+protein_feature_id, Unique identifier of the protein feature
+translation_id,     Identifier of the translation that the protein feature is
+                    found on
+seq_start           the alignment start point on the translation    
+seq_end             the alignment end point on the translation   
+hit_start           the alignment start point on the protein feature
+hit_end             the alignment end point on the protein feature
+hit_id              name / acession of the aligned feature
+analysis_id         identifier of the analysis object
+score               score (if provided)
+evalue              E value (if provided)
+perc_ident          percent identity (if provided)
+
+
+Configuration
+--------------
+
+First you need to fill out the appropriate config files
+
+Bio::EnsEMBL::Pipeline::Config::Protein_Annotation::General
+
+This contains general settings for the the protein_annotation
+
+PA_PEPTIDE_FILE the location of the dumped peptide file reprenting your 
+                translations
+PA_CHUNKS_DIR   the location of the directory the chunks of the peptide file 
+                will go
+PA_CHUNKS_SIZE  the size of the chunks file, we tend to use 100 peptides in a 
+                file
+PA_IPRSCAN_DIR  the directory where the architecture - specifc directories for 
+                the interpro code lives, for example: 
+                /acari/analysis/iprscan/bin contains two directories dec_osf 
+                and linux, the runnabledb code decides which one to use.
+  
+There are also three other files which must be filled out in 
+Bio::EnsEMBL::Pipeline::Config and are described in the document 
+the_ensembl_pipeline_infrastructure.txt
+
+
+Setup
+-----
+
+Note this process requires the pipeline database with dna to have your final 
+gene set in it as the protein annotation process uses translation dbIDs to link
+to the domains it finds
+
+There are 5 main stages to setup the protein annotation before it can be run
+
+1. Dump the peptide sequences
+
+This is done using a script called dump_translations found in ensembl-pipeline/
+scripts/protein_pipeline
+
+An example commandline is
+
+perl dump_translations.pl -dbname yourdatabase -dbhost yourhost 
+-dbuser youruser  > peptide.fa
+
+It will print to stderr warnings about transcripts which don't translate
+
+An important factor about this dumped file is the fasta header. The first 
+element after the > must be the translation internal id as these is how the
+RunnableDB make the correct associations when writing the information
+back to the database
+
+2. Chunk the peptide fasta file
+
+This produces a new set of files in a separate directory, each file containing
+the same number of fasta entries. This files each represent a feasible chunk of
+the whole proteome to pass to an analysis at once. The number is provided by 
+the Protein_Annotation::General config file.
+
+the command line is
+
+perl ensembl-pipeline/scripts/protein_pipeline/chunk_protein_fasta.pl
+
+nb. The directory the chunks are being written to must exist before this 
+script is run.
+
+3. Setup the analysis table
+
+The analysis table's structure and setup is more throughly explained in the 
+document the_ensembl_pipeline_infrastructure.txt. There is an example config
+file which can be used to setup the analyses at the bottom of the file. Using
+this file and with the script analysis_setup.pl will produced the desired
+analysis table with a commandline which looks like this
+
+perl ensembl-pipeline/scripts/analysis_setup.pl  -dbhost yourhost 
+-dbuser yourusername -dbpass yourpass -dbname yourdatabase -read 
+-file /your/config/file
+
+4. Setup the rule tables
+
+Again the rule tables are more throughly explained in the document 
+the_ensembl_pipeline_infrastructure.txt. There is an example config file below
+the example analysis config and the command line needed would look something
+like this
+
+perl ensembl-pipeline/scripts/rule_setup.pl  -dbhost yourhost 
+-dbuser yourusername -dbpass yourpass -dbname yourdatabase -read 
+-file /your/config/file
+
+5. Setup the input ids
+
+The input ids can be made by the ensembl-pipeline/scripts/make_input_ids 
+script. This script is further explained in 
+the_ensembl_pipeline_infrastructure.txt but here we will explain which sort of
+input ids are generally used and give example command lines for how to
+produce them
+
+There are three types of input ids needed for this pipeline due to different
+speeds of computation
+
+pfscan and seg are both so fast computationally that they can be given the
+whole proteome file and run in a reasonable time frame. These analysis get the
+input_id_type PROTEOME and need an input id of proteome. This can be produced 
+like this
+
+perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
+-dbname yourdatabase -dbport 3306 -single -singleword proteome 
+-logic_name SubmitProteome
+
+SignalP, tmhmm, Prints, Scanprosite and ncoils can all run in a reasonable time
+frame on chunks of 100 proteins at a time. These analyses have the 
+input_id_type if FILENAME and are given filenames as input ids. These are the 
+names of the chunk files created in stage 2. They can be produced like this
+
+perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
+-dbname yourdatabase -dbport 3306 -filename -dir /path/to/chunkdir
+-logic_name SubmitTranscriptChunk
+
+Pfam, this analysis can be quite time consuming. Each indivdual translation can
+take upto 30minutes to compare against at all hmms in Pfam. To ensure the 
+analysis runs in a reasonable time frame we use translation ids as the input 
+ids, (type TRANSLATIONID) and the use the pipeline to batch the jobs up into
+groups of 5. The input ids are produced like this
+
+perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
+-dbname yourdatabase -dbport 3306 -translation_ids -logic_name SubmitTranscript
+
+Now you should have everything setup and will be ready to run the pipeline
+
+Running the protein annotation
+------------------------------
+
+Like all other pipeline process the protein annotation pipeline can be 
+controlled using the ensembl-pipeline/scripts/rulemanager.pl script and 
+monitored with ensembl-pipeline/scripts/monitor both of which are explained in
+the document the_ensembl_pipeline_infrastructure.txt. Following rulemanager.pls
+standard useage pattern should work fine
+
+perl ensembl-pipeline/scripts/rulemanager.pl -dbhost yourhost 
+-dbuser yourusername -dbpass yourpass -dbname yourdatabase -dbport 3306 
+>& /tmp/rule.txt&
+
+Here are some checkpoints you may want to consider before running the protein
+annotation pipeline
+
+1. Have you filled out Protein_Annotation::General?
+2. Have you dumped you peptides?
+3. Have you chunked up your peptides?
+4. Do you have entries in the analysis and rule tables?
+5. Do you have entries in BatchQueue.pm for all your analyses?
+6. Do you have input ids for all your input id types?
+
+Analysis configuration
+----------------------
+
+[SubmitTranscript]
+input_id_type=TRANSLATIONID
+
+[Pfam]
+db=Pfam
+db_file=/data/blastdb/Ensembl/Pfam_ls;/data/blastdb/Ensembl/Pfam_fs
+program=/usr/local/ensembl/bin/hmmpfam
+program_file=/usr/local/ensembl/bin/hmmpfam
+module=Protein/Hmmpfam
+gff_source=Pfam
+gff_feature=domain
+input_id_type=TRANSLATIONID
+
+[SubmitTranscriptChunk]
+input_id_type=FILENAME
+
+
+[Signalp]
+db=signal_peptide
+program=signalp
+program_file=signalp
+module=Protein/Signalp
+gff_source=Signalp
+gff_feature=annotation
+input_id_type=FILENAME
+
+[tmhmm]
+db=transmembrane
+program=/path/to/run_tmhmm
+program_file=/path/to/run_tmhmm 
+module=Protein/Tmhmm
+gff_source=Tmhmm
+gff_feature=annotation
+input_id_type=FILENAME
+
+#note run_tmhmm can be found in the cvs reposistory here
+# ensemb-pipeline/scripts/protein_pipeline/run_tmhmm
+
+[Prints]
+db=prints
+db_file=/path/o/prints.pval
+program=FingerPRINTScan
+program_file=FingerPRINTScan
+module=Protein/Prints
+gff_source=Prints
+gff_feature=domain
+input_id_type=FILENAME
+
+[ncoils]
+db=coiled_coil
+program=/usr/local/ensembl/bin/ncoils
+program_file=/usr/local/ensembl/bin/ncoils
+module=Protein/Coil
+gff_source=ncoils
+gff_feature=annotation
+input_id_type=FILENAME
+
+
+[pfscan]
+db=pfscan
+db_file=/path/to/prosite_prerelease.prf
+program=pfscan
+program_file=pfscan
+module=Protein/Profile
+gff_source=Profile
+gff_feature=Domain
+input_id_type=PROTEOME
+
+
+[SubmitProteome]
+input_id_type=PROTEOME
+
+[scanprosite]
+db=prosite
+db_file=/path/to/prosite.patterns
+program=/path/to/scanregexpf.pl
+program_file=/path/to/scanregexpf.pl
+parameters=-confirm /path/to/confirm.patterns
+module=Protein/ScanProsite
+gff_source=Prosite
+gff_feature=domain
+input_id_type=FILENAME
+
+[Seg]
+db=low_complexity
+db_file=low_complexity
+program=seg
+program_file=seg
+module=Protein/Seg
+gff_source=Seg
+gff_feature=annotation
+input_id_type=PROTEOME
+
+
+Rule configuration
+------------------
+
+[pfscan]
+condition=SubmitProteome
+
+[Prints]
+condition=SubmitTranscriptChunk
+
+[Seg]
+condition=SubmitProteome
+
+[Pfam]
+condition=SubmitTranscript
+
+[ncoils]
+condition=SubmitTranscriptChunk
+
+[scanprosite]
+condition=SubmitTranscriptChunk
+
+[Signalp]
+condition=SubmitTranscriptChunk
+
+[tmhmm]
+condition=SubmitTranscriptChunk
+
+
+
+If you have any questions about this process please contact: 
+ensembl-dev@ebi.ac.uk

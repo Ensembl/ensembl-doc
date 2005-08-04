@@ -1,0 +1,641 @@
+This document will describe what we call the raw compute using the ensembl
+pipeline system.
+
+Before reading this document is it a good idea that you read overview.txt
+and the_ensembl_pipeline_infrastructure.txt to give you a clear idea of our
+system and a context in which to put this information.
+
+The raw compute is what we call the collection of sequence based analyses 
+run on a genome sequence after it has been loaded into the database. The 
+analyses include repeat finding, ab initio gene predictors and BLAST 
+searches.
+
+
+Code
+----
+
+The raw compute needs several sets of perl code in order to run. These
+are all freely availible via CVS (see overview.txt).
+
+These are required
+
+ensembl
+ensembl-pipeline
+ensembl-analysis
+
+you also need bioperl which is again freely availible
+
+bioperl-live (bioperl-release-1-2-3)
+
+All analyses used by the pipeline require a RunnableDB and a Runnable.
+These are the modules which are responsible communicating with the 
+database both to read input data and write output data and to call any
+binary analysis program and parse its output. Most of the modules for 
+the raw compute are found in the ensembl-analysis cvs module
+
+Config
+------
+
+All the ensembl-analysis based runnabledbs needs the presence of this 
+config file:
+
+Bio::EnsEMBL::Analysis::Config::General
+
+It has 5 options
+
+BIN_DIR, DATA_DIR, LIB_DIR, these options are actually used by the analysis 
+                   code as they point to the directories the code looks in 
+                   for binary or data files.
+
+ANALYSIS_WORK_DIR, the default directory the Runnable runs its analysis is.
+                   We usually use /tmp as this ensures it is truely local 
+                   and can cause no NFS issues.
+
+ANALYSIS_REPEAT_MASKING, this should be an array of logic names 
+                         representing repeat finding analyses which are 
+                         used to fetch repeat features and/or mask the 
+                         sequence. If the array is empty [] the sequence 
+                         will not be repeat masked,If the array contains an 
+                         empty entry [''] all repeat features in the table 
+                         will be masked out.
+
+There are other config files but these are specific to different analyses 
+so will be discussed with those analyses.
+
+
+Analyses
+--------
+
+What follows will be a description of the different analyses which can be
+run as part of the raw compute pipeline along with information about the 
+programs, where they come from and what sort of input types they generally
+run on.
+
+
+Blast
+=====
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::Blast
+
+DESCRIPTION: Blast, Basic Local Alignment Search Tool is a program which 
+will find alignments between an input sequence and a target database of 
+sequences. We use blast to map databases like Uniprot, embl Vertebrate RNA 
+and Unigene to our genomes.
+
+INPUT_ID_TYPE: CONTIG, Blast is generally run on the sequence level seq 
+regions.
+
+DEPENDANCIES: RepeatMask, we generally run our Blasts on repeat masked 
+sequence so the repeatmasker analysis must be run before the Blast analysis
+can be run.
+
+CONFIG: Blast has its own config file Bio::EnsEMBL::Analysis::Config::Blast
+The structure is a hash of hashes. The key to the first hash is the logic
+name of the analysis. The internal hashes contain settings for the blast 
+run.
+
+for example:
+
+BLAST_CONFIG =>
+           {
+            DEFAULT => 
+            {
+             BLAST_PARSER => 'Bio::EnsEMBL::Analysis::Tools::BPliteWrapper',
+             PARSER_PARAMS => {
+                               -regex => '^(\w+)',
+                               -query_type => undef,
+                               -database_type => undef,
+                              },
+             BLAST_FILTER => undef,
+             FILTER_PARAMS => {},
+             BLAST_PARAMS => {
+                              -unknown_error_string => 'FAILED',
+                              -type => 'wu',
+                             }
+            },
+            Uniprot => 
+            {
+             BLAST_PARSER => 'Bio::EnsEMBL::Analysis::Tools::FilterBPlite',
+             PARSER_PARAMS => {
+                               -regex => '^\w+\s+(\w+)',
+                               -query_type => 'pep',
+                               -database_type => 'pep',
+                               -threshold_type => 'PVALUE',
+                               -threshold => 0.01,
+                              },
+             BLAST_FILTER => 'Bio::EnsEMBL::Analysis::Tools::FeatureFilter',
+             FILTER_PARAMS => {
+                               -min_score => 200,
+                               -prune => 1,
+                              },
+             BLAST_PARAMS => {
+                              -unknown_error_string => 'FAILED',
+                              -type => 'wu',
+                             },
+            },
+           }
+
+DEFAULT represents the default settings for any run and also provides a list
+of variable names for the code which parsers this structure. for more 
+information about the blast code see the_analysis_blast_system.txt.
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::DnaDnaAlignFeature or 
+Bio::EnsEMBL::DnaPepAlignFeature
+
+OUTPUT TABLE: dna_align_feature or protein_align_feature.
+
+SOURCE:At the sanger we mostly run the WUBlast implementation which is 
+availible here http://blast.wustl.edu/. It is free to academic and non 
+profit users. The code can also support the use of the NCBI blast 
+implementation which is freely availible here: 
+http://www.ncbi.nlm.nih.gov/blast/
+
+
+BlastGenscanDna
+===============
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::BlastGenscanDNA
+
+DESCRIPTION: This module is used to Blast the Genscan peptides against a dna
+blast database using tblastn. The results from these blasts are then 
+converted back into genomic coordinates. This is done for speed reasons as 
+blasting the whole of the human genome against a database like embl vertrna 
+would take to long for our purposes.
+
+INPUT_ID_TYPE: CONTIG
+
+DEPENDANCIES: Genscan or another ab initio genefinder, This needs ab initio 
+predictions in order to run
+
+CONFIG: This uses the same configuration as the Blast runnable but there 
+is one extra variable to consider. $BLAST_AB_INITIO_LOGICNAME, this is the 
+logic name of the ab initio prediction you wish to use for your Blast.
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::DnaDnaAlignFeature
+
+OUTPUT TABLE: dna_align_feature
+
+SOURCE: See Blast
+
+BlastGenscanPep
+===============
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::BlastGenscanPep
+
+DESCRIPTION: This module is used to Blast the Genscan peptides against a 
+protein blast database using blastp. The results from these blasts are then 
+converted back  into genomic coordinates. This is done for speed reasons as 
+blasting the whole of the human genome against a database like Uniprot 
+would take to long for our purposes.
+
+INPUT_ID_TYPE: CONTIG
+
+DEPENDANCIES: Genscan or another ab initio genefinder, This needs ab initio 
+predictions in order to run.
+
+CONFIG: This uses the same configuration as the Blast runnable but there is
+one extra variable to consider, $BLAST_AB_INITIO_LOGICNAME this is the logic
+ name of the ab initio prediction you wish to use for your Blast.
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::DnaPepAlignFeature
+
+OUTPUT TYPE: protein_align_feature
+
+SOURCE: See Blast
+
+CPG
+===
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::CPG
+
+DESCRIPTION: This uses the program CPG to identify CPG islands in the dna 
+sequence
+
+INPUT_ID_TYPE: 1MB Slice
+
+DEPENDANCIES: none
+
+CONFIG: none
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::SimpleFeature
+
+OUTPUT TABLE: simple_feature
+
+SOURCE:
+
+Dust
+===
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::Dust
+
+DESCRIPTION: This runs a program called Dust which finds low complexity 
+sequences in dna.
+
+INPUT_ID_TYPE: whole chromosomes
+
+DEPENDANCIES: none
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::RepeatFeature
+
+OUTPUT TABLE: repeat_feature 
+
+CONFIG: none
+
+SOURCE: This comes are part of the NCBI blast suite of programs. The
+version supplied with NCBI blast can have issues with very long
+sequences though.
+
+EponineTSS
+==========
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::EponineTSS
+
+DESCRIPTION: This runs a program called Eponine which identifies likely 
+transcription start sites in the dna sequence.
+
+INPUT_ID_TYPE: 1MB slices
+
+DEPENDANCIES: none
+
+CONFIG: none
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::SimpleFeature
+
+OUTPUT TABLE: simple_feature
+
+SOURCE: The code is freely available here: 
+http://www.sanger.ac.uk/Users/td2/eponine/
+
+
+Fgenesh
+=======
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::Fgenesh
+
+DESCRIPTION: Fgenesh is an ab initio genefinder.
+
+INPUT_ID_TYPE: sequence level contigs
+
+DEPENDANCIES: We generally run on repeatmasked sequence so repeatmasker 
+must be run first.
+
+CONFIG: none
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::PredictionTranscript
+
+OUTPUT FEATURE TABLE: prediction_transcript
+
+SOURCE: This program is no longer freely available but must be bought from
+softberry http://www.softberry.com/berry.phtml.
+
+FirstEF
+=======
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::FirstEF
+
+DESCRIPTION: FirstEF is a first exon and promoter prediction program.
+
+INPUT_ID_TYPE: 1MB slices
+
+DEPENDANCIES: none
+
+CONFIG: none
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::SimpleFeature
+
+OUTPUT TABLE: simple_feature
+
+SOURCE: There are binaries available for not for profit research purposes
+http://rulai.cshl.org/tools/FirstEF/.
+
+
+Genefinder
+==========
+
+MODULE: Bio::EnsEMBL::Pipeline::RunnableDB::Genefinder
+
+DESCRIPTION: Genefinder is an ab initio genefinder.
+
+INPUT_ID_TYPE: sequence level contigs
+
+DEPENDANCIES: We generally run on repeatmasked sequence so repeatmasker 
+must be run first.
+
+CONFIG: none
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::PredictionTranscript
+
+OUTPUT FEATURE TABLE: prediction_transcript
+
+SOURCE: This program can be found at:
+http://ftp.genome.washington.edu/cgi-bin/Genefinder
+
+Genscan
+=======
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::Genscan
+
+DESCRIPTION: Genscan is an ab initio genefinder
+
+INPUT_ID_TYPE: sequence level contigs
+
+DEPENDANCIES: We generally run on repeatmasked sequence so repeatmasker 
+must be run first
+
+CONFIG: none
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::PredictionTranscript
+
+OUTPUT FEATURE TABLE: prediction_transcript
+
+SOURCE: Genscan is freely available to academics: 
+http://genes.mit.edu/GENSCAN.html
+
+
+RepeatMasker
+============
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::RepeatMasker
+
+DESCRIPTION: This runs a program called repeatmasker which identifies repeat
+sequences from a library in the given sequence
+
+INPUT_ID_TYPE: sequence level contigs
+
+DEPENDANCIES: none
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::RepeatFeature
+
+OUTPUT TABLE: repeat_feature 
+
+CONFIG: none
+
+SOURCE: The repeatmasker program can be found here 
+http://www.repeatmasker.org/ and repeat libraries from here 
+http://www.girinst.org/.
+
+TRF
+===
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::TRF
+
+DESCRIPTION: This program identifies tandem repeats in the given sequence
+
+INPUT_ID_TYPE: sequence level contigs
+
+DEPENDANCIES: none
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::RepeatFeature
+
+OUTPUT TABLE: repeat_feature 
+
+CONFIG: none
+
+SOURCE: The program is freely available from here:
+http://tandem.bu.edu/trf/trf.html
+
+tRNAscan
+========
+
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::tRNAscan_SE
+
+DESCRIPTION: This uses the program tRNAscan-SE to identify potential trna 
+sequences in the genome
+
+INPUT_ID_TYPE: sequence level contigs
+
+DEPENDANCIES: none
+
+CONFIG: none
+
+OUTPUT FEATURE TYPE: Bio::EnsEMBL::SimpleFeature
+
+OUTPUT TABLE: simple_feature
+
+SOURCE: the program is available from here: 
+http://www.genetics.wustl.edu/eddy/tRNAscan-SE/
+
+
+Setting up and running the raw compute pipeline
+-----------------------------------------------
+
+The following information covers the details of a typical raw compute
+pipeline and the scripts you might use to set it up and run it. These
+script are all found in ensembl-pipeline/scripts unless otherwise
+specified and are explained in more detail in 
+the_ensembl_pipeline_infrastructure.txt document
+
+Analysis and rule tables
+========================
+
+This is a standard ruleflow for the raw compute of the human genome. Each
+unit is the logic_name the analysis is normally run under and the module 
+used and the input_id_type
+
+
+   SubmitSlice              SubmitContig           SubmitChromosome
+      Dummy                     Dummy                    Dummy
+      SLICE                     CONTIG                 CHROMOSOME
+    /    |   \                    |                        |
+   /     |    \                   |                        |
+FirstEF CPG  Eponine           RepeatMask                 Dust
+FirstEF CPG EponineTSS        RepeatMasker                Dust
+SLICE  SLICE  SLICE             CONTIG                 CHROMOSOME
+                                  |
+                                  |
+                                Genscan
+                                Genscan
+                                 CONTIG
+                              /    |       \
+                             /     |        \
+                            /      |         \
+                           /       |          \ 
+                  Vertrna         Uniprot      \   Unigene
+               BlastGenscanDNA BlastGenscanPep  BlastGenscanDna
+                  CONTIG          COTNIG           CONTIG
+
+The lines follow the dependancies. These are all the simple kinds of 
+dependancies which either rely on nothing or just on analyses of the same
+input id type 
+
+
+The analysis and rule tables can be setup using the scripts in 
+ensembl-pipeline analysis_setup.pl and rule_setup.pl and the config
+files which would be needed for the above flow on human are shown at the
+bottom of these document
+
+
+Running the raw computes
+------------------------
+
+These should be run like any normal pipeline using the rulemanager script
+
+In most raw compute setups, it should be as simple as setting 
+everything off and letting it run. If you have a very small farm you may 
+want to consider limiting the analyses or the number of jobs you submit at
+once but this is relatively easy to do using options for rulemanager like
+-analysis or -submission_limit. You can get more information about these
+commandline variables by running rulemanager with the -perldoc flag
+
+You can test individual analyses in you setup using a script called 
+test_RunnableDB. It can be used to test the RunnableDBs you want to run and
+their setup outside the pipeline infrastructure
+
+This script is found in both ensembl-pipeline and ensembl-analysis 
+scripts directory and they both take the same interface. This commandline
+would test the RepeatMask
+
+perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
+-dbpass yourpass -dbname yourdatabase -dbport 3306 -logic_name RepeatMask
+-input_id contig::AC114498.2.1.121664:1:121664:1 
+
+the scripts do have a -help option which will list all the options and
+provide some explaination for them
+
+Checkpoints
+===========
+
+Here are a few things to check before you try and run the raw computes
+
+1. Do you have all the executables, blast databases, matrix/data files the
+analysis you want to run will need? are they push out across you compute 
+farm
+2. Have you filled out all the config files: General.pm for both Pipeline
+and Analysis and BatchQueue.pm plus any analysis specific files like 
+Blast.pm
+3. Does BatchQueue.pm contain entries for all the analyses you wish to run
+4. Have you filled in the analysis table
+5. Have you filled in the rule tables
+6. Are the appropriate dummy entries in the input_id_analysis table
+7. Will the pipeline_sanity script run without any problems ?
+
+If these are all true you should be ready to set off the pipeline
+
+Analysis conf
+=============
+
+[Eponine]
+db=eponine
+program=eponine-scan
+program_file=/usr/opt/java142/bin/java
+parameters=-epojar => /usr/local/ensembl/lib/eponine-scan.jar, -threshold => 0.999
+module=EponineTSS
+input_id_type=SLICE
+
+
+[RepeatMask]
+db=repbase
+db_version=13-07-2002
+db_file=repbase
+program=RepeatMasker
+program_version=1
+program_file=RepeatMasker
+module=RepeatMasker
+gff_source=RepeatMasker
+gff_feature=Repeat
+input_id_type=CONTIG
+
+
+
+[SubmitContig]
+input_id_type=CONTIG
+
+
+[UniGene]
+db=uniuni
+db_file=uniuni
+program=wutblastn
+program_file=wutblastn
+parameters=-cpus => 1, -hitdist => 40
+module=BlastGenscanDNA
+input_id_type=CONTIG
+
+
+[Genscan]
+db=HumanIso.smat
+db_file=HumanIso.smat
+program_file=genscan
+module=Genscan
+input_id_type=CONTIG
+
+
+[TRF]
+program_file=trf
+module=TRF
+input_id_type=CONTIG
+
+
+[Dust]
+program_file=tcdust
+module=Dust
+input_id_type=CHROMOSOME
+
+
+[tRNAscan]
+db=trna
+program_version=1.23
+program_file=tRNAscan-SE
+module=tRNAscan_SE
+input_id_type=CONTIG
+
+
+[CpG]
+program_file=cpg
+module=CPG
+input_id_type=SLICE
+
+
+[SubmitSlice]
+input_id_type=SLICE
+
+
+[Vertrna]
+db=embl_vertrna
+db_file=embl_vertrna
+program=wutblastn
+program_file=wutblastn
+parameters=-cpus => 1, -hitdist => 40
+module=BlastGenscanDNA
+input_id_type=CONTIG
+
+
+[SubmitChromosome]
+input_id_type=CHROMOSOME
+
+
+
+[Uniprot]
+db=uniprot
+db_file=uniprot
+program=wublastp
+program_file=wublastp
+parameters=-cpus => 1, -hitdist => 40
+module=BlastGenscanPep
+input_id_type=CONTIG
+
+rules conf
+==========
+
+[Genscan]
+condition=RepeatMask
+[Dust]
+condition=SubmitChromosome
+[Eponine]
+condition=SubmitSlice
+[UniGene]
+condition=Genscan
+[RepeatMask]
+condition=SubmitContig
+[Vertrna]
+condition=Genscan
+[Uniprot]
+condition=Genscan
+[TRF]
+condition=SubmitContig
+[CpG]
+condition=SubmitSlice
+[tRNAscan]
+condition=SubmitContig
+
+
+

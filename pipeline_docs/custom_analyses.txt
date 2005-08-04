@@ -1,0 +1,451 @@
+This document will describe the basic structure of our runnable and 
+runnabledb code and suggest how you may want to approach custom analyses.
+
+
+Code
+----
+
+Before you do this you will need several pieces of code first.
+
+The following are required:
+
+ensembl
+ensembl-pipeline
+ensembl-analysis
+
+you also need bioperl which is again freely availible
+
+bioperl-live (bioperl-release-1-2-3)
+
+
+The overview document should describe how to get these.
+
+First this document will discuss the role of the runnable and runnabledb
+and points you need to consider before you start writing your code. Then
+it will go over the base classes Bio::EnsEMBL::Analysis::Runnable and
+Bio::EnsEMBL::Analysis::RunnableDB and the functionality they can provide.
+Finally it will talk about runnables which already exist that you may find
+useful.
+
+
+I need a new Runnable/RunnableDB
+--------------------------------
+
+New analyses need new runnables and sometimes the same analyses being
+run if different manners also need new runnables. There are 4 things you
+need to consider before writing your runnable and runnabledb.
+
+1. What output type do you want, what object is going to be created and
+what table is it going to be written to?
+
+2. Does you analyses need any configuration or will the Runnable 
+constructor args which can be passed from the analysis object by
+RunnableDB::parameters_hash suffice
+
+3. Will your results need filtering?
+
+4. Can you take advantage of any existing code?
+
+Here is an overview of the two base classes and what methods you will need
+to implement.
+
+Bio::EnsEMBL::Analysis::Runnable
+--------------------------------
+
+Bio::EnsEMBL::Analysis::Runnable is the base class for all our modules 
+which run specific analyses and parse those results into ensembl objects
+which can then be stored in the database.
+
+The basic interface which any runnable should provide to the outside world
+is a run method. This should not require any arguments and should actually
+run the program and parse its results. Some modules also filter the
+results here, some leave that to a later stage. This generally depends on
+what criteria you want to filter your results and how many you are likely
+to get.
+
+All runnables must have a constructor, a run method and an output method.
+Bio::EnsEMBL::Analysis::RunnableDB does provide these things but they
+be can be overridden.
+
+Note the Runnable has should have no direct access to the database. In 
+theory any  Runnable should be able to run in complete isolation of an 
+ensembl core database.
+
+Constructor, Bio::EnsEMBL::Analysis::Runnable::new
+==================================================
+
+The constructor accepts 8 different arguments and the only essential one 
+is an analysis object. Without this the constructor will barf. This was 
+done because in the past there has been issues with consistency of objects
+analyses and it was decided this was the easiest way to rectify that give 
+the objects their analyses at the start. Most Runnables also require a
+query sequence and a program path and program options but not all. The
+other arguments by default are filled in from the Bio::EnsEMBL::Analysis
+::Config::General but you can provide different ones if you desire.
+
+
+The run method, Bio::EnsEMBL::Analysis::Runnable::run
+=====================================================
+
+This method runs the analysis. It should do everything from dumping out
+sequence files, construct commandlines, run the analysis, parse results and
+cleanup after itself. Runnable does provide a standard run method which 
+should be appropriate for most sequence based analyses. This standard 
+method expects a run_analysis and a parse_results method to have been
+implemented, run_analysis should contruct a command line and run it 
+generally using a system command then redirecting its output into a file,
+parse_results should open this results file and parse the output into 
+ensembl style objects. Again Runnable does provide a standard run_analysis
+method which expects the commandline to follow this structure 
+
+program  options  queryfile  >  resultsfile
+
+parse_results though any child runnable which uses the implemented run
+method needs to have.
+
+
+The output method, Bio::EnsEMBL::Analysis::Runnable::output
+===========================================================
+
+This is more or less just a container method which takes arrayrefs and
+pushes them onto an array inside the object. It can be a useful container
+for objects through the process and it is also where most RunnableDBs
+expect to get a Runnables output from. There is also a clear_output method
+which will empty this array if the contain does want to be used for 
+different purposes.
+
+Other methods
+=============
+
+The Runnable module does also provide several other methods which offer
+functionality that many of our analysis runnables require. 
+First there are a series of container methods for the constructor 
+arguments. Some are just straight containers but some like query do type checking and program also
+tries to find the executable passed in.
+
+There are other utility methods which may prove useful are also availiable
+
+feature_factory, returns a Bio::EnsEMBL::Analysis::Tools::FeatureFactory
+object which can create several different ensembl feature objects
+
+files_to_delete/protect, these are both hashes of files to be deleted or
+protected in the delete files method
+
+queryfile, this is a container for the queryfile name but when called if not
+already defined it will create a queryfile and results file name
+
+create_filename, this takes a stem, extention and a directory and
+creates a random filename in the format dir/stem.pid.random_number.extension
+
+locate_executable, this will try and find the full path to a executable
+file
+
+write_seq_file, this will dump out a given Bio::Seq object or Bio::EnsEMBL::Slice
+with Bio::SeqIO in fasta format
+
+find_file, this will look inthe data and libdirs for a given filename
+
+delete_files this will delete all files on the to_delete list
+
+checkdir/diskspace this checks if your workdir has at least 0.01 kb free
+
+With these base methods you should beable to construct runnables to
+parse most sequence annotation programs output and produce ensembl objects
+
+
+Bio::EnsEMBL::Analysis::RunnableDB
+----------------------------------
+
+A RunnableDB is the object which sits between the ensembl database and
+the Runnable getting input data from the database or from files and writing
+the returned ensembl objects back to the database. 
+
+To be used as part of the pipeline system runnabledbs must follow this
+structure. The constructor should only need 3 arguments, input id, database
+adaptor and analysis object and the runnabledb should implement these 3 
+methods none of which require any input arguments, fetch_input, run and
+write_output. These methods and other useful functions are described below.
+
+
+The constructor, Bio::EnsEMBL::Analysis::RunnableDB::new
+========================================================
+
+The base class provides a constructor which should provide most of what
+any runnabledb needs. This constructor takes three arguments, input id 
+which should be a string the runnabledb can use to fetch its input data,
+analysis, which should be a Bio::EnsEMBL::Analysis object for the analysis
+to be run and db which should be a Bio::EnsEMBL::DBSQL::DBAdaptor. It is
+important that any runnabledb which is going to be run by the pipeline
+system doesn't not require any other arguments as these are the only ones
+the system will handover because of this most runnabledbs don't need
+their own constructor but some implement them as the need configuration 
+read or extra database connections setup before anything else is done.
+(see Bio::EnsEMBL::Analysis::RunnableDB::Blast)
+
+The fetch_input method, Bio::EnsEMBL::Analysis::RunnableDB::fetch_input
+=======================================================================
+
+Each runnabledb must provide their own fetch input method as the input
+for each runnabledb can be quite specific. The job of the fetch input 
+method is to collate the input data and instantiate the runnable objects 
+needed. Most runnables need sequence which can be fetched by the 
+fetch_sequence method described further down. Also in order to use the
+standard run method the instantiated runnable objects must be added to the
+runnable method which holds an array of runnable objects.
+
+The run method, Bio::EnsEMBL::Analysis::RunnableDB::run
+=======================================================
+
+This is a method provided by the base class which many runnabledbs will
+not need to implement themselves. This method iterates through the
+array of runnables provided by the runnable method, calls run, then adds
+the output to the runnabledb output array.
+
+The write_output method, Bio::EnsEMBL::Analysis::RunnableDB::write_output
+=========================================================================
+
+This method should write the output back to an ensembl database. The
+base class provides a standard implementation but it may not be suitable
+for some runnabledbs. The standard implementation requires a method called
+adaptor to be implemented which returns a suitable adaptor object to write
+the output back to the desired table in the database. The method iterates
+through each feature in the output array, adds the analysis object it holds
+to each object and if the feature has no slice object it also adds the 
+query object to the slice method. The feature is then validated by the
+Bio::EnsEMBL::Analysis::Tools::FeatureFactory::validate method which
+checks basic details like start, end and strand are defined and start is 
+smaller than end. Then the adaptor store method is called. This is wrapped
+in an eval statement and the RunnableDB will throw is this call fails. 
+There several reasons why you might want to implement your own write output
+method. These include wanting to write to a database which isn't the 
+standard input database, wanting to do other post processing on the results
+before storage or needing to use a different validation method to properly
+validate your object before storage.
+
+Other methods
+=============
+
+There are several other methods provided by the runnabledb base class which
+you may find useful
+
+db and analysis both have container methods which do type checking on
+the argument passed in.
+
+query, a container method for a query sequence this checks that it is a 
+       Bio::EnsEMBL::Slice object.
+
+runnable, a container for runnable objects, again this does type checking
+          then adds the argument to an array.
+
+output, a container for the array of output objects, this will take an
+        array ref and push it onto the existing array.
+
+feature_factory, returns a Bio::EnsEMBL::Analysis::Tools::FeatureFactory
+                 object.
+
+fetch_sequence, this will use a given name to fetch a slice object from a
+                given database and get repeatmasked sequence if required.
+                If it is called without arguments it will get an unmasked 
+                slice from the db the runnabledb holds using the input id
+                of the runnable.
+
+parameters_hash, this is a useful method as it will parse a string in the 
+                 format key => value, key => value into a hash to be passed
+                 into a runnable constructor. By default it takes the 
+                 string from the analysis parameters method. This is useful
+                 because it means you can pass in optional constructor args
+                 to your runnable from the analysis table of your database
+                 without the need for any extra configuration.
+
+read_and_check_config, this will read the hash from config files. It 
+                       expects the config file to be in the format 
+                       described in Bio::EnsEMBL::Analysis::Config::Blast
+                       it will first read the DEFAULT hash to get a list
+                       of variable names and setup the defaults. Any 
+                       variable named in the default hash must have a 
+                       container method defined in the child runnabledb. 
+                       Then the hash labelled by the logic name of the
+                       analysis object is read the the values override any
+                       default settings when they are found. Note only 
+                       variables which are first considered in DEFAULT
+                       will be take from the logic name defined hash. 
+
+Again with these base methods you should beable to construct runnabledbs
+for most sequence annotation analyses.
+
+
+Other objects and runnables
+---------------------------
+
+There are other modules which you may find useful when writing your 
+runnable/runnabledb
+
+Bio::EnsEMBL::Analysis::Tools::FeatureFactory
+
+This object is a factory object which can create several of the basic
+ensembl feature objects from Bio::EnsEMBL::FeaturePair to 
+Bio::EnsEMBL::PredictionTranscript. The object also provides a couple
+of validation methods which check that cetain methods are defined and also
+check conventions like start < end are being kept.
+
+Bio::EnsEMBL::Analysis::Tools::BPliteWrapper
+
+Blast is the starting point for many sequence annotation analyses. 
+This object will parse blast output using Ian Korfs BPlite code and return 
+a set of AlignFeatures to represent the output. You give the parse_files
+method an array of blast output file names and it will turn it into the 
+appropriate. On creation you need to tell the object the query and the
+database type so it knows whehter it is aligning protein or dna to dna. You
+also can give it an analysis object which it will attach to your features 
+and a regular expression which it will use to parse the headers from the
+blast output. Without a given regular expression it will always take the 
+first word from the line.
+
+Bio::EnsEMBL::Analysis::Tools::FeatureFilter
+
+This is a object which can filter Bio::EnsEMBL::FeaturePairs on several
+conditions. First there are simple score and evalue filters. There is is
+also a coverage and a prune filter. For both coverage and prune the number
+of features which cover each basepair of the sequence being considered is
+looked at. Coverage is a relatively relaxed filter in that so long as one
+base pair of the feature covers the sequence to a depth less than the
+cut off that feature is kept. Prune is more conservative in that is filters
+on a per hit name basis but throws out any feature where at least on base
+pair of the feature covers the sequence to a greater depth than specified.
+If hard prune is switched on then this is done across all features 
+regardless of hitname.
+
+Bio::EnsEMBL::Analysis::Runnable::BaseExonerate
+
+Exonerate is a sequence alignment program which is being used for many
+tasks inside the ensembl annotation system. BaseExonerate provides some
+basic functionality which is common to all our Exonerate runnables 
+currently like a constructor and a parse_results method. If you are 
+intending to use Exonerate in a manner not currently covered by the ensembl
+analysis code you may wish to look if this module can provide your needs.
+An important thing to note is as it codes its own parse_results method it 
+requires a standard output format from exonerate which is defined in the 
+new method. If you need to change this you won't be able to use its parse
+results method.
+
+
+Testing your new runnable/runnabledb
+------------------------------------
+
+Test scripts
+------------
+
+Once you have your new code written you need to test it first to ensure
+it will run properly.
+
+Testing runnables on their own generally need custom scripts as while the
+methods used to actually run then are the same they frequently take quite
+different constructor arguments but here is some example code for the
+testing the genscan runnable.
+
+use strict;
+use Bio::SeqIO;
+use Bio::EnsEMBL::Analysis::Runnable::Genscan;
+use Bio::EnsEMBL::Analysis;
+
+
+my $seqfile = shift;
+
+my $seqio = Bio::SeqIO->new(
+                            -format => 'fasta',
+                            -file => $seqfile,
+                           );    
+
+my $seq = $seqio->nextseq;
+
+my $analysus = Bio::EnsEMBL::Analysis->new(
+                                           -logic_name => 'genscan',
+                                          );
+
+my $genscan = Bio::EnsEMBL::Analysis::Runnable::Genscan->new
+                    (
+                     -query => $seq,
+                     -matrix => 'path/to/matrixfile',
+                    );      
+
+$genscan->run;
+my @transcripts = @{$genscan->output};
+
+print "Genscan has predicted ".@transcripts." transcripts on ".$seq->id.
+"\n";
+
+
+RunnableDBs have a more defined structure which means we have a generic 
+script which can be used to test them. This is test_RunnableDB and can
+be found in ensembl-analysis/scripts/
+
+test_RunnableDB needs a core database to work with and takes the standard
+database arguments, -dbhost, -dbuser, -dbpass, -dbport and -dbname. It
+will not work if not give a host, user and dbname. You also need to give
+it an analysis logic_name. If this analysis already exists in the database
+then it will use that analysis object but if it doesn't you also need to
+provide a module. If your module doesn't as standard live in the 
+Bio::EnsEMBL::Analysis::RunnableDB directory you can also specifiy the
+perl path on the commandline
+
+An example commandline for testing genscan would look like this
+
+perl test_RunnableDB -dbhost myhost -dbuser myuser -dbpass  mypass -dbname 
+  mydatabase -dbport 3306 -input_id contig::RNOR03330165:1:22287:1
+  -logic_name Genscan -module Genscan
+
+By default the write_output method of the RunnableDB isn't called. If 
+you also want to test the write_output method you must specify the -write
+command on the commandline like this
+
+perl test_RunnableDB -dbhost myhost -dbuser myuser -dbpass  mypass -dbname 
+  mydatabase -dbport 3306 -input_id contig::RNOR03330165:1:22287:1
+  -logic_name Genscan -module Genscan -write
+
+
+
+Test Data
+---------
+
+The other thing which is generally needed when testing runnables is test
+data. To test the RunnableDB you generally need at least one core database.
+If you can test your analysis on human sequence then the 
+ensembl-pipeline/test_system may provide everything you need
+
+Inside the pipeline test system is some zipped up reference data which
+you can use to test your analyses.
+
+
+Here are a few simple stages to setup the human test database
+
+setenv DB pipeline_test_db
+setenv CURPRODROOT /path/to/base/dir/for/ensembl/code
+setenv PERL5LIB $CURPRODROOT/bioperl-live:$CURPRODROOT/ensembl-pipeline/test_system/config:$CURPRODROOT/ensembl-pipeline/scripts:$CURPRODROOT/ensembl-pipeline/modules:$CURPRODROOT/ensembl/modules:${PERL5LIB}
+
+
+Now you need to create a database and load the standard sets of 'core' and pipeline tables.
+
+mysql -hyourhost -uyouruser -pyourpass -P3306 -e "create database $DB"
+mysql -hyourhost -uyouruser -pyourpass -P3306 $DB < $CURPRODROOT/ensembl/sql/table.sql
+mysql -hyourhost -uyouruser -pyourpass -P3306 $DB < $CURPRODROOT/ensembl-pipeline/sql/table.sql
+
+
+The test data files can now be unzipped, and used to load data into some of your database tables.
+
+mkdir $CURPRODROOT/homo_sapiens
+unzip $CURPRODROOT/ensembl-pipeline/test_system/reference_data/homo_sapiens.zip -d $CURPRODROOT/homo_sapiens
+
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/meta
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB	$CURPRODROOT/homo_sapiens/meta_coord
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/coord_system
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/attrib_type
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/seq_region
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/seq_region_attrib
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/assembly
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/dna
+ 
+
+Once you have done this you should be ready to start testing your new
+runnable/runnabledb
+
+

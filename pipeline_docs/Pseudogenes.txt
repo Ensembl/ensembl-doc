@@ -1,0 +1,310 @@
+This document will describe our process of annotating pseudogenes
+
+Pseudogene annotation in Ensembl is run at the end of the genebuild process and
+is essentially about removing pseudogenes that have been incorrectly predicted 
+as functional genes, no attempt is made to actively predict pseudogenes.
+Pseudogenes are initially identified at the transcript level, all transcripts 
+are then compared on a gene by gene basis. If a gene is found to contain a 
+mixture of pseudo and real transcripts, the pseudotranscripts are removed and 
+the gene is considered to be functional. If a gene contains pseudotranscripts 
+exclusively the pseudotranscripts and translations are deleted leaving only the
+longest transcript to represent the gene. The gene type is then set to 
+pseudogene. Pseudogene modules use Bio::EnsEMBL::Analysis::Config::Databases 
+to define which genebuild databases to use. 
+
+All modules share the same config file: 
+    Bio::EnsEMBL::Analysis::Config::Pseudogene
+
+Code
+----
+
+These instructions assume you already have copies of the code listed
+below and a working mysql instance and copies of the programs you wish to run.
+
+ensembl          branch-ensembl-29
+ensembl-pipeline branch-ensembl-29
+bioperl-live     bioperl-release-1-2-3
+
+In addition the modules require:
+psilc1.21
+
+PSILC freely available on the web from http://www.sanger.ac.uk/Software/analysis/PSILC/
+
+The pseudogene pipeline is run as part of the genebuild and so uses the
+Bio::EnsEMBL::Analysis::Config::Databases.pm module to define the sequence
+database and the location of the database to write the non coding genes to.
+
+Pseudogene annotation in Ensembl currently takes 3 forms:
+
+
+1. Identification of transcripts containing no 'real' exons - Pseudogene
+	Bio::EnsEMBL::Analysis::Runnable::Pseudogene
+	Bio::EnsEMBL::Analysis::Runnable_DB::Pseudogene_DB
+
+2. Identification of retrotransposed genes. - Spliced_elsewhere
+	Bio::EnsEMBL::Analysis::RunnableDB::Spliced_elsewhere
+	Bio::EnsEMBL::Analysis::Runnable::Spliced_elsewhere
+
+3. Identification based on substitution rates within conserved domains - PSILC
+	Bio::EnsEMBL::Analysis::Runnable::PSILC
+	Bio::EnsEMBL::Analysis::RunnableDB::PSILC
+
+NB: If you only wish to run the initial pseudogene analysis, then all you need
+to do is create chromosome sized slices as input ids (see 
+the_ensembl_pipeline_infrastructure.txt) and fill in any  appropriate entries 
+in the pseudogene  config file. If you wish to run Spliced elsewhere or PSILC 
+read on...
+
+The three analyses are designed to be run in sequence, they are ordered based 
+on the length of time they take to run, (quickest first)..
+Because the latter stages of the analysis are slower they are run on a limited 
+set of genes, these are identified by the first module Pseudogene. The genes 
+identified are:
+
+single exon genes   - targeted for use with Spliced_elsewhere as possible 
+                      retrotransposed genes
+indeterminate genes - genes in which all the transcripts contain frameshifts 
+                      or introns filled with repeat sequences, but do not 
+                      meet all the strict requirements to be classed as a 
+                      pseudogene without additional evidence.
+
+The pseudogene module writes all genes classed as real or pseudogene into the 
+final gene database, genes that are identified for use with the other modules 
+are 'flagged' for use with another analysis. The flags are stored in the flag 
+table in the pipeline database, which can be loaded using the sql found here: 
+ensembl-pipeline/sql/flag.sql
+The flags are used as input ids for the subsequent analyses, in this way the 
+genes are passed from on module to another without having to be written to 
+flatfiles.
+
+Configuration
+-------------
+
+All configuration for the Pseudogene pipeline is contained within a single 
+module:
+
+	Bio::EnsEMBL::Analysis::Config::Pseudogene
+
+This contains the default settings for the 3 analyses and allows the user to 
+configure which analyses are run on which types of genes, ie:
+
+    # analysis logic names to run over genes falling into these categories
+    SINGLE_EXON      => 'spliced_elsewhere',
+	  INDETERMINATE    => 'psilc',
+	  RETROTRANSPOSED  => '',
+	  # if you don't wish to run further tests on retro transposed genes
+	  # What type would you like to give them?
+	  RETRO_TYPE       => 'retrogene',
+	  SPLICED_ELSEWHERE_LOGIC_NAME => 'spliced_elsewhere',
+	  PSILC_LOGIC_NAME => 'psilc',
+
+Here single exon genes are targeted to Spliced_elsewhere and indeterminate 
+genes are given to PSILC. Genes identified as retrotransposed may be further 
+analysed with PSILC by adding the PSILC analysis logic name to the 
+RETROTRANSPOSED key. If the user does not wish to analyse them further they 
+can class them as pseudogene or retrogene (or whatever they like).
+
+If the user only wants to run the initial pseudogene analysis, leaving the 
+these fields blank will mean that all the single exon and indeterminate genes 
+will just be written to the final database as real genes.
+
+Both Spliced_elsewhere and PSILC require scripts to be run before they can be 
+used, the scripts take the flags from the flag table and create input ids out 
+of them to run the analysis. The scripts to do this are here:
+
+ensembl-pipeline/scripts/Pseudogenes/prepare_PSILC.pl
+ensembl-pipeline/scripts/Pseudogenes/prepare_Spliced_elsewhere.pl
+
+These also take configuration from the pseudogene config module.
+
+Spliced_elsewhere config
+========================
+
+
+	       # SPLICED ELSEWHERE SPECIFIC CONFIG
+	       # ratio of the spans of the retrotransposed gene vs its spliced 
+         # homologue spliced / retrotransposed
+	       # ie: 1 is the same length genes 
+	       # many retrotransposed genes have a ratio > 10
+	       # used to make retrotransposition decision
+	       PS_SPAN_RATIO          => 3,
+	       # minimum number of exons for the spliced gene to have
+	       PS_MIN_EXONS           => 2,
+	       # path of blast db of multi exon genes
+	       PS_MULTI_EXON_DIR       => "/my/blast/dir" ,
+	       # Chunk size
+	       PS_CHUNK => '100',
+	       DEBUG => '1',
+
+The blast directory refers to a BLAST database of multi exon genes. If the 
+config defines a logic_name to run on the single exon genes the BLAST database 
+will be created automatically, (Pseudogene will dump out the multiexon genes 
+to flat files and the prepare_Spliced_elsewhere.pl script will collate them 
+and format the database).
+
+PSILC config:
+============
+
+PSILC requires that you create a blast database of  translations from three 
+related species, there is a script for making the blast database using bsub j
+obs, but this might change....
+PSILC identifies pseudogenes by scoring nucleotide substitution rates over 
+PFAM domains, subsequently PSILC requires the PFAM annotation usually run as 
+part of the larger protein annotation stage to be run before the Pseudogene 
+analysis can take place. (see protein_annotation.txt)
+The PSILC config requires you to specify where the blast database and the 
+source databases are,ie:
+
+	       # PSILC SPECIFIC CONFIG
+	       # Homolog databases
+	       SUBJECT              => 'human',
+	       PSILC_SUBJECT_DBNAME => 'homo_sapiens_core_29_35b',
+	       PSILC_SUBJECT_DBHOST => 'ecs2',
+	       PSILC_SUBJECT_DBPORT => '3365',
+
+	       ORTH1                => 'mouse',
+	       PSILC_ORTH1_DBNAME   => 'mus_musculus_core_29_33e',
+	       PSILC_ORTH1_DBHOST   => 'ecs2',
+	       PSILC_ORTH1_DBPORT   => '3363',
+
+	       ORTH2                => 'rat',
+	       PSILC_ORTH2_DBNAME   => 'rattus_norvegicus_core_29_3f',
+	       PSILC_ORTH2_DBHOST   => 'ecs2',
+	       PSILC_ORTH2_DBPORT   => '3363',
+
+	       PSILC_WORK_DIR       => '/PSILC/output/directory',
+	       PS_SPECIES_LIMIT     => '5',
+	       # directory and file name of 3 species blast db
+	       PSILC_BLAST_DB       => '/my/blast/location/BLAST',
+	       PSILC_CHUNK          => '30',
+
+The species limit determines the maximum number of transcripts from each 
+species that may be used in the analysis, raising the limit will result in more
+accurate scores but at the cost of a considerable speed decrease, lowering it 
+below 3 will cause the scores to become unreliable. The chunk size determines 
+how many analyses will be run as a single job.
+
+Modules Overview
+----------------
+
+1. Pseudogene
+=============
+
+Real exons are defined as:
+	Exons that are longer than 9bp (ie: exons shorter than that are often formed 
+  to splice around frameshifts). 
+	Exons that are not covered by a repeat > 80% of their length.
+
+The module uses chromosome sized slices as input_ids and writes all the genes 
+from the GB_FINALDB database and writes them to PSEUDO_DB defined in the 
+Bio::EnsEMBL::Analysis::Config::Databases config file.
+
+Bio::EnsEMBL::Analysis::Runnable::Pseudogene and 
+Bio::EnsEMBL::Analysis::RunnableDB::Pseudogene_db form the base class for the 
+other pseudogene runnables
+
+2. Spliced_Elsewhere
+====================
+
+This module identifies retro transposed single exon genes by a BLASTP search of
+the genes translation against a blast database of multiple exon translations.
+
+Retrotransposed genes are identified as sequences with > 80% sequence identity 
+and > 80% coverage to an entry in the multi exon blast database, where the 
+genomic span of the multiple exon gene is > 3x the genomic span of the single 
+exon gene over their aligned length.
+
+3. PSILC
+========
+
+PSILC is a program developed by Lachlan Coin (Bioinformatics. 2004 Aug 4;20 
+Suppl 1:I94-I100.) . It detects pseudogenes by looking for substitution within 
+conserved protein domains (PFAM). It first identifies genes that contain a 
+PFAM domain and then identifies orthologs / homologs in three species. 
+A BLASTP search is used to find non identical matches with > 80% coverage > 50%
+identity. If there are many homologs identified in a single species, only the 
+top 5 are used (or however many were specified in the config file). 
+Once the homologs are identified, PSILC makes a codon based alignment of the 
+transcripts and the PSILC executable is passed the alignment and the 
+identifier of the PFAM domain contained within it.
+Results are stored in the PSILC_WORK_DIR arranged in directories 
+corresponding to the input ids, (this is likely to change also....)
+
+Pseudo vs Real
+===========
+
+The truth is this is more difficult to decide than you might think, there is 
+good evidence that many retrotransposed genes are transcribed, some even 
+appear to be functionally active, so retrotransposition does not always mean a 
+gene is inactive. PSILC provides further evidence but is not always correct, 
+users should use these results with caution... 
+This is something that needs further work to resolve satisfactorily 
+(SNPs may be used in the future to help further define pseudo from real.)
+
+
+When running pseudogene annotation it is worth checking these things out before
+you start
+
+1. Do you have all the executables, and data files for the analysis you want to
+run? Are they pushed out across your compute farm where appropriate?
+
+2. Do you have the flag table loaded into your pipeline database?
+
+4. Does BatchQueue.pm contain entries for all the analyses you wish to run?
+
+5. Have you filled in the analysis table?
+
+6. Have you filled in the rule tables?
+
+7. Are the appropriate dummy entries in the input_id_analysis table?
+
+8  Have you tested jobs for your different analyses?
+
+9. Have you filled in the Bio::EnsEMBL::Analysis::Config::Pseudogene config?
+
+
+
+The below config files can be used along with the analysis_setup.pl and 
+rule_setup.pl scripts found in ensembl-pipeline/scripts and explained in
+the_ensembl_pipeline_infrastructure.txt
+
+
+Example analysis config
+-----------------------
+
+[SubmitChr]
+module=SubmitAnalysis
+input_id_type=CHROMOSOME
+
+[SubmitSE]
+module=Submit
+input_id_type=FLAG
+
+[SubmitPSILC]
+module=Submit
+input_id_type=FLAG
+
+[spliced_elsewhere]
+module=Bio::EnsEMBL::Analysis::RunnableDB::Spliced_elsewhere
+input_id_type=FLAG
+
+[psilc]
+module=Bio::EnsEMBL::Analysis::RunnableDB::PSILC
+input_id_type=FLAG
+
+[pseudogene]
+module=Bio::EnsEMBL::Analysis::RunnableDB::Pseudogene_DB
+input_id_type=CHROMOSOME
+
+
+Example rule config 
+-------------------
+
+[pseudogene]
+condition=SubmitChr
+
+[psilc]
+condition=SubmitPSILC
+
+[spliced_elsewhere]
+condition=SubmitSE

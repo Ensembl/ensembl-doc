@@ -1,0 +1,115 @@
+quick start pipeline guide
+--------------------------
+
+This document is a quick start guide to the Ensembl pipeline.  It is based on a set of test files so you can check that everything is working before trying to apply the pipeline to your own data.  The test will run RepeatMasker, Genscan and Blast on a set of contigs.
+
+These instructions assume you already have:
+- copies of the Ensembl and bioperl code listed below
+- a working mysql instance
+- copies of the programs RepeatMasker, genscan and wublast
+
+ensembl          branch-ensembl-XXXX*
+ensembl-pipeline branch-ensembl-XXXX*
+bioperl-live     bioperl-release-1-2-3
+
+(*replace XXXX with appropriate stable branch)
+
+The ensembl-pipeline code includes the test files in a test_system directory.
+For instructions about how to download these pieces of code, see the document overview.txt
+
+
+The first step in setting up the pipeline test is to edit two config files which are both located here:
+ensembl-pipeline/test_system/config/Bio/EnsEMBL/Pipeline/Config/
+
+General.pm
+In this file you need to point 3 variables to the locations of all your binary, data and library files (for programs like RepeatMasker, genscan and wublast).
+BIN_DIR, DATA_DIR and LIB_DIR
+You can leave the other variables with their default values.
+
+BatchQueue.pm
+Here you may need to edit 2 variables:
+QUEUE_MANAGER
+This must point to a module appropriate for the batch submission system that you intend to use. Modules are currently available for LSF, Gridengine and Local. LSF is the batch submission system that we use at the Sanger institute. If you need to use another system, you may need to write a new module (see doc?) - but for testing purposes you should use Local. If you use Gridengine or another system you will probably want to remove the resource entries in the QUEUE_CONFIG hashes as these are specific to LSF and ignored by Local.
+DEFAULT_OUTPUT_DIR
+This should point to a directory for the output. You also need to create this directory.
+
+
+The next step is to set up some environment variables.
+
+setenv DB pipeline_test_db
+setenv CURPRODROOT /path/to/base/dir/for/ensembl/code
+setenv PERL5LIB $CURPRODROOT/bioperl-live:$CURPRODROOT/ensembl-pipeline/test_system/config:$CURPRODROOT/ensembl-pipeline/scripts:$CURPRODROOT/ensembl-pipeline/modules:$CURPRODROOT/ensembl/modules:${PERL5LIB}
+
+
+Now you need to create a database and load the standard sets of 'core' and pipeline tables.
+
+mysql -hyourhost -uyouruser -pyourpass -P3306 -e "create database $DB"
+mysql -hyourhost -uyouruser -pyourpass -P3306 $DB < $CURPRODROOT/ensembl/sql/table.sql
+mysql -hyourhost -uyouruser -pyourpass -P3306 $DB < $CURPRODROOT/ensembl-pipeline/sql/table.sql
+
+
+The test data files can now be unzipped, and used to load data into some of your database tables.
+
+mkdir $CURPRODROOT/homo_sapiens
+unzip $CURPRODROOT/ensembl-pipeline/test_system/reference_data/homo_sapiens.zip -d $CURPRODROOT/homo_sapiens
+
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/meta
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB	$CURPRODROOT/homo_sapiens/meta_coord
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/coord_system
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/attrib_type
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/seq_region
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/seq_region_attrib
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/assembly
+mysqlimport --local -hyourhost -uyouruser -pyourpass -P3306 $DB $CURPRODROOT/homo_sapiens/dna
+ 
+The data you have just loaded is information about the assembly and sequence ofabout 10 Mb of a human chromosome.  Check the tables have been loaded like this:
+
+mysql -hyourhost -uyouruser -pyourpass -P3306 $DB -e "select count(*) from seq_region"
+
+
+Now load information into the analysis and pipeline tables (analysis,  rule_conditions, rule_goal, input_id_analysis, input_id_type_analysis).  These define the analyses to be carried out and contain the information necessary to control the pipeline.
+
+perl $CURPRODROOT/ensembl-pipeline/scripts/analysis_setup.pl \
+-dbhost yourhost -dbuser youruser -dbpass yourpass -dbport 3306 -dbname $DB \
+-read -file $CURPRODROOT/ensembl-pipeline/scripts/example_analysis.conf
+
+perl $CURPRODROOT/ensembl-pipeline/scripts/rule_setup.pl \ 
+-dbhost yourhost -dbuser youruser -dbpass yourpass -dbport 3306 -dbname $DB \
+-read -file $CURPRODROOT/ensembl-pipeline/scripts/example_rule.conf
+
+
+Make and store input ids (in this case, one for each contig to be analysed).
+
+perl $CURPRODROOT/ensembl-pipeline/scripts/make_input_ids -dbhost yourhost -dbuser youruser -dbpass yourpass -dbport 3306 -dbname $DB -slice -seq_level -logic_name SubmitContig
+
+Check that the input ids have been created:
+
+ mysql -hyourhost -uyouruser -pyourpass -P3306 -D$DB  -e 'select \
+ a.logic_name, count(*) from analysis a, input_id_analysis iia where \
+ iia.analysis_id=a.analysis_id group by a.analysis_id'
+
+
+Everything is now set up!
+It is a good idea to run a short test before starting the actual pipeline.  This command will run a single analysis on a single contig, without writing anything to your database:
+
+$CURPRODROOT/ensembl-pipeline/scripts/test_RunnableDB -dbhost yourhost  -dbport 3306 -dbuser youruser -dbpass yourpass -dbname $DB -logic RepeatMask -input_id contig::AL008734.10.1.85116:1:85116:1
+
+
+Now you can start the pipeline using the rulemanager script.
+To see what is actually happening, you can use the -verbose flag (in which case you will probably want to redirect output to a file and run in the background, as in the example command line below).
+
+cd $CURPRODROOT/ensembl-pipeline/scripts
+
+perl ./rulemanager.pl -dbhost yourhost -dbport 3306 -dbname $DB -dbuser youruser -dbpass yourpass -verbose >& /tmp/rulemanager.out &
+
+You can use this command to monitor its progress:
+
+./monitor -dbhost yourhost -dbport 3306 -dbname $DB -dbuser youruser -dbpass yourpass -finished -current
+
+And these queries show whether it has produced any features ...
+
+mysql -hyourhost -uyouruser -pyourpass -P3306 -D$DB -e 'select count(*) from repeat_feature'
+
+mysql -hyourhost -uyouruser -pyourpass -P3306 -D$DB -e 'select count(*) from prediction_transcript'
+
+mysql -hyourhost -uyouruser -pyourpass -P3306 -D$DB -e 'select count(*) from protein_align_feature'

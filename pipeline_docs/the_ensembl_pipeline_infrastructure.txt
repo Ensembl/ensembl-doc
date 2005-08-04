@@ -1,0 +1,843 @@
+This document describes the Ensembl pipeline infrastructure.  The topics
+covered are code, schema, rules, setup and the scripts which can be used to run
+the pipeline.
+
+
+The pipeline system is a collection of code and database tables which 
+allow a set of dependancies between analyses to be defined then then run in a 
+parallel fashion by submission to a compute resource. 
+
+The system can recognise job failures and re-try failed jobs (up to a set 
+number of times). The system is also able to recognise jobs which have 
+been lost when failure was not trapped by the system.
+
+The pipeline runs analyses by using modules called Runnables and
+RunnableDBs. Runnables run the analysis programs and parse the results, while
+RunnableDBs communicate between the databases and the Runnables, retrieving
+input data and storing the results.
+
+
+
+Code
+====
+
+The ensembl pipeline, like the ensembl core, is coded in perl. In order to
+run the ensembl pipeline you need perl and mysql installed. You also need
+some ensembl specific code which is freely available via cvs.
+
+These are required:
+ensembl
+ensembl-pipeline
+
+You may also use this:
+ensembl-analysis
+
+You also need bioperl which is also freely available:
+bioperl-live (bioperl-release-1-2-3)
+
+
+The current stable branch of the pipeline and analysis code is
+branch-ensembl-29. This code may work with more recent versions of the 'core'
+ensembl code but we can only guarantee it will work if you use the same branch
+for the core code.
+
+The document overview.txt gives instructions on how to download these pieces 
+of code.
+
+
+
+Schema
+======
+
+The parts of the database schema that are essential for the pipeline involve
+7 tables.  One is part of the core schema while the other 6 are specific to the
+pipleine and are defined by the file ensembl-pipeline/sql/table.sql
+
+analysis
+--------
+
+This table is part of the core code. The table holds information about all the
+different analyses contained in the database. There is a coresponding object in
+the core code Bio::EnsEMBL::Analysis
+
+These are its columns:
+
+analysis_id, numeric dbID to identify the object elsewhere in the database
+created, time the analysis object was inserted
+logic_name, human readable name for the analysis    
+db, name of database searched (if any)          
+db_version, version of database searched 
+db_file, path to database file (if necessary)
+program, name of program used     
+program_version, version of program
+program_file, path to program file
+parameters, constructor arguments to be used by Runnable
+module, name of RunnableDB to be instantiated
+module_version, version of module
+gff_source, source of data in gff format
+gff_feature, type of feature in gff format   
+
+Not all of these columns are always filled in. The only columns which
+are really essential to the running of the pipeline are analysis_id (which
+is filled in automatically on storage), logic_name (this allows a user
+to specify which analyses needs to be run and is also used by a lot of code
+to fetch results back out of the databases), and module (which defines which
+RunnableDB module the pipeline needs when running a particular job).
+
+
+input_id_type_analysis
+----------------------
+
+This table is part of the pipeline schema and defines what input id type each
+analysis will use.
+
+These are its columns:
+
+analysis_id, the database id from the analysis table
+input_id_type, the type of input id this analysis should use. This 
+               word is generally all in capitals and, while not used by the
+               analysis modules themselves, indicates to the pipeline
+               which input ids make up a complete set. Input id types 
+               include things like CONTIG, SLICE, FILENAME.  There is one
+               protected input id type ACCUMULATOR - this describes to
+               the pipeline system a certain type of analysis which is 
+               treated in a different manner to other analyses.
+
+
+input_id_analysis
+-----------------
+
+This table records which analyses have been run sucessfully on which input ids.
+
+These are its columns:
+
+input_id, the input id string
+input_id_type, the input id type
+analysis_id, the dbID from the analysis table
+created, when the analysis was run
+runhost, the host the analysis was run on that input id
+db_version, the version of database searched (this isn't always used)
+result, whether the analysis produced any results (this column is not 
+        currently used)
+
+This table is also where the pipeline initially gets its input ids.  Before the
+pipeline is run, input ids are created and stored in this table, linked to
+dummy analyses which don't indicate an analysis but instead are markers for the
+start of rule flows.  For example, the dummy analysis associated with input ids
+of type CONTIG might be called SubmitContig.
+
+
+rule_goal
+---------
+
+This is the first of the two rule tables. It describes what analysis each
+rule should execute.
+
+These are its columns:
+
+rule_id, the numeric id for each rule
+goal, an analysis_id from the analysis table representing the analysis to be
+run when the rule is executed
+
+
+rule_condition
+--------------
+
+This is the second of the two rule tables. It describes what must already have
+been completed before a rule can be run.
+
+These are ids columns:
+
+rule_id, the numeric id for each rule
+condition, the logic name for the analysis on which the rule 
+           depends
+
+A rule may have more than one condition.  An important note is that a rule must
+always have at least one dependancy which is an analysis with the same input id
+type as the analysis that is the rule's goal - this provides the input id.  Any
+dependancies which aren't of the same input id type must be of type ACCUMULATOR.
+ 
+
+job
+---
+
+The job table stores information about individual units of work which can be
+done by the pipeline. Each job had 2 main pieces of information: its input
+id and its analysis id. This table stores lots of other information as well.
+
+These are its columns:
+
+job_id, database id for the job
+input_id, input id string (this can be a filename, a seq region identifier
+          etc)
+analysis_id, analysis_id from analysis table   
+submission_id, this is the id assigned to the job by the submission system
+stdout_file, the location of the stdout file
+stderr_file, the location of the stderr file
+retry_count, the number of times the job has been tried  
+temp_dir, the temporary directory to which the output is being written   
+exec_host, the host on which the job is being run
+
+
+job_status
+----------
+
+This table keeps a track of the current status of a job and all its 
+previous statuses.
+
+Its columns are:
+
+job_id, database id for the job
+status, status can be CREATED, WAITING, SUBMITTED, READING, RUNNING, 
+        WRITING, FAILED, AWOL
+time, time the entry was made
+is_current, this can be y or n and indicates if the job currently holds the
+            status
+
+The 8 different statuses have these meanings:
+
+CREATED, the job exists but hasn't yet been submitted to the farm
+SUBMITTED, the job has been submitted to the farm but is pending assignment
+           to a node to run on
+WAITING, the job has been assigned to a node but hasn't yet starting 
+         running
+READING, the job is reading its input data
+RUNNING, the job is running the analysis
+WRITING, the job is writing its results back to the database
+FAILED,  the job failed but was caught by the system
+AWOL,    the job has disappeared from the system
+
+
+
+Rules
+=====
+
+The rules define the pipeline work flow and how separate analyses depend
+on each other. The system can handle 4 types of dependencies.
+
+A. No dependencies: these are analyses which don't depend on anything
+   being complete before they are run. They just need the sequence and
+   possibly the assembly to have been loaded. They do however require 
+   a Dummy Analysis which provides the input ids.
+
+   For example, the RepeatMask analysis (see diagram below) has no external
+   dependancies, it simply requires the database to contain sequence. The 
+   pipeline system though requires that the rule with RepeatMask as a goal has 
+   a condition. The condition is a dummy analysis - in this case called 
+   SubmitContig. It has the same input id type as RepeatMask but its 
+   entries in the input_id_type_analysis table were added before the pipeline
+   started (described below) and thus both act as a marker to indicate to 
+   the pipeline that RepeatMask can run and also provide the input ids with
+   which to run.
+
+B. Dependencies which use the same input_id: these are analyses which
+   depend on another analysis being complete, and use the same type of input id.
+
+   An example of this is the Uniprot analysis (blast against Uniprot). The
+   blast runs on contigs and needs the sequence to be repeat masked before it
+   can be run.  By giving the Uniprot rule the condition of RepeatMask, it
+   can't be run until the contig in question has an entry in the input id
+   analysis table showing completion of its RepeatMask analysis.
+
+
+C. Accumulator dependencies: These mark a wait for a previous stage to be
+   completed. They are used to indicate that a previous analysis has been run
+   on all possible input ids.  They allow transitions between different input
+   ids and also mark an analysis as complete, for example to allow best in set
+   filtering as is required during the pmatch analysis
+   
+
+D. Dependencies which do not use the same input id type: This can only be 
+   achieved by having an accumulator dependency between the two (described
+   above). 
+
+   An example of this is the Pmatch and BestPmatch analysis in the ruleflow
+   shown below. Pmatch has an input_id_type of CHROMOSOME and BestPmatch has
+   an input_id_type of GENOME, because of this there is an accumulator between
+   the two stages called Pmatch_Wait. Pmatch_Wait will run once all the 
+   CHROMOSOME input_ids have entries in the input_id_analysis table for Pmatch.
+   Then the BestPmatch analysis can run.
+  
+
+
+This diagram illustrates an example of flow rules:
+
+
+ SubmitContig      SubmitChromosome   SubmitGenome     	SubmitSlice
+   CONTIG           CHROMOSOME         GENOME              SLICE
+      ^                 ^                 ^                  ^
+  A   |             A   |              A  |                  |
+  RepeatMask          Pmatch              |                  |       
+    CONTIG          CHROMOSOME            |                  |
+      ^                 ^                 |                  | 
+  B   |             C   |                /                  /
+   Uniprot          Pmatch_Wait        /                  /  
+   CONTIG           ACCUMULATOR      /                  /     
+      ^                 ^          /                  /       
+  C   |             D   |        /                  /        
+  Blast_Wait         BestPmatch/                  /         
+ ACCUMULATOR           GENOME                   /          
+      ^                 ^                     /           
+      |                 |                   /         
+      |           C     |                 /           
+      |             Best_Wait           /
+      |            ACCUMULATOR        /  
+      |                 |           /
+      |          TargettedGenewise/                  
+      |               SLICE
+      |                 ^
+      |             B   |
+      |_________SimilarityGenewise
+                      SLICE     
+      
+
+The flows between rules are arrows labeled with either A, B or C  
+(explained in A, B and C type dependencies above) - all other connections 
+are covered by type D.
+
+Rules can be dependent on more than one condition but, with the exception of
+conditions with an input_id_type of Accumulator, the conditions must be of the 
+same input_id_type as the goal.
+
+
+
+Setup
+=====
+
+There are 5 main stages to setting up a pipeline database in Ensembl.
+
+
+1. Loading the genomic sequence data into a database
+----------------------------------------------------
+
+There are scripts which aid this procedure in ensembl-pipeline. The
+process is described more throughly in the document
+loading_sequence_into_ensembl.txt
+
+
+2. Setting up the analysis table
+--------------------------------
+
+Every analysis you want to run needs an entry in the analysis table. You
+also need entries for the Dummy analyses which mark the start of your rule
+chains, and for any Accumulator analyses which mark waits for completion of a stage.
+
+In ensembl-pipeline/scripts there is a script called analysis_setup.pl
+which takes in a config file and writes the entries to the analysis table. The
+script can also be pointed at a previously set-up database, to produce a config file.
+
+The structure of the config file is the logic_name in [] brackets, followed
+by key=value pairs delimited by an = sign. The key is the column name and
+the value is the entry desired in the column. The code also recognises the #
+symbol as indicating comments.
+
+The analysis object rule chain shown in the diagram above would need a config
+file like this:
+
+[SubmitContig]
+input_id_type=CONTIG
+
+[RepeatMask]
+db=repbase
+db_version=13-07-2002
+db_file=repbase
+program=RepeatMasker
+program_version=1
+program_file=RepeatMasker
+parameters=-m
+module=RepeatMasker
+gff_source=RepeatMasker
+gff_feature=Repeat
+input_id_type=CONTIG
+
+[Uniprot]
+db=uniprot
+db_file=uniprot
+program=wublastp
+program_file=wublastp
+parameters=options => -cpus=1 -hitdist 40
+module=BlastGenscanPep
+input_id_type=CONTIG
+
+[Blast_Wait]
+module=Accumulator
+input_id_type=ACCUMULATOR
+
+[SubmitChromosome]
+input_id_type=CHROMOSOME
+
+[Pmatch]
+db=rodent_proteins
+module=Pmatch
+input_id_type=CHROMOSOME
+
+[Pmatch_Wait]
+module=Accumulator
+input_id_type=ACCUMULATOR
+
+[SubmitGenome]
+input_id_type=GENOME
+
+[BestPmatch]
+db=rodent_proteins
+module=BestPmatch
+input_id_type=GENOME
+
+[Best_Wait]
+module=Accumulator
+input_id_type=ACCUMULATOR
+
+[SubmitSlice]
+input_id_type=SLICE
+
+[TargettedGenewise]
+module=FPC_TargettedGenewise
+input_id_type=SLICE
+
+[SimilarityGenewise]
+module=FPC_BlastMiniGenewise
+input_id_type=SLICE
+
+
+For most analysis objects you only need to provide 3 pieces of information:
+their logic name, a module name and an input id type. Dummy analyses
+(e.g. SubmitContig) don't even need a module. However, the other columns may be
+needed to provide useful information to some Runnables/RunnableDBs. For
+example, the UniProt analysis involves a blast run for which the name of the
+blast database comes from the db_file column and any command line parameters
+for blast come from the parameters column.
+
+The analysis setup script requires a few simple commandline options.  An
+example commandline for writing objects to the database would be:
+
+perl ensembl-pipeline/scripts/analysis_setup.pl -dbhost yourhost 
+-dbuser yourusername -dbpass yourpass -dbname yourdatabase -dbport 3306
+-read -file /your/config/file
+
+This will write the given file to the database.
+
+If you want to dump out a config file from a database, the command line is
+be identical except you would replace the -read option with -write.
+
+The script also has a -help option which will print out the perldocs of 
+the script.
+
+The analysis setup code checks to see if an analysis object already exists
+before it stores it. This check is done on the basis of logic_name. If the
+logic_name already exists in the database it will not store the new object,
+even if other values are different (at the moment, the only way to update
+existing entries in the analysis table is at the mysql client level).  But if
+you want to add new analysis objects to your database, you can just add them to
+the bottom of your existing config file and point the script at it again.
+
+The script uses a module called AnalysisCreation.pm which is located
+in the scripts directory. If you want to run the script outside of that 
+directory you need to add the ensembl-pipeline/scripts directory to your
+PERL5LIB.
+
+
+3. Setting up the rule tables
+-----------------------------
+
+As described above, there are two rule tables, rule_goal and rule_condition.
+Any analysis which you want the pipeline to run must have an entry in both
+tables.
+
+There is a script rule_setup.pl for configuring the rules. This is also located
+in ensembl-pipeline/scripts/ and operates in a similar way to the
+analysis_setup.pl script. Again, it can both read and write config files. The
+file's structure is very similar but you will only have one type of key=value
+pair: condition=conditionliteral
+
+The config file required to setup rules for the flow described above would
+look like this:
+
+[RepeatMask]
+condition=SubmitContig
+
+[Uniprot]
+condition=RepeatMask
+
+[Blast_Wait]
+condition=Uniprot
+
+[Pmatch]
+condition=SubmitChromosome
+
+[Pmatch_Wait]
+condition=Pmatch
+
+[BestPmatch]
+condition=Pmatch_Wait
+condition=SubmitGenome
+
+[Best_Wait]
+condition=BestPmatch
+
+[TargettedGenewise]
+condition=SubmitSlice
+condition=Best_Wait
+
+[SimilarityGenewise]
+condition=TargettedGenewise
+condition=Blast_Wait
+
+The commandline layout is identical to that of analysis_setup and again there
+is a -help option to get you the perl docs.
+
+
+4. Setting up input ids
+-----------------------
+
+Before any analysis can run it needs some initial input ids in the 
+input_id_analysis table.
+
+For each input id type you need to create a set of input ids in the
+input_id_analysis table. These entries generally point to the dummy analysis
+which represent the start of the rule flows.  There is a script to make input
+ids: ensembl-pipeline/scripts/make_input_ids
+
+In the above example above, 3 different types of input ids are needed.  All are
+sequence based so will use the same -slice option in the script. Here are the
+commandlines you would need.  Note that you can choose a slice size or by
+default use the whole of each seq_region for the specified coordinate system.
+
+perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
+ -dbname yourdatabase -dbport 3306 -logic_name SubmitContig -slice
+-coord_system contig
+
+perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
+ -dbname yourdatabase -dbport 3306 -logic_name SubmitChromosome -slice
+-coord_system chromosome
+
+perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
+ -dbname yourdatabase -dbport 3306 -logic_name SubmitSlice -slice
+-coord_system chromosome -slice_size 1000000
+
+
+5. Filling out configuration files
+----------------------------------
+
+Many analyses that the pipeline runs have specific config files which need to
+exist and be filled out appropriately. These are discussed in the documentation
+for the different analyses.  But the pipeline also has two config files which
+must exist for the pipeline code to run. These files are:
+
+Bio::EnsEMBL::Pipeline::Config::General
+Bio::EnsEMBL::Pipeline::Config::BatchQueue
+
+In the checked out code these both exist as .pm.example files e.g.:
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/Config/General.pm.example
+They need to be changed to just straight .pm files for them to work e.g.:
+ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/Config/General.pm
+
+General.pm
+----------
+This has some very simple options which are used by the pipeline.
+
+BIN_DIR
+DATA_DIR
+LIB_DIR
+These 3 options are actually used by the analysis code. They point to the
+directories the code looks in for binary or data files.
+
+PIPELINE_WORK_DIR, this is the directory the analysis code works in. It is
+                   best if this is local to the machine the analysis is 
+                   running on, to avoid NFS issues, so we generally use /tmp
+
+PIPELINE_REPEAT_MASKING, these are the logic_names of repeats to be masked
+                         for the analyses which use masked sequence
+
+RENAME_ON_RETRY, this indicates whether the pipeline should rename the 
+                 stderr and stdout of a file before it retries a failed job.
+                 This is helpful because some batch submission systems just
+                 append output to the end of existing files, and this way you
+                 get to see the individual output from each run
+
+The other settings in this file are no longer required for the running of the 
+pipeline but just haven't been removed yet.
+
+BatchQueue.pm
+-------------
+This is a config file with hash structures to provide analysis-specific
+settings to the pipeline. But it starts with a series of default settings.
+
+QUEUE_MANAGER, which BatchSubmission module to use. We use LSF but there 
+               are also Local and GridEngine modules 
+               (see batchsubmission_systems.txt)
+DEFAULT_BATCH_SIZE, the number of jobs to give to one batch submission
+                    command to run serially
+DEFAULT_RETRIES, the number of times the pipeline will re-attempt a failed job
+DEFAULT_OUTPUT_DIR, where the pipeline will redirect stdout and stderr from
+                    pipeline jobs
+DEFAULT_CLEANUP, whether stderr files are to be deleted or not (this should 
+                 have the values yes or no)
+JOB_LIMIT, the number of jobs after which the pipeline will go to sleep
+JOB_STATUSES_TO_COUNT, the statuses to count when calculating if the 
+                       limit has been reached
+MARK_AWOL_JOBS, this tells the pipeline to look for jobs which have 
+                disappeared from the system
+MAX_JOB_SLEEP, this is the maximum time the pipeline will sleep for when 
+               there are too many jobs
+MIN_JOB_SLEEP, this is the minimum time the pipeline will sleep for when
+               there are too many jobs
+SLEEP_PER_JOB, this is the amount of time per job over the maximum the 
+               pipeline will sleep for when there are too many jobs
+DEFAULT_RUNNABLEDB_PATH, this is the place the pipeline will look for the
+                         module an analysis specifies
+DEFAULT_RUNNER, this is the script the pipeline uses to run the jobs when 
+                they are submitted to the compute resource
+
+Then there is an array of hashes which can each contain these values:
+
+logic_name, the logic_name of the analysis to be run. This is an obligatory
+            value as it is how the pipeline determines which hash to use
+batch_size, override for the DEFAULT_BATCH_SIZE
+retries, override for DEFAULT_RETRIES
+runner, override for DEFAULT_RUNNER
+output_dir, override for DEFAULT_OUTPUT_DIR
+cleanup, override for DEFAULT_CLEANUP
+runnabledb_path, override for DEFAULT_RUNNABLEDB_PATH
+resource, any resource requirements to be given to the batch submission 
+          system
+queue, which queue in the batch submission system to submit the job to
+sub_args, other command line arguments to give to the batch submission 
+          system
+
+
+
+Running the pipeline
+====================
+
+Once the pipeline has been setup there are several scripts to help you
+run it.  All are located in ensembl-pipeline/scripts
+
+
+setup_batchqueue_outputdir.pl
+-----------------------------
+You may find this useful once you have filled out your BatchQueue
+configuration. It uses mkdir -p to create the output directories specified in 
+BatchQueue.pm. Note that mkdir -p will recursively create all the non-existing
+directories in the path, but you must have permission to do this otherwise 
+it won't work.
+
+
+pipeline_sanity.pl
+------------------
+This takes the standard database arguments and performs a series of checks on
+your database. First it looks to make sure your config files are set up
+correctly. It will complain if BIN, DATA and LIB_DIRs aren't defined, and if
+some of the BatchQueue defaults aren't defined. It also checks if all the
+analysis objects in the database have entries in the BatchQueue config. The
+script then checks that all the modules specified in the analysis table compile
+and finally if your accumulators, database and rules are sane. A commandline
+would normally look like this:
+
+perl pipeline_sanity.pl -dbhost yourhost -dbuser yourusername 
+-dbpass yourpass -dbname yourdatabase -dbport 3306
+
+There is also a -verbose flag which will make the script more verbose.
+
+Once you have run the pipeline_sanity script and the only errors reported are
+acceptable (note that dummy analyses will generally fail the 'module compile'
+and 'entry in batchqueue' checks and this is fine), then you can consider
+starting the pipeline.
+
+
+test_RunnableDB
+---------------
+
+You can also test if individual analyses are working outside the pipeline 
+system using this script. There is a version of these script found in both
+ensembl-pipeline/scripts and ensembl-analysis/scripts and you should use
+the version that matched your RunnableDB
+
+the interface to both is the same. They take the standard database arguments
+and a logic_name and input id. They can also be give input_id_types, modules
+runnabledb_paths they also have a -help option which will print out their 
+perldocs for you
+
+example commandlines would be
+
+perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
+-dbpass yourpass -dbname yourdatabase -dbport 3306 -logic_name RepeatMask
+-input_id contig::AC114498.2.1.121664:1:121664:1 
+
+This would test the RepeatMask analysis and make sure it runs on the input
+id contig::AC114498.2.1.121664:1:121664:1. 
+
+If you want to test the write_output you will need to specifiy the
+-write flag on the commandline 
+
+
+perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
+-dbpass yourpass -dbname yourdatabase -dbport 3306 -logic_name Uniprot
+-input_id contig::AC114498.2.1.121664:1:121664:1 -write
+
+This commandline will test that the Uniprot analysis will run on this
+input and write output to the database
+
+In both script the assumption is made that the runnabledb can be found in
+RunnableDB directory of that cvs module. If it doesn't you will need to
+use the -runnabledb_path argument to point to where it can be found
+
+perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
+-dbpass yourpass -dbname yourdatabase -dbport 3306 -logic_name Uniprot
+-input_id contig::AC114498.2.1.121664:1:121664:1 -runnabledb_path Test
+
+This would try and find the module Test::Blast in your PERL5LIB
+
+You can also run test_RunnableDB on analyses which don't already exist in
+the database. If you this you also need to pass in a module using -module
+and a input_id_type
+
+perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
+-dbpass yourpass -dbname yourdatabase -dbport 3306 -logic_name CPG
+-input_id contig::AC114498.2.1.121664:1:121664:1 -module CPG 
+-input_id_type CONTIG
+
+This would run the runnabledb CPG on the contig specified
+
+rulemanager.pl
+--------------
+
+The pipeline is generally run using the rulemanager script.
+The simplest way to start rulemanager is like this:
+
+perl rulemanager.pl -dbhost yourhost -dbuser yourusername -dbpass yourpass
+-dbname yourdatabase -dbport 3306 
+
+This will run through the rules deciding what can and cannot be run. It will
+retry failed jobs as appropriate until it decides it can run nothing else. It
+is generally a good idea to run it in the background, as it can run for a long
+time (24hrs+).
+
+Here are some of the useful options when running the rulemanager:
+
+-verbose, Makes the rulemanager much more chatty so you can see some
+          of the reasoning behind the decisions it is making
+-analysis, Must be followed by the logic_name of an analysis object. If this
+           option appears in the command line only the rules with the specified
+           analyis as a goal will be checked. This option can appear in the
+           commandline multiple times
+-skip_analysis, Again, specified with a logic_name; any rules 
+                with this analysis as goals are skipped.  Can appear multiple
+                times
+-input_id_type, Only input ids of the type specified will be
+                considered (similar to the analysis option)
+-skip_input_id_type, Input ids of the specified type will skipped
+-once, Makes sure the rulemanager only runs through its loop once 
+       before exiting. This means failed jobs won't be retried in that
+       loop of the rulemanager, but also it means you can make sure your
+       jobs are behaving
+-submission_limit, A flag which indicates that rulemanager should
+                   submit only a maximum number of jobs before exiting. By 
+                   default this is 1000
+-submission_number, Used with -submission_limit to specify the maximum number of
+                    jobs to be submitted
+
+These last three options are useful when you want to test your pipeline setup
+but not commit to to a long run. It can also be useful if you know your compute
+resource can only handle a certain number of jobs at once and you don't want to
+overload it.
+
+The rulemanager also has a -help option which will print out the standard
+arguments for the pipeline and also a -perldoc option which will print out
+the much more verbose perl documentation which covers the myriad options 
+which can be used to customise the run.
+
+Here are some example command lines that you may find useful:
+
+perl rulemanager.pl -dbhost yourhost -dbuser yourusername -dbpass yourpass
+-dbname yourdatabase -dbport 3306 -analysis RepeatMask 
+-input_id_type CONTIG
+
+This means the rulemanager will only consider input ids of type CONTIG and
+check if the rule with the goal RepeatMask can be run.
+
+perl rulemanager.pl -dbhost yourhost -dbuser yourusername -dbpass yourpass
+-dbname yourdatabase -dbport 3306 -skip_analysis TargettedGenewise
+
+Here the rulemanager won't consider an rule with the goal 
+TargettedGenewise (but will run any other analyses whose conditions can be met).
+
+perl rulemanager.pl -dbhost yourhost -dbuser yourusername -dbpass yourpass
+-dbname yourdatabase -dbport 3306 -submission_limit -submission_number 100
+
+This means the rulemanager will exit after the first 100 jobs have been 
+submitted to the compute resource.
+
+Note that any of the options which limit what can run on the basis of analyses
+or input id types will stop the pipeline from considering accumulators. This
+was done because accumulators run by default in the pipeline unless the rule
+checking code spots that they shouldn't. However, this checking depends on the
+code considering which analysis and input id types the accumulator depends
+on. If it can't, the accumulator may run even if it shouldn't.
+
+
+monitor
+-------
+A very useful script while you are running the pipeline.  It reports summary
+statisitcs about what is currently running and what is in the database.
+
+As with all these scripts it takes the standard database arguments. It also
+need other arguments - the three most commonly used are:
+
+-current, Gives a list of job stats divided by both status and analysis
+-current_summary, Gives a list of job stats on the basis of just their
+                  status
+-finished, Gives a list of how many sucessful jobs have run for each
+           analysis
+
+The script also has other options which can be seen by passing in the -help
+option.
+
+
+job_submission.pl
+-----------------
+This is another script which can be used to submit jobs to a compute resource
+using the pipeline infrastructure.  Unlike rulemanager, job_submission doesn't
+loop at all. It takes the input_ids it is given at the start with the analysis
+it is told to run and tries to run them. By default it will check against the
+rules but you can tell it to just ignore them and try and run the given
+analysis with the given input ids.
+
+The script again takes the standard database arguments and has a series of
+other options to do with input ids and the analysis to be run. Normally just
+database arguments and a logic_name are needed (it will then determine the
+input ids to be used from the input_id_analysis table). As standard, the
+job_submission script expects rules to be present and the condition(s) for an
+analysis rule to be fulfilled.
+
+These are the most useful commandline options:
+
+-logic_name, The logic_name of the analysis to be run. This is the only
+             other obligatory option for the script to function.
+-input_id_file, This passes in a file of input ids with the format
+                input_id  input_id_type. This gives a list of input ids
+                to be considered (rather than looking to the input id analysis
+                table)
+-make_input_ids, This indicates that you want the script to make its input ids
+                 (to enable this, the script can take all the same arguments as
+                 the make_input_ids script)
+-force, This option can be used to circumvent the rulemanager style of
+        rule checking before submitting jobs for a particular input id and
+        analysis. This does though come with caveats. In using the -force
+        flag the script will submit jobs whose conditions haven't been met
+        and it will also submit jobs which may either already been running or
+        already finished sucessfully. It also won't recognise and resubmit
+        failed jobs
+
+
+
+Checkpoints
+===========
+Lastly here are some general checkpoints to consider before running your
+pipeline.
+
+1 Do you have entries in BatchQueue.pm and General.pm ?
+2 Do you have entries in the analysis, input_id_type_analysis, rule_goal
+  rule_conditions and input_id_analysis tables ?
+3 If your pipeline is running against multiple databases, do they all have
+  identical analysis tables (including identical to the database ids) ?
+4 Will the pipeline_sanity script run without any problems ?
