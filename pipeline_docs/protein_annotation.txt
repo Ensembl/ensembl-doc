@@ -44,6 +44,14 @@ Bio::EnsEMBL::Pipeline::RunnableDB::Protein.
 
 The Runnable/RunnableDBs used are 
 
+MODULE:
+DESCRIPTION:
+INPUT_ID_TYPE:
+INPUT_DATA:
+DEPENDANCIES:
+OTHER_INFO:
+SOURCE:
+
 Pfam (Hmmpfam), 
 Signalp, 
 Tmhmm, 
