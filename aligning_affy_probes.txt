@@ -237,13 +237,24 @@ mysql -hecs4 -u***REMOVED*** -***REMOVED*** -P3352 -Dvivek_homo_sapiens_core_29_
 
 and submit the job to the farm:
 
-bsub -q long -R model=IBMBC2800 -o collapse_affy.out \
--e collapse_affy.err $EXPANALYSISCODEDIR/scripts/test_RunnableDB \
--dbhost ecs2 -dbport 3352 -dbuser ensro -dbname  vivek_homo_sapiens_core_29_35b_affy\
--input_id whatever -logic_name 'CollapseAffyProbes' -write
+THE JOB HAS TO RUN IN THE bigmem-QUEUE !! 
+
+Otherwise it dies and you don't get all the 
+probes collapsed properly, and your missing some mappings : 
+
+
+bsub -q bigmem -R "select[model==IBMBC2800 && mem>2500] rusage[mem=2500] " \
+-o bigmem_collapse_affy_WRITE.out \
+-e bigmem_collapse_affy_WRITE.err \
+perl ensembl-analysis/scripts/test_RunnableDB \
+-dbhost ia64g -dbport 3306 -dbuser ***REMOVED*** -dbpass ensembl \
+-dbname jhv_homo_sapiens_core_33_35f_affy \
+ -logic_name CollapseAffyProbes \
+-input_id use_whatever_you_like -write
+
 
 Memory usage for current human probes (about 4million probes)
-seems to climb up to, then remain constant at about 1.7Gb. 
+seems to climb up to more than 2.Gb.
 For me, this job runs in close to one half hour.
 
 How many non-redundant probes does the job produce?
