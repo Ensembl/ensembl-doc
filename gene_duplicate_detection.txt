@@ -119,8 +119,8 @@ have had their own separate databases.
 Once the composition of the blast databases has been decided, the
 longest transcript set from each species is dumped from the relevant
 ensembl core database.  Do this using the script
-dump_longest_transcripts.pl, which can be found at
-ensembl-pipeline/scripts/dump_longest_transcripts.pl.  This script has
+dump_genes_from_core.pl, which can be found at
+ensembl-pipeline/scripts/dump_genes_from_core.pl.  This script has
 takes the following command-line arguments:
 
 -dbname		    name of core database 
