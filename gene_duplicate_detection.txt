@@ -306,7 +306,10 @@ deleted when the production run is completed.
 The Compara database that matches are written into needs to be
 pre-loaded with all the usual things.  There need to be entries in the
 genome and member tables, plus all the other things that a normal
-Compara production database has.
+Compara production database has. You particularly need to make sure that
+the method_link and method_link_species_set tables contain entries for 
+ENSEMBL_PARALOGUES for each species for which you're running paralog 
+predictions.
 
 
 
