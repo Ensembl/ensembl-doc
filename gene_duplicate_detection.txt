@@ -344,7 +344,7 @@ created to avoid redundancy.
 When file-based output is chosen, this has to be post-processed to
 remove redundant matches.  This is not so hard though, as a script
 exists to do this.
-ensembl-pipeline/scripts/rework_paralogues_output.pl takes the
+ensembl-pipeline/scripts/rework_paralogues_data.pl takes the
 location of the output directory as an argument, and crawls through
 the output directory structure deriving a set of results, which are
 written to STDOUT.
