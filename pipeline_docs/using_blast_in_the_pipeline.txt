@@ -89,7 +89,12 @@ stops when it reaches a file which doesn't exist which in this case
 would be dbHUMAN-EST-6
 
 Then the run_analysis command iterates through each file name running
-a blast for each.
+a blast for each. 
+
+So you can provide database names to Blast in 3 forms. A full path,
+a filename which exists in the directory specified in $BLASTDB or
+a filename or path which can be extended using numbers to specify 
+multiple databases.
 
 Bio::EnsEMBL::Analysis::Config::Blast
 =====================================
