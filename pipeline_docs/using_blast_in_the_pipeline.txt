@@ -60,7 +60,36 @@ a database name and constructs a commandline to run the blast. It can
 make both ncbi and wublast commandlines. It then will hand the output
 file to a parser object which will turn the results into an acceptable
 form. You can also optionally pass in a filter object which will 
-filter the results for you.
+filter the results for you. 
+
+Something inportant to note is how the database name is used to find 
+the database file needed. The name of your database is passed from the 
+analysis object db_file variable. This name is then used in the method 
+fetch_databases to establish its correct location. This method first
+looks to see if the string is a file path. If it isn't it prepends what is in the environment variable $BLASTDB to the name and proceeds with
+that. First it checks if this file exists. If it does it continues with
+this file. If it doesn't then the code will try and append numbers to
+the file names. This process exists because some sequence databases are
+too big to be a single blast database file, dbEST for example but
+our code is adaptable so rather than having to run a blast against
+each file separately it runs one blast which is given the stub then
+works out how many files there are on this basis. For example if a blast
+is given the db_file dbHUMAN-EST. It will actually run 5 blasts this is 
+because there are 5 files
+
+dbHUMAN-EST-1
+dbHUMAN-EST-2
+dbHUMAN-EST-3
+dbHUMAN-EST-4
+dbHUMAN-EST-5
+
+When it doesn't find the file dbHUMAN-EST it will start appending 
+numbers. It adds each file which exists to an array of names then 
+stops when it reaches a file which doesn't exist which in this case 
+would be dbHUMAN-EST-6
+
+Then the run_analysis command iterates through each file name running
+a blast for each.
 
 Bio::EnsEMBL::Analysis::Config::Blast
 =====================================
