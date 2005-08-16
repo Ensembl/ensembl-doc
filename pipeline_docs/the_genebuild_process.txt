@@ -1121,6 +1121,12 @@ Important variables to notice in this file are:
   EST_GENE database details should point to the database you wish to
            write out to.
 
+also
+
+Bio::EnsEMBL::Pipeline::Config::cDNAs_ESTs::Exonerate
+
+This must at least exist.
+
 INPUT_DB: GB_, reference database
           EST_DB, database where exonerate alignments are stored. 
 
