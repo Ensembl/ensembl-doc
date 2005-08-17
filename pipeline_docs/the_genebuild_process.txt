@@ -133,7 +133,7 @@ GB_FINAL is where the Gene_Builder writes its final set of non redundant
          genes to.
 
 
-Note, only the pipeline database needs to contain sequence. All the other
+Note, only the reference database needs to contain sequence. All the other
 databases as given this as a DNA database. This was done as a disk space
 saving measure as 6 copies of the human genome takes up a lot of space
 
