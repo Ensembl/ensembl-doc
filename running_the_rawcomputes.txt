@@ -331,6 +331,17 @@ ftp://ftp.ncbi.nih.gov/pub/tatusov/dust/
 
 these are all used as part of the standard ensembl pipeline
 
+If you like to test if your repeat-library masks out important proteins, 
+blast the library against swall and check how much (non-hypothetical) 
+protein hits you have for each repeat. 
+
+After running the RepeatMask-analysis you have to run the repeat-type.pl 
+script in /ensembl/misc-scripts/repeats/ to add the repeat_types for 
+each repeat to the repeat_consensus-table. 
+
+
+
+
 Ab Intitio gene prediction 
 ==========================
 
