@@ -423,33 +423,33 @@ pipeline functionailty or just descriptive purposes
 
 [SubmitChunks]
 module=PipelineExonerate
-type=CDNACHUNK
+input_id_type=CDNACHUNK
 
 
 [cdna_exonerate]
 db=rat_cdnas
 db_file=rat_cdnas
 module=PipelineExonerate
-type=CDNACHUNK
+input_id_type=CDNACHUNK
 
 
 [exonerate_wait]
 module=Accumulator
-type=ACCUMULATOR
+input_id_type=ACCUMULATOR
 
 
 [Submit1MSlice]
-type=1MSLICE
+input_id_type=1MSLICE
 
 [cdna_genebuilder]
 module=EST_GeneBuilder
-type=1MSLICE
+input_id_type=1MSLICE
 
 
 
 [cdna_wait]
 module=Accumulator
-type=ACCUMULATOR
+input_id_type=ACCUMULATOR
 
 
 ====================
