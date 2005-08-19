@@ -312,7 +312,7 @@ http://rulai.cshl.org/tools/FirstEF/.
 Genefinder
 ==========
 
-MODULE: Bio::EnsEMBL::Pipeline::RunnableDB::Genefinder
+MODULE: Bio::EnsEMBL::Analysis::RunnableDB::Genefinder
 
 DESCRIPTION: Genefinder is an ab initio genefinder.
 
