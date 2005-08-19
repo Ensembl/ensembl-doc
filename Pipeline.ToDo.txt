@@ -1,3 +1,0 @@
-A List of jobs we haven't got rund to yet
-
-1. Make the Feature filters more like the Seqfetchers (lec 10.01.2003)
