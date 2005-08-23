@@ -358,7 +358,9 @@ RepeatMasker
 MODULE: Bio::EnsEMBL::Analysis::RunnableDB::RepeatMasker
 
 DESCRIPTION: This runs a program called repeatmasker which identifies repeat
-sequences from a library in the given sequence
+sequences from a library in the given sequence. To assign types to the repeats
+you have to run ensembl/misc-scripts/repeats/repeat-types.pl.
+
 
 INPUT_ID_TYPE: sequence level contigs
 
