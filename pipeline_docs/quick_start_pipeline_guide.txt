@@ -10,12 +10,15 @@ These instructions assume you already have:
 
 ensembl          branch-ensembl-XXXX*
 ensembl-pipeline branch-ensembl-XXXX*
+ensembl-analysis branch-ensembl-XXXX*
 bioperl-live     bioperl-release-1-2-3
 
-(*replace XXXX with appropriate stable branch)
+(*replace XXXX with appropriate stable branch which should
+be specified in overview.txt) 
 
-The ensembl-pipeline code includes the test files in a test_system directory.
-For instructions about how to download these pieces of code, see the document overview.txt
+The ensembl-pipeline code includes the test files in a 
+test_system directory. For instructions about how to download
+ these pieces of code, see the document overview.txt
 
 
 The first step in setting up the pipeline test is to edit two config files which are both located here:
@@ -38,7 +41,7 @@ The next step is to set up some environment variables.
 
 setenv DB pipeline_test_db
 setenv CURPRODROOT /path/to/base/dir/for/ensembl/code
-setenv PERL5LIB $CURPRODROOT/bioperl-live:$CURPRODROOT/ensembl-pipeline/test_system/config:$CURPRODROOT/ensembl-pipeline/scripts:$CURPRODROOT/ensembl-pipeline/modules:$CURPRODROOT/ensembl/modules:${PERL5LIB}
+setenv PERL5LIB $CURPRODROOT/bioperl-live:$CURPRODROOT/ensembl-pipeline/test_system/config:$CURPRODROOT/ensembl-pipeline/scripts:$CURPRODROOT/ensembl-pipeline/modules:$CURPRODROOT/ensembl/modules:$CURPRODROOT/ensembl-analysis/modules:${PERL5LIB}
 
 
 Now you need to create a database and load the standard sets of 'core' and pipeline tables.
@@ -92,7 +95,7 @@ Check that the input ids have been created:
 Everything is now set up!
 It is a good idea to run a short test before starting the actual pipeline.  This command will run a single analysis on a single contig, without writing anything to your database:
 
-$CURPRODROOT/ensembl-pipeline/scripts/test_RunnableDB -dbhost yourhost  -dbport 3306 -dbuser youruser -dbpass yourpass -dbname $DB -logic RepeatMask -input_id contig::AL008734.10.1.85116:1:85116:1
+$CURPRODROOT/ensembl-analysis/scripts/test_RunnableDB -dbhost yourhost  -dbport 3306 -dbuser youruser -dbpass yourpass -dbname $DB -logic RepeatMask -input_id contig::AL008734.10.1.85116:1:85116:1
 
 
 Now you can start the pipeline using the rulemanager script.
