@@ -1,83 +1,57 @@
-This document should describe what you need to do in order to run the
-protein annotation pipeline. The protein annotation pipeline is a system for
-assigned domains from databases like pfam and finding signatures like signal
-peptides in the protein set the genebuild has predicted.
+=======================================================
+  Contents
+  A. Overview
+  B. Requirements
+  C. Schema
+  D. Analyses/methods
+  E. Input ids
+  F. Configuration
+  G. Instructions / Checklist
+  H. Appendix
+=======================================================
 
-If you have any questions about this process please contact: 
-ensembl-dev@ebi.ac.uk
+
+
+=======================================================
+  A. Overview
+=======================================================
+
+This document describes the process of annotating the protein sequences in 
+an Ensembl database (i.e. translations of Ensembl genes) with domains and
+other regions of interest (e.g. low complexity).
+
+========================================================
+  B. Requirements
+========================================================
 
 Code
 ----
 
-The ensembl pipeline like the ensembl core is coded in perl. In order to
-run the ensembl pipeline you need perl and mysql installed. You also need
-some ensembl specific code which are freely availible from cvs
-
-These are required
+The following ensembl perl cvs trees are required:
 
 ensembl
 ensembl-pipeline
+ensembl-analysis
 
-you also need bioperl which again, is freely availible
+In addition, you also need bioperl which again, is freely availible
 
 bioperl-live (bioperl-release-1-2-3)
 
+The document overview.txt should give you instructions on how to
+download this code. 
 
-Currently the stable branch of the pipeline and analysis code is 
-branch-ensembl-29. This code may work with more recent versions of the
-core code but we can only guarrentee it will work with the same branch
+Database
+--------
 
-The document overview.txt should give you instructions on how to download 
-these pieces of code
+The database should contain genes, with translations, and DNA. 
 
-The pipeline runs analyses by use of Runnables and RunnableDBs. These modules 
-are there to communicate between the databases and the analysis program being 
-run and parse the results from the program back into ensembl to be stored in 
-the database
+The dependencies for each individual analysis method (data and code)
+are described below. 
 
-The Runnable/RunnableDB pairs which run the protein annotation are all found in
-ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/RunnableDB/Protein which means
-either the column module in the analysis table needs to be Protein/RunnableDB 
-name or the runnabledb_path in BatchQueue.pm (see 
-the_ensembl_pipeline_infrastructure.txt) needs to be 
-Bio::EnsEMBL::Pipeline::RunnableDB::Protein.
 
-The Runnable/RunnableDBs used are 
-
-MODULE:
-DESCRIPTION:
-INPUT_ID_TYPE:
-INPUT_DATA:
-DEPENDANCIES:
-OTHER_INFO:
-SOURCE:
-
-Pfam (Hmmpfam), 
-Signalp, 
-Tmhmm, 
-Prints (FingerPRINTScan), 
-ncoils, 
-pfscan, 
-Scanprosite (scanregexpf.pl), 
-Seg.
-
-Some of the programs also need an installation of an accompanying database files:
-
-Pfam - Pfam_fs, 
-Prints - prints.pval, 
-pfscan - prosite_prerelease.prf,
-Scanprosite - prosite.patterns
-
-some of these are freely availible on the web, other need licenses
-
-You also need a core database which contains a set of transcripts which
-translate.
-
-Schema
-------
-
-protein_feature
-===============
+================================================
+  C. Schema
+================================================
 
 All the results from the protein annotation are stored in the protein_feature
 table. This is defined in the core schema which can be found in 
@@ -99,136 +73,333 @@ evalue              E value (if provided)
 perc_ident          percent identity (if provided)
 
 
-Configuration
---------------
 
-First you need to fill out the appropriate config files
+=====================================================
+  D. Analyses/methods
+=====================================================
 
-Bio::EnsEMBL::Pipeline::Config::Protein_Annotation::General
+The ensembl-analysis cvs tree currently contains support for 12
+distinct protein annotation analysis (databases/methods). There is
+ostensibly a RunnableDB for each analysis, although some analyses are
+performed by the same RunnableDB. In the descriptions below, the DATA 
+sections denote the files that need to be updated when moving to a newer
+release of the database (assuming that the scanning method requires no
+change, which of course should be checked before updating). 
 
-This contains general settings for the the protein_annotation
+Seg
+---
 
-PA_PEPTIDE_FILE the location of the dumped peptide file reprenting your 
-                translations
-PA_CHUNKS_DIR   the location of the directory the chunks of the peptide file 
-                will go
-PA_CHUNKS_SIZE  the size of the chunks file, we tend to use 100 peptides in a 
-                file
-PA_IPRSCAN_DIR  the directory where the architecture - specifc directories for 
-                the interpro code lives, for example: 
-                /acari/analysis/iprscan/bin contains two directories dec_osf 
-                and linux, the runnabledb code decides which one to use.
-  
-There are also three other files which must be filled out in 
-Bio::EnsEMBL::Pipeline::Config and are described in the document 
-the_ensembl_pipeline_infrastructure.txt
+DESCRIPTION : Prediction of low-complexity regions
+PROGRAM     : seg
+MODULE      : RunnableDB/ProteinAnnotation/Seg.pm
+DATA        : None
 
 
-Setup
+Signalp
+-------
+
+DESCRIPTION : Prediction of signal-peptide cleavage sites
+PROGRAM     : signalp
+MODULE      : RunnableDB/ProteinAnnotation/Signalp.pm
+DATA        : None
+
+
+Ncoils
+------
+
+DESCRIPTION : Prediction of coiled-coil regions
+PROGRAM     : ncoils
+MODULE      : RunnableDB/ProteinAnnotation/Coil.pm
+DATA        : None
+
+
+Tmhmm
 -----
 
-Note this process requires the pipeline database with dna to have your final 
-gene set in it as the protein annotation process uses translation dbIDs to link
-to the domains it finds
+DESCRIPTION : Prediction of Trans-membrane domains
+PROGRAM     : decodeanhmm
+MODULE      : RunnableDB/ProteinAnnotation/Tmhmm.pm
+DATA        :
+ model file   (/usr/local/ensembl/lib/TMHMM2.0.model)
+ options file (/usr/local/ensembl/lib/TMHMM2.0.options)
 
-There are 5 main stages to setup the protein annotation before it can be run
 
-1. Dump the peptide sequences
+Prints
+------
 
-This is done using a script called dump_translations found in ensembl-pipeline/
-scripts/protein_pipeline
+DESCRIPTION : hits to the Prints database of domain fingerprints
+PROGRAM     : FingerPRINTScan
+MODULE      : RunnableDB/ProteinAnnotation/Prints.pm
+DATA        :
+ Fingerprint file (/data/blastdb/Ensembl/interpro_scan/prints.pval)
 
-An example commandline is
+
+PrositePatterns
+---------------
+
+DESCRIPTION : Hits to the Prosite Patterns database of domain regexps. 
+PROGRAM     : None
+MODULE      : RunnableDB/ProteinAnnotation/PrositePatterns.pm
+DATA        :
+ Pattern file (data/blastdb/Ensembl/interpro_scan/prosite.patterns)
+ Confirmation file (/data/blastdb/Ensembl/confirm.patterns)
+
+
+PrositeProfiles
+---------------
+
+DESCRIPTION : Hits to the Prosite Profiles database of protein domain profiles
+PROGRAM     : pfscan 
+MODULE      : RunnableDB/ProteinAnnotation/PrositeProfiles.pm
+DATA        :
+ Profile file (/data/blastdb/Ensembl/interpro_scan/prosite_prerelease.prf)
+
+
+Pfam
+----
+
+DESCRIPTION : Hits to the Pfam database of protein domain HMMs
+PROGRAM     : hmmpfam
+MODULE      : RunnableDB/ProteinAnnotation/Pfam.pm
+DATA        :
+ Full-length hit HMM library file (/data/blastdb/Ensembl/Pfam_ls)
+ Fragment-hit HMM library file (/data/blastdb/Ensembl/Pfam_fs) 
+
+
+Tigrfam
+-------
+
+DESCRIPTION : Hits to the TIGRfam database of protein domain HMMs
+PROGRAM     : hmmpfam
+MODULE      : RunnableDB/ProteinAnnotation/Hmmpfam.pm
+DATA        : 
+ HMM libary file (/data/blastdb/Ensembl/interpro_scan/TIGRFAMs_HMM.LIB)
+
+
+Superfamily
+-----------
+
+DESCRIPTION : Hits to the Superfamily database of protein domain HMMs
+PROGRAM     : hmmpfam
+MODULE      : RunnableDB/ProteinAnnotation/Superfamily.pm
+DATA        :
+ HMM library file (/data/blastdb/Ensembl/interpro_scan/superfamily.hmm)
+
+
+Smart
+-----
+
+DESCRIPTION : Hits to the SMART database of protein domain HMMs
+PROGRAM     : hmmpfam
+MODULE      : RunnableDB/ProteinAnnotation/Hmmpfam.pm
+DATA        :
+ HMM library file (/data/blastdb/Ensembl/interpro_scan/smart.HMMs)
+
+
+PIRSF
+-----
+
+DESCRIPTION : Hits to the PIR superfamily database of protein HMMs
+PROGRAM     : hmmpfam
+MODULE      : RunnableDB/ProteinAnnotation/PIRSF.pm
+DATA        : 
+ Superfamily HMM library file (/data/blastdb/Ensembl/interpro_scan/sf_hmm)
+ Sub-family HMM library file (/data/blastdb/Ensembl/interpro_scan/sf_hmm_sub)
+ Thresholds file (/data/blastdb/Ensembl/interpro_scan/pirsf.dat)
+
+
+
+===============================================
+  E. Input ids
+===============================================
+
+The RunnableDBs support two types of input ids: (1) translation
+internal database identifiers (dbIDs); and (2) names of fasta files
+containing pre-dumped translations.  
+
+The reason for this is that the computational resources required
+varies by analysis. For analyses that are not so computationally
+demanding, it is most efficient to pre-dump the peptides in a set of
+one-or-more multi-entry fasta files, each containing a chunk of
+peptides, and to submit a job for each file (chunk). In these cases,
+each input id is the name of one if these pre-dumped files.  
+
+For the more computationally intensive analyses however, it is
+most practical to submit a separate job for each individual
+peptide. In these cases, each input_id is a translation internal
+database identifier (and the system dumps the corresponding peptide on
+the fly). 
+
+In practice, we have found that most of the HMM-search based analyses
+fit into the second category, everything else falling into the
+first. For the file-based analyses, it is technically possible to have
+a separate chunking granularity for each analysis; for example,
+analysis A could be run on files of 50 entries each, wheras analysis B
+could be run on fewer, larger files (say 200 entries each). Again in
+practice though, we have found 2 levels of granularity to be
+sufficient; firstly, a single file containing the whole proteome, and
+secondly, a split of the proteome into ~100 entries per file. 
+
+Instructions for how to generate the input ids for a pipeline run are
+given later. 
+
+
+
+
+===================================================
+  F. Configuration
+===================================================
+
+The configutation is defined in the file:
+
+Bio::EnsEMBL::Analyis::Config::ProteinAnnotation.pm
+
+At present, the purpose of the configuration file is to define, for
+those analyses with a file input id type, the base directory of
+the files. Extracting this information into configuration has two
+purposes: (1) it makes it unnecessary to have fully-qualified
+path/file names as database input ids, which may be very long; and (2)
+it provides a template/place-holder for future development of the
+system (which may necessitate a more complex configuration). 
+
+The base directory for an analysis is defined by setting BASE_DIR
+variable in the hash reference with the corresponding logic_name as
+the key. For example:
+
+Prints => {
+  BASE_DIR => '/dir/containing/peptide/chunk/files/';
+}
+
+In the RunnableDB, the input id is appended to this base directory to
+ontain the fully qualified name of the file to be analysed. 
+
+Since many analyses share the same base directory, it saves typing to
+define this in the DEFAULT entry, and then to add extra
+logic-name-keyed entries for which the value will be
+different. For example
+
+DEFAULT => {
+  BASE_DIR => '/dir/containing/peptide/chunks/files/';
+},
+
+Seg => {
+  BASE_DIR => '/dir/containing/whole/proteome/file/';
+}
+
+
+(Note: when an analyses is run with a translation database internal
+identifier given as input id, the BASE_DIR is ignored; so it is not
+necessary to define any entries in the config for these analyses). 
+
+
+
+
+===========================================
+  G. Instructions / Checklist
+===========================================
+
+
+(*) Dump the peptide sequences
+
+This is done using a script called dump_translations.pl found in ensembl-analysis/scripts/protein
+
+An example commandline is:
 
 perl dump_translations.pl -dbname yourdatabase -dbhost yourhost 
--dbuser youruser  > peptide.fa
+-dbuser youruser  -db_id > /protein/data/path/all_peptides.fa
 
-It will print to stderr warnings about transcripts which don't translate
-
+It will print to stderr warnings about transcripts which don't translate.
 An important factor about this dumped file is the fasta header. The first 
 element after the > must be the translation internal id as these is how the
 RunnableDB make the correct associations when writing the information
-back to the database
+back to the database. This is ensured by supplying the -db_id argument. 
 
-2. Chunk the peptide fasta file
+(*) Chunk the peptide fasta file
 
 This produces a new set of files in a separate directory, each file containing
 the same number of fasta entries. This files each represent a feasible chunk of
-the whole proteome to pass to an analysis at once. The number is provided by 
-the Protein_Annotation::General config file.
+the whole proteome to pass to an analysis at once. The script lies in 
+ensembl-analysis/scripts and is called chunk_fasta_file.pl
 
-the command line is
+mkdir /protein/data/path/chunks
+perl chunk_fasta_file.pl /protein/data/path/all_peptides.fa /protein/data/path/chunks 100
 
-perl ensembl-pipeline/scripts/protein_pipeline/chunk_protein_fasta.pl
+The last argument is the number of proteins to place in each chunk. 
 
-nb. The directory the chunks are being written to must exist before this 
-script is run.
 
-3. Setup the analysis table
+(*) Setup the analysis table
 
-The analysis table's structure and setup is more throughly explained in the 
-document the_ensembl_pipeline_infrastructure.txt. There is an example config
-file which can be used to setup the analyses at the bottom of the file. Using
-this file and with the script analysis_setup.pl will produced the desired
-analysis table with a commandline which looks like this
+There is an example config file in the appendix which can be used with
+analysis_setup.pl to populate the analysis and input_id_type_analysis
+tables. The command line goes something like:
 
 perl ensembl-pipeline/scripts/analysis_setup.pl  -dbhost yourhost 
 -dbuser yourusername -dbpass yourpass -dbname yourdatabase -read 
 -file /your/config/file
 
-4. Setup the rule tables
+(*) Setup the rule tables
 
-Again the rule tables are more throughly explained in the document 
-the_ensembl_pipeline_infrastructure.txt. There is an example config file below
-the example analysis config and the command line needed would look something
-like this
+There is an example config file in the appendix which can be used with
+rule_setup.pl to populate the rule tables. The command line goes
+something like this:
 
 perl ensembl-pipeline/scripts/rule_setup.pl  -dbhost yourhost 
 -dbuser yourusername -dbpass yourpass -dbname yourdatabase -read 
 -file /your/config/file
 
-5. Setup the input ids
+(*) Set up config
+
+Explained earlier.
+
+(*) Load the input ids
 
 The input ids can be made by the ensembl-pipeline/scripts/make_input_ids 
 script. This script is further explained in 
 the_ensembl_pipeline_infrastructure.txt but here we will explain which sort of
 input ids are generally used and give example command lines for how to
-produce them
+produce them.
 
-There are three types of input ids needed for this pipeline due to different
-speeds of computation
-
-pfscan and seg are both so fast computationally that they can be given the
-whole proteome file and run in a reasonable time frame. These analysis get the
-input_id_type PROTEOME and need an input id of proteome. This can be produced 
-like this
+As explained earlier, the more computationally intensive analyses
+should be run on individual translations, and in these cases, the
+input ids are translation internal database identifiers. To populate
+the database with such input ids (for the corresponding dummy
+analysis; see the_ensembl_pipeline_infrastructure.txt), do:
 
 perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
--dbname yourdatabase -dbport 3306 -single -singleword proteome 
+-dbname yourdatabase -dbport 3306 -translation_ids -logic_name SubmitTranslation
+
+Some analyses are so fast computationally that they can be given the
+whole proteome file and run in a reasonable time frame. These analyses
+can therefore be run as a single job, with a single input id: the name
+of the previously-dumped proteome file (the filename only, not the
+fully qualified name; the directory in which this file is located is
+specified in the config). To insert this input id for the dummy
+analysis that these types of analyses depend on (see
+the_ensembl_pipeline_infrastructure.txt) do:  
+
+perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
+-dbname yourdatabase -dbport 3306 -single -singleword all_peptides.fa
 -logic_name SubmitProteome
 
-SignalP, tmhmm, Prints, Scanprosite and ncoils can all run in a reasonable time
-frame on chunks of 100 proteins at a time. These analyses have the 
-input_id_type if FILENAME and are given filenames as input ids. These are the 
-names of the chunk files created in stage 2. They can be produced like this
+Finally, other analyses can be run in a sensible amount of time by
+splitting the work into a number of jobs, each of which performs the
+analyses on a chunk of peptides. These chunk files were pre-prepared
+earlier. To insert the input ids for the dummy analysis that these
+analyses depend on, do: 
 
 perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
 -dbname yourdatabase -dbport 3306 -filename -dir /path/to/chunkdir
--logic_name SubmitTranscriptChunk
+-logic_name SubmitChunk
 
-Pfam, this analysis can be quite time consuming. Each indivdual translation can
-take upto 30minutes to compare against at all hmms in Pfam. To ensure the 
-analysis runs in a reasonable time frame we use translation ids as the input 
-ids, (type TRANSLATIONID) and the use the pipeline to batch the jobs up into
-groups of 5. The input ids are produced like this
+(*) Setup Pipeine::Config::BatchQueue.pm
 
-perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
--dbname yourdatabase -dbport 3306 -translation_ids -logic_name SubmitTranscript
+This is explained in detail in
+the_ensembl_pipeline_infrastructure.txt. The appendix contains entries
+that have been used in the past and can be cut-and-pasted into the
+module, but specific settings may need to be tweaked for best
+performance.
 
-Now you should have everything setup and will be ready to run the pipeline
-
-Running the protein annotation
-------------------------------
+(*) Run the pipeline
 
 Like all other pipeline process the protein annotation pipeline can be 
 controlled using the ensembl-pipeline/scripts/rulemanager.pl script and 
@@ -240,141 +411,337 @@ perl ensembl-pipeline/scripts/rulemanager.pl -dbhost yourhost
 -dbuser yourusername -dbpass yourpass -dbname yourdatabase -dbport 3306 
 >& /tmp/rule.txt&
 
-Here are some checkpoints you may want to consider before running the protein
-annotation pipeline
 
-1. Have you filled out Protein_Annotation::General?
-2. Have you dumped you peptides?
-3. Have you chunked up your peptides?
-4. Do you have entries in the analysis and rule tables?
-5. Do you have entries in BatchQueue.pm for all your analyses?
-6. Do you have input ids for all your input id types?
+
+==================================================
+  H. Appendix
+==================================================
 
 Analysis configuration
 ----------------------
 
-[SubmitTranscript]
-input_id_type=TRANSLATIONID
-
-[Pfam]
-db=Pfam
-db_file=/data/blastdb/Ensembl/Pfam_ls;/data/blastdb/Ensembl/Pfam_fs
-program=/usr/local/ensembl/bin/hmmpfam
-program_file=/usr/local/ensembl/bin/hmmpfam
-module=Protein/Hmmpfam
-gff_source=Pfam
-gff_feature=domain
-input_id_type=TRANSLATIONID
-
-[SubmitTranscriptChunk]
-input_id_type=FILENAME
-
+[Seg]
+db=low_complexity
+program=seg
+program_file=seg
+module=ProteinAnnotation/Seg
+gff_source=Seg
+gff_feature=annotation
+input_id_type=PROTEOME
 
 [Signalp]
 db=signal_peptide
 program=signalp
 program_file=signalp
-module=Protein/Signalp
+module=ProteinAnnotation/Signalp
 gff_source=Signalp
 gff_feature=annotation
-input_id_type=FILENAME
+input_id_type=CHUNK
 
-[tmhmm]
+[Ncoils]
+db=coiled_coil
+db_file=/usr/local/ensembl/data/coils
+program=ncoils
+program_file=ncoils
+module=ProteinAnnotation/Coil
+gff_source=ncoils
+gff_feature=annotation
+input_id_type=CHUNK
+
+[Tmhmm]
 db=transmembrane
-program=/path/to/run_tmhmm
-program_file=/path/to/run_tmhmm 
-module=Protein/Tmhmm
+program=decodeanhmm
+program_file=decodeanhmm
+parameters=-modelfile => /usr/local/ensembl/lib/TMHMM2.0.model, -optionsfile => /usr/local/ensembl/lib/TMHMM2.0.options
+module=ProteinAnnotation/Tmhmm
 gff_source=Tmhmm
 gff_feature=annotation
-input_id_type=FILENAME
-
-#note run_tmhmm can be found in the cvs reposistory here
-# ensemb-pipeline/scripts/protein_pipeline/run_tmhmm
+input_id_type=CHUNK
 
 [Prints]
 db=prints
-db_file=/path/o/prints.pval
+db_file=/data/blastdb/Ensembl/interpro_scan/prints.pval
 program=FingerPRINTScan
 program_file=FingerPRINTScan
-module=Protein/Prints
+module=ProteinAnnotation/Prints
 gff_source=Prints
 gff_feature=domain
-input_id_type=FILENAME
+input_id_type=CHUNK
 
-[ncoils]
-db=coiled_coil
-program=/usr/local/ensembl/bin/ncoils
-program_file=/usr/local/ensembl/bin/ncoils
-module=Protein/Coil
-gff_source=ncoils
-gff_feature=annotation
-input_id_type=FILENAME
+[PrositePatterns]
+db=prosite
+db_file=/data/blastdb/Ensembl/interpro_scan/prosite.patterns
+parameters=-confirm => /data/blastdb/Ensembl/confirm.patterns
+module=ProteinAnnotation/PrositePattern
+gff_source=Prosite_pattern
+gff_feature=domain
+input_id_type=CHUNK
 
-
-[pfscan]
+[PrositeProfiles]
 db=pfscan
-db_file=/path/to/prosite_prerelease.prf
+db_file=/data/blastdb/Ensembl/interpro_scan/prosite_prerelease.prf
 program=pfscan
 program_file=pfscan
-module=Protein/Profile
+module=ProteinAnnotation/PrositeProfile
 gff_source=Profile
 gff_feature=Domain
-input_id_type=PROTEOME
+input_id_type=CHUNK
 
+[Pfam]
+db=Pfam
+db_file=/data/blastdb/Ensembl/Pfam_ls;/data/blastdb/Ensembl/Pfam_fs
+program=hmmpfam
+program_file=hmmpfam
+parameters=--cut_ga
+module=ProteinAnnotation/Pfam
+gff_source=Pfam
+gff_feature=domain
+input_id_type=TRANSLATIONID
+
+[Tigrfam]
+db=TIGRfam
+db_file=/data/blastdb/Ensembl/interpro_scan/TIGRFAMs_HMM.LIB
+program=hmmpfam
+program_file=hmmpfam
+parameters=--cut_ga
+module=ProteinAnnotation/Hmmpfam
+gff_source=TIGRFAM
+gff_feature=domain
+input_id_type=TRANSLATIONID
+
+[Superfamily]
+db=Superfamily
+db_file=/data/blastdb/Ensembl/interpro_scan/superfamily.hmm
+program=hmmpfam
+program_file=hmmpfam
+parameters=-E 0.02
+module=ProteinAnnotation/Hmmpfam
+gff_source=Superfamily
+gff_feature=domain
+input_id_type=TRANSLATIONID
+
+[Smart]
+db=Smart
+db_file=/data/blastdb/Ensembl/interpro_scan/smart.HMMs
+program=hmmpfam
+program_file=hmmpfam
+parameters=-E 0.01
+module=ProteinAnnotation/Hmmpfam
+gff_source=Smart
+gff_feature=domain
+input_id_type=TRANSLATIONID
+
+[PIRSF]
+db=PIRSF
+db_file=/data/blastdb/Ensembl/interpro_scan/sf_hmm;/data/blastdb/Ensembl/interpro_scan/sf_hmm_sub
+program=hmmpfam
+program_file=hmmpfam
+parameters=-thresholds => /data/blastdb/Ensembl/interpro_scan/pirsf.dat, -options => -E 0.01
+module=ProteinAnnotation/PIRSF
+gff_source=PIRSF
+gff_feature=domain
+input_id_type=TRANSLATIONID
+
+[SubmitTranslation]
+input_id_type=TRANSLATIONID
+
+[SubmitChunk]
+input_id_type=CHUNK
 
 [SubmitProteome]
-input_id_type=PROTEOME
-
-[scanprosite]
-db=prosite
-db_file=/path/to/prosite.patterns
-program=/path/to/scanregexpf.pl
-program_file=/path/to/scanregexpf.pl
-parameters=-confirm /path/to/confirm.patterns
-module=Protein/ScanProsite
-gff_source=Prosite
-gff_feature=domain
-input_id_type=FILENAME
-
-[Seg]
-db=low_complexity
-db_file=low_complexity
-program=seg
-program_file=seg
-module=Protein/Seg
-gff_source=Seg
-gff_feature=annotation
 input_id_type=PROTEOME
 
 
 Rule configuration
 ------------------
 
-[pfscan]
-condition=SubmitProteome
-
-[Prints]
-condition=SubmitTranscriptChunk
-
 [Seg]
 condition=SubmitProteome
 
 [Pfam]
-condition=SubmitTranscript
+condition=SubmitTranslation
 
-[ncoils]
-condition=SubmitTranscriptChunk
+[Tigrfam]
+condition=SubmitTranslation
 
-[scanprosite]
-condition=SubmitTranscriptChunk
+[Superfamily]
+condition=SubmitTranslation
+
+[Smart]
+condition=SubmitTranslation
+
+[PIRSF]
+condition=SubmitTranslation
 
 [Signalp]
-condition=SubmitTranscriptChunk
+condition=SubmitChunk
 
-[tmhmm]
-condition=SubmitTranscriptChunk
+[Ncoils]
+condition=SubmitChunk
+
+[Tmhmm]
+condition=SubmitChunk
+
+[Prints]
+condition=SubmitChunk
+
+[PrositePatterns]
+condition=SubmitChunk
+
+[PrositeProfiles]
+condition=SubmitChunk
+
+[Prodom]
+condition=SubmitChunk
+
+
+BatchQueue.pm QUEUE_CONFIG entries
+----------------------------------
+
+    {
+      logic_name => 'Seg',
+      batch_size => 1,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      queue      => 'normal',
+      cleanup    => 'yes',
+      output_dir => '/out/dir/seg',
+    },
+
+    {
+      logic_name => 'Signalp',
+      batch_size => 1,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      queue      => 'normal',
+      cleanup    => 'yes',
+      output_dir => '/out/dir/signalp',
+    },
+
+    {
+      logic_name => 'Ncoils',
+      batch_size => 1,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      cleanup    => 'yes',
+      queue      => 'normal',
+      output_dir => '/out/dir/ncoils',
+    },
+
+    {
+      logic_name => 'Tmhmm',
+      batch_size => 1,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      queue      => 'normal',
+      cleanup    => 'yes',
+      output_dir => '/out/dir/tmhmm',
+    },
+
+    {
+      logic_name => 'Prints',
+      batch_size => 1,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      queue      => 'normal',
+      cleanup    => 'yes',
+      output_dir => '/out/dir/prints',
+    },
+
+    {
+      logic_name => 'PrositePatterns',
+      batch_size => 1,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      queue      => 'normal',
+      cleanup    => 'yes',
+      output_dir => '/out/dir/prositepatterns',
+    },
+    {
+      logic_name => 'PrositeProfiles',
+      batch_size => 1,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      cleanup    => 'yes',
+      queue      => 'normal',
+      output_dir => '/outdir/prositeprofiles',
+    },
+
+    {
+      logic_name => 'Pfam',
+      batch_size => 20,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      cleanup    => 'yes',
+      queue      => 'long',
+      output_dir => '/out/dir/pfam',
+    },
+
+    {
+      logic_name => 'Tigrfam',
+      batch_size => 20,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      cleanup    => 'yes',
+      queue      => 'normal',
+      output_dir => '/out/dir/tigrfam',
+    },
+
+    {
+      logic_name => 'Superfamily',
+      batch_size => 20,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      cleanup    => 'yes',
+      queue      => 'normal',
+      output_dir => '/out/dir/superfamily',
+    },
+
+    {
+      logic_name => 'Smart',
+      batch_size => 20,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      cleanup    => 'yes',
+      queue      => 'normal',
+      output_dir => '/out/dir/smart',
+    },
+
+    {
+      logic_name => 'PIRSF',
+      batch_size => 20,
+      resource   => 'linux',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      cleanup    => 'yes',
+      queue      => 'normal',
+      output_dir => '/out/dir/pirsf',
+    },
 
 
 
-If you have any questions about this process please contact: 
-ensembl-dev@ebi.ac.uk
+
+
