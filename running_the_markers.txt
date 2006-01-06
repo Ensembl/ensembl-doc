@@ -128,6 +128,10 @@ run epcr when their are 1M slice identified pointed at your dummy analysis
 in the input_id_analysis table
 
 
-For more information about the pipeline setup, and the analysis and rule
-tables please see the document using_the_ensembl_pipeline.txt
+Updating the weights
+---------------------
 
+Finally, each marker feature contains a map_weight, which is the total number
+of placements for that marker. We update the table with the following one liner. 
+
+echo "select count(*) as count, marker_id from marker_feature group by marker_id having count >=1" | mysql -u yourhost -pyourpass -h yourhost -Pyourport your_database | tail +2 | perl -ne '/(\d+)\s+(\d+)/ and print "update marker_feature set map_weight = $1 where marker_id = $2;\n"' | mysql -u youruser -h yourhost -pyourpass -Pyourport your_database
