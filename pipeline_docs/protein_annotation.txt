@@ -378,7 +378,7 @@ analysis that these types of analyses depend on (see
 the_ensembl_pipeline_infrastructure.txt) do:  
 
 perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
--dbname yourdatabase -dbport 3306 -single -singleword all_peptides.fa
+-dbname yourdatabase -dbport 3306 -single -single_name all_peptides.fa
 -logic_name SubmitProteome
 
 Finally, other analyses can be run in a sensible amount of time by
@@ -388,7 +388,7 @@ earlier. To insert the input ids for the dummy analysis that these
 analyses depend on, do: 
 
 perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
--dbname yourdatabase -dbport 3306 -filename -dir /path/to/chunkdir
+-dbname yourdatabase -dbport 3306 -file -dir /path/to/chunkdir
 -logic_name SubmitChunk
 
 (*) Setup Pipeine::Config::BatchQueue.pm
