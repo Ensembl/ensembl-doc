@@ -43,7 +43,10 @@ download this code.
 Database
 --------
 
-The database should contain genes, with translations, and DNA. 
+The database should contain genes, with translations, and DNA, in addition
+to the pipeline tables. It is therefore normal to run the pipeline on your
+final database, before removing the pipeline tables, checking, and handing
+over. 
 
 The dependencies for each individual analysis method (data and code)
 are described below. 
@@ -291,7 +294,12 @@ Seg => {
 identifier given as input id, the BASE_DIR is ignored; so it is not
 necessary to define any entries in the config for these analyses). 
 
-
+In addition to this specific configuration, it is also necessary to
+fill out the configuration general for use of the Ensembl pipeline
+system. In particular, entries in the "BatchQueue.pm" section of the
+appendix of this document should be added to ensembl-pipeline/modules/
+Bio/EnsEMBL/Pipeline/Config/BatchQueue.pm (and don't forget to change 
+the example output directories to real ones).
 
 
 ===========================================
@@ -404,7 +412,7 @@ performance.
 Like all other pipeline process the protein annotation pipeline can be 
 controlled using the ensembl-pipeline/scripts/rulemanager.pl script and 
 monitored with ensembl-pipeline/scripts/monitor both of which are explained in
-the document the_ensembl_pipeline_infrastructure.txt. Following rulemanager.pls
+the document the_ensembl_pipeline_infrastructure.txt. Following rulemanager.pl's
 standard useage pattern should work fine
 
 perl ensembl-pipeline/scripts/rulemanager.pl -dbhost yourhost 
@@ -591,9 +599,6 @@ condition=SubmitChunk
 [PrositeProfiles]
 condition=SubmitChunk
 
-[Prodom]
-condition=SubmitChunk
-
 
 BatchQueue.pm QUEUE_CONFIG entries
 ----------------------------------
@@ -607,6 +612,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       queue      => 'normal',
       cleanup    => 'yes',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/out/dir/seg',
     },
 
@@ -619,6 +625,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       queue      => 'normal',
       cleanup    => 'yes',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/out/dir/signalp',
     },
 
@@ -631,6 +638,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       cleanup    => 'yes',
       queue      => 'normal',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/out/dir/ncoils',
     },
 
@@ -643,6 +651,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       queue      => 'normal',
       cleanup    => 'yes',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/out/dir/tmhmm',
     },
 
@@ -655,6 +664,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       queue      => 'normal',
       cleanup    => 'yes',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/out/dir/prints',
     },
 
@@ -667,6 +677,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       queue      => 'normal',
       cleanup    => 'yes',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/out/dir/prositepatterns',
     },
     {
@@ -678,6 +689,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       cleanup    => 'yes',
       queue      => 'normal',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/outdir/prositeprofiles',
     },
 
@@ -690,6 +702,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       cleanup    => 'yes',
       queue      => 'long',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/out/dir/pfam',
     },
 
@@ -702,6 +715,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       cleanup    => 'yes',
       queue      => 'normal',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/out/dir/tigrfam',
     },
 
@@ -714,6 +728,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       cleanup    => 'yes',
       queue      => 'normal',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/out/dir/superfamily',
     },
 
@@ -726,6 +741,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       cleanup    => 'yes',
       queue      => 'normal',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/out/dir/smart',
     },
 
@@ -738,6 +754,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       runner     => '',
       cleanup    => 'yes',
       queue      => 'normal',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       output_dir => '/out/dir/pirsf',
     },
 
