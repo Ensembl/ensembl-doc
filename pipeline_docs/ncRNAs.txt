@@ -25,7 +25,7 @@ These are required
 
 ensembl
 ensembl-pipeline
-
+ensembl-analysis
 you also need bioperl which again, is freely availible
 
 bioperl-live (bioperl-release-1-2-3)
@@ -204,20 +204,20 @@ the final genebuild database
 Dependencies:
 =============
 
-     DummySlice		          SubmitmiRNA
-        SLICE		              GENOME
-    ^		        ^	               ^
-    |		        |	               |
+DummySlice                  SubmitmiRNA
+  SLICE	       GENOME
+    ^            ^              ^
+    |            |              |
  RfamBlast   BlastmiRNA	        /
-  SLICE         SLICE	         /
-                ^             /
-(run script)    |  	         /
-	              |           /
+  SLICE         SLICE          /
+                 ^            /
+(run script)     |           /
+                 |          /
  DummmyFlag  BlastWait     /
    FLAG     ACCUMULATOR   /
-    ^    	       ^       /
-    | 		       |      /
-    |		         |     /
+    ^            ^       /
+    |            |      /
+    |	         |     /
  Infernal      miRNA  
    FLAG	       GENOME   
 
