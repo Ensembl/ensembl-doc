@@ -50,18 +50,23 @@ pod2usage(-verbose => 2) unless $rdate;
 # Allotted Working Days
 ########################
 
-my @days = (#	{   phase   =>	'ID-mapping',
-	    #	    days    =>	3,
-	    #	},
-		{   phase   => 'Genebuild handover to core/compara',
-		    days    =>	12,
-		},
-		{   phase   => 'Core/Compara/Variation handover to web/mart',
-		    days    =>	7,
-		},
-		{   phase   => 'Mart handover to web',
-		    days    =>	4,
-		},
+my @days = (
+            {   
+             phase   =>	'Pre GeneBuild handover',
+             days    =>	3,
+            },
+            {   
+             phase   => 'Genebuild handover to core/compara',
+             days    =>	11,
+            },
+            {   
+             phase   => 'Core/Compara/Variation handover to web/mart',
+             days    =>	7,
+            },
+            {   
+             phase   => 'Mart handover to web',
+             days    =>	3,
+            },
 	    );
 
 Date::Calc->date_format(2);
