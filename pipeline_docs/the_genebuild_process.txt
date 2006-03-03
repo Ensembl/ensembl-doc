@@ -632,15 +632,33 @@ This would take all the ids from this slice and split them up into 10
 chunks. For this particular id every 2nd id from each chunk would be
 considered. Here is an example commandline:
 
-perl make_input_ids_for_similarity_build.pl -logic_name Blast -write
+perl make_input_ids_for_similarity_build.pl -logic_name SubmitSimilarity -write
 -max_slice 2000000 -coord_system chromosome
 
-This script would make input ids for the similarity build on the basis
-of blast results, with the logic_name "Blast", on the chromosome coord
-system, allowing a max slice size of 2MB
+(This would make input ids (of analysis SubmitSimilarity) from 
+chromosome slices allowing a max slice size of 2MB
 
-This script does also have a -help option which will print out perl
-docs.
+This script reads Bio::EnsEMBL::Pipeline::Config::GeneBuild::Datbases. 
+It is important that the correct GB_DATABASE and GB_GW_DATABASE have 
+been supplied. 
+
+It also reads Bio::EnsEMBL::Pipeline::Config::GeneBuild::Similarity.
+It is important that GB_SIMILARITY_DATABASES has been set up with the
+correct source of Blast features, and GB_SIMILARITY_GENETYPE_MASKED
+has been set up with the correct gene biotypes for masking (Blast hits
+overlapping with genes with these types are not aligned). 
+
+For bitty genomes, the script can take a few hours or more to run. It 
+is possible to parallelise the process, because the script also optionally
+accespts the name of a file of slice ids, allowing it to consider a 
+subset of the genome. In order to exploit this, we might proceed thus:
+
+% mkdir /some/where/tlslices
+% perl ensembl-pipeline/scripts/slice_groups.pl -dbname reference_db_name -dbuser **** -dbhost **** -dbport **** -maxslicesize 100000000 -maxgroupize 1000 -outdir tlslices
+% foreach i (`ls /some/where/tslices`)
+% foreach? bsub -q normal -o /some/where/something.out -e /some/where/something.err perl  make_input_ids_for_similarity_build.pl -logic_name SubmitSimilarity -write -maxslice 2000000 -slice_name_file /some/where/tlslices/$i
+% foreach? end
+
 
 SOURCE: see TargettedGenewise
 
