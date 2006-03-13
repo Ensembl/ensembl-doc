@@ -467,7 +467,7 @@ gff_feature=annotation
 input_id_type=CHUNK
 
 [Prints]
-db=prints
+db=Prints
 db_file=/data/blastdb/Ensembl/interpro_scan/prints.pval
 program=FingerPRINTScan
 program_file=FingerPRINTScan
@@ -476,8 +476,8 @@ gff_source=Prints
 gff_feature=domain
 input_id_type=CHUNK
 
-[PrositePatterns]
-db=prosite
+[scanprosite]
+db=Prosite_patterns
 db_file=/data/blastdb/Ensembl/interpro_scan/prosite.patterns
 parameters=-confirm => /data/blastdb/Ensembl/confirm.patterns
 module=ProteinAnnotation/PrositePattern
@@ -485,8 +485,8 @@ gff_source=Prosite_pattern
 gff_feature=domain
 input_id_type=CHUNK
 
-[PrositeProfiles]
-db=pfscan
+[pfscan]
+db=Prosite_profiles
 db_file=/data/blastdb/Ensembl/interpro_scan/prosite_prerelease.prf
 program=pfscan
 program_file=pfscan
@@ -669,7 +669,7 @@ BatchQueue.pm QUEUE_CONFIG entries
     },
 
     {
-      logic_name => 'PrositePatterns',
+      logic_name => 'scanprosite',
       batch_size => 1,
       resource   => 'linux',
       retries    => 3,
@@ -681,7 +681,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       output_dir => '/out/dir/prositepatterns',
     },
     {
-      logic_name => 'PrositeProfiles',
+      logic_name => 'pfscan',
       batch_size => 1,
       resource   => 'linux',
       retries    => 3,
