@@ -330,7 +330,7 @@ the whole proteome to pass to an analysis at once. The script lies in
 ensembl-analysis/scripts and is called chunk_fasta_file.pl
 
 mkdir /protein/data/path/chunks
-perl chunk_fasta_file.pl /protein/data/path/all_peptides.fa /protein/data/path/chunks 100
+perl chunk_protein_file.pl -pepfile /protein/data/path/all_peptides.fa -chunkdir /protein/data/path/chunks -chunksize 100
 
 The last argument is the number of proteins to place in each chunk. 
 
