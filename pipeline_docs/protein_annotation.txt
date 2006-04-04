@@ -142,7 +142,7 @@ PrositePatterns
 
 DESCRIPTION : Hits to the Prosite Patterns database of domain regexps. 
 PROGRAM     : None
-MODULE      : RunnableDB/ProteinAnnotation/PrositePatterns.pm
+MODULE      : RunnableDB/ProteinAnnotation/PrositePattern.pm
 DATA        :
  Pattern file (data/blastdb/Ensembl/interpro_scan/prosite.patterns)
  Confirmation file (/data/blastdb/Ensembl/confirm.patterns)
@@ -153,7 +153,7 @@ PrositeProfiles
 
 DESCRIPTION : Hits to the Prosite Profiles database of protein domain profiles
 PROGRAM     : pfscan 
-MODULE      : RunnableDB/ProteinAnnotation/PrositeProfiles.pm
+MODULE      : RunnableDB/ProteinAnnotation/PrositeProfile.pm
 DATA        :
  Profile file (/data/blastdb/Ensembl/interpro_scan/prosite_prerelease.prf)
 
@@ -593,10 +593,10 @@ condition=SubmitChunk
 [Prints]
 condition=SubmitChunk
 
-[PrositePatterns]
+[scanprosite]
 condition=SubmitChunk
 
-[PrositeProfiles]
+[pfscan]
 condition=SubmitChunk
 
 
