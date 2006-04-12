@@ -134,6 +134,10 @@ perl predict_ncRNA.pl
 Dont cut and paste the rulemanger command line to start the pipeline without setting the perl path first as this can
 cause problems; genes being written to the wrong databases and the like. Use the -run flag instead
 
+Note: running predict_ncRNA leads to little postscript files with pictures of miRNAs being written to the directory
+where you ran the rulemanager from; this is nothing to worry about. RNAfold writes them by default and I cannot find a 
+way of turning them off!
+
 Once the analyses are run, the non coding RNA gene objects will have been stored in the pipeline database.
 
 A final script: transfer_ncRNAs.pl issued to transfer the ncRNAs from the pipeline database into the database on the staging
