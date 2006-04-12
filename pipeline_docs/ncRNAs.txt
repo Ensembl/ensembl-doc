@@ -1,5 +1,6 @@
-This document covers how to update ncRNA annotation on several species at once using an automated
-system. If you have any questions about it please contact ensembl-dev@ebi.ac.uk
+This document covers how to run ncRNA annotations on one or more genomes using an automated
+system. The second half of the document details the modules involved.
+If you have any questions about it please contact ensembl-dev@ebi.ac.uk
 
 Code
 ----
@@ -36,6 +37,8 @@ ncRNA_update.pl
 predict_ncRNA.pl
 ncRNA_update_config.pm
 config_files.txt
+
+These are located in ensembl-pipeline/scripts/ncRNA/
 
 config_files.txt
 ================
