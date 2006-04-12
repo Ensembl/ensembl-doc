@@ -102,7 +102,7 @@ perl ncRNA_update.pl <options>
 -dbsetup - this will create the pipeline databases (it will delete any existing databases with the same name on the same instance)
 -refresh - this obtains the latest copy of the RFAM and miRBase files and formats blast databases from them 
 -species - comma separated list of species from the config to work on, if blank all species are run
--run     - this will run the rule managers, and so start the pipelines for the specified species, leave out if you want to heck
+-run     - this will run the rule managers, and so start the pipelines for the specified species, leave out if you want to hack
 the configuration first.
 * = required
 When the script is run, first the configuration is written and checked, then the RFAM and miRBase files are prepared, if
@@ -111,6 +111,10 @@ etc, next the pipeline set-up is done, the input ids and rules are created. Fina
 PERL5LIB pointing to the appropriate configuration files in the DATADIR.
 Each stage can be run separately and checks are run before continuing to the next stage.
 Once started a list of monitors is provided for each database so you can watch the BLAST jobs running.
+
+######WARNING#########
+Dont cut and paste the rulemanger command line to start the pipeline without setting the perl path first as this can
+cause problems; genes being written to the wrong databases and the like. Use the -run flag instead
 
 
 predict_ncRNA.pl
@@ -125,6 +129,10 @@ perl predict_ncRNA.pl
 -verbose 
 -run run the rulemanager 
 (* required)
+
+######WARNING#########
+Dont cut and paste the rulemanger command line to start the pipeline without setting the perl path first as this can
+cause problems; genes being written to the wrong databases and the like. Use the -run flag instead
 
 Once the analyses are run, the non coding RNA gene objects will have been stored in the pipeline database.
 
