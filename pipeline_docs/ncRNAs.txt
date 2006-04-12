@@ -1,4 +1,164 @@
-This document covers ncRNA annotation within the ensembl pipeline system. If
+This document covers how to update ncRNA annotation on several species at once using an automated
+system. If you have any questions about it please contact ensembl-dev@ebi.ac.uk
+
+Code
+----
+
+The ensembl pipeline like the ensembl core is coded in perl. In order to
+run the ensembl pipeline you need perl and mysql installed. You also need
+some ensembl specific code which are freely available from cvs
+
+These are required
+
+ensembl
+ensembl-pipeline
+ensembl-analysis
+you also need bioperl which again, is freely available
+
+bioperl-live (bioperl-release-1-2-3)
+
+
+Currently the stable branch of the pipeline and analysis code is 
+branch-ensembl-37. This code may work with more recent versions of the
+core code but we can only guarantee it will work with the same branch
+
+In addition the modules require:
+RNAfold (part of the ViennaRNA package)
+cmsearch (part of the Infernal package)
+RFAM BLAST database, covariance models, description file and thresholds file
+(As part of the Infernal module the RFAM  BLAST database is split into 2 files
+one for high copy number ncRNAs and one for low copy number)
+
+some of these are freely available on the web, others will need licenses
+
+The automated pipeline is controlled from 2 perl scripts and a configuration file:
+ncRNA_update.pl
+predict_ncRNA.pl
+ncRNA_update_config.pm
+config_files.txt
+
+config_files.txt
+================
+This contains all the hard-coded config needed to run the pipeline and the analyses, this should not need to be changed.
+
+
+ncRNA_update_config.pm
+======================
+This contains the configurable variables for the analysis, ie: what species to run on, the location of the databases to create,
+search. It consists of an anonymous hash keyed on CONFIG ie:
+CHICKEN => {
+           # source db with dna dont want to write to this one
+		DBNAME     => "gallus_gallus_core_36_1l",
+		DBPORT     => "3365",
+		DBHOST     => "ecs2",
+		# DB to write to (Also the pipeline database)
+		WRITEHOST  => "ia64f",
+		WRITEPORT  => "3306",
+		WRITENAME  => "chicken_ncRNA_update",
+		OUTDIR     => "/path/to/output/directory",
+		# mysql instance source db is on
+		REFINS     => "ecs2my3365",
+		# lsf load for source db
+		REFLOAD    => 400,
+		# mysql instance pipeline/output db is on
+		WRITEINS   => "myia64f",
+		# lsf load for pipeline/output db
+		WRITELOAD  => 800,
+	 },
+The database identifiers called DB... refer to a reference core database containing the dna and the
+assembly. The WRITE. databases act as both the pipeline database and the database to which the final
+gene objects are written, these are created automatically by the script.
+##################################
+# Warning, if the WRITE database already exists it is deleted and recreated when the script is run ,
+so be careful that you don't mix up the ref DB... database and the WRITE.... database.
+the remaining config includes REFINS - this is the lsf name of the instance containing the reference
+database
+REFLOAD - the maximum LSF load allowed on the reference instance.
+WRITEINS, WRITELOAD, the same but for the WRITE... database instance.
+Other config:
+DATADIR - where to write config files to
+CVSDIR  - Where the cvs directory is for the ensembl branch you wish to use ( used for setting the PERL5LIB
+path )
+WRITEUSER - user name for writing to the database ? 
+BIOPERLPATH - Where the cvs directory is for the bioperl branch you wish to use ( used for setting the PERL5LIB
+path )
+MIRBASEVERSION - Version number of miRBAse used
+RFAMVERSION - Version number of RFAM used
+# directory to make the blast databases in
+BLASTDIR   - Where to store the databases for the blast search
+# once this file is filled in correctly you can run ncRNA_update.pl
+
+run ncRNA_update.pl
+===================
+This sets up the pipeline databases and starts the first stage of the analysis ie: a BLAST search
+
+perl ncRNA_update.pl <options> 
+*-pass  - the database write password 
+-verbose 
+-config - this can specify a different config file from config_files.txt
+-dbsetup - this will create the pipeline databases (it will delete any existing databases with the same name on the same instance)
+-refresh - this obtains the latest copy of the RFAM and miRBase files and formats blast databases from them 
+-species - comma separated list of species from the config to work on, if blank all species are run
+-run     - this will run the rule managers, and so start the pipelines for the specified species, leave out if you want to heck
+the configuration first.
+* = required
+When the script is run, first the configuration is written and checked, then the RFAM and miRBase files are prepared, if
+specified. Next the databases are created and the appropriate data is copied from the reference databases, assembly, seq_regions
+etc, next the pipeline set-up is done, the input ids and rules are created. Finally the rule managers are run, each with a separate
+PERL5LIB pointing to the appropriate configuration files in the DATADIR.
+Each stage can be run separately and checks are run before continuing to the next stage.
+Once started a list of monitors is provided for each database so you can watch the BLAST jobs running.
+
+
+predict_ncRNA.pl
+================
+This script runs the second stage of the analysis. This consists of first analysing the blast results and limiting the number of
+hits to be analysed. Secondly, input ids are made and the rule managers started for the cmsearch analysis, also the miRNA
+analysis is run as a single job.
+The command line options are essentially the same as for the previous script.
+perl predict_ncRNA.pl 
+-pass *(password) 
+-species (species list) 
+-verbose 
+-run run the rulemanager 
+(* required)
+
+Once the analyses are run, the non coding RNA gene objects will have been stored in the pipeline database.
+
+A final script: transfer_ncRNAs.pl issued to transfer the ncRNAs from the pipeline database into the database on the staging
+server.
+transfer_ncRNAs
+-pass * 
+-write      write protect off
+-verbose 
+-delete     deletes non coding genes that are already on the staging server before writing the new ones.
+-merge      If the new ncRNA overlaps an old ncRNA, delete the old one and replace it with the new one
+-increment  If the new ncRNA overlaps an old ncRNA, keep the old ncRNA
+-dbname *   the database to write to  on the staging server
+-dbhost * 
+-dbport * 
+-species *  name of the species (same as in the config) only 1 species at a time can be written
+-analysis * analysis logic name of the genes to delete ie: ncRNA
+-xrefs      a file name in which to dump out all the xref data for use by the xref system
+-skipchecks dont do checks
+-whitelist list of dbids to keep
+* = essential
+Only 1 species at a time please
+It is important to use the -xrefs flag to store the xref data as the xref system needs it.
+The script checks the ncRNAs to remove duplicated genes from the set before they are written. It also will not allow an ncRNA to
+be written to the staging server database if it overlaps a coding exon unless the dbID has been specified in the whitelist. This
+has been used for instance in mouse where miRNAs were overlapping a hypothetical ORF that actually corresponded to a conceptual
+translation of a non coding primary transcript.
+
+This should be all you need to run the ncRNA analysis for a genome.
+
+The next section talks in detail about how the modules work.
+
+
+==================================================================================================================================
+
+
+This section covers the ncRNA annotation modules within the ensembl pipeline system. If
 you have any questions about it please contact ensembl-dev@ebi.ac.uk
 
 Non coding RNAs are involved in many biological processes and are increasingly
