@@ -690,7 +690,7 @@ BatchQueue.pm QUEUE_CONFIG entries
       cleanup    => 'yes',
       queue      => 'normal',
       runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
-      output_dir => '/outdir/prositeprofiles',
+      output_dir => '/out/dir/prositeprofiles',
     },
 
     {
