@@ -492,7 +492,7 @@ program=pfscan
 program_file=pfscan
 module=ProteinAnnotation/PrositeProfile
 gff_source=Profile
-gff_feature=Domain
+gff_feature=domain
 input_id_type=CHUNK
 
 [Pfam]
