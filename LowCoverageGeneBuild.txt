@@ -1,0 +1,85 @@
+Overview of LowCoverageGeneBuild.pl
+===================================
+
+1. Modify LowCoverageGeneBuildConf.pm
+2. Downloading assembly from BROAD
+3. Downloading repeat libraries from EBI
+4. Run setup
+
+
+
+1.
+==
+Modify LowCoverageGeneBuildConf.pm 
+cp -R $LC_cvsDIR/ensembl-personal/ba1/armadillo1/generic_config/* $LC_cvsDIR/ensembl-config/$LC_SPECIES/$LC_BUILD_VERSION
+
+2. Downloading assembly from BROAD
+==
+Downloading assembly from BROAD (about 5G for armadillo 2x):
+  cd $LC_workDIR/assembly (specified in LowCoverageGeneBuildConf.pm
+  df -h /ecs4/work3/ (to check enough space on disk)
+  ~/ncftp-3.1.7/bin/ncftp ftp://ftp.broad.mit.edu/pub/assemblies/mammals/$LC_SPECIES/
+  mget *
+  gzip -d assembly.bases.gz
+
+3. Downloading repeat libraries from EBI:	
+==
+  cd $LC_workDIR
+  mkdir repeat_libraries
+  cd repeat_libraries
+  ~/ncftp-3.1.7/bin/ncftp ftp://ftp.ebi.ac.uk/pub/databases/ensembl/encode/repeat_libraries
+  cd ensembl/encode/repeat_libraries/$LC_SPECIES
+  mget *\n
+
+4.Run setup
+==
+
+
+
+
+
+
+
+
+
+
+
+Downloading assembly from BROAD (about 5G for armadillo)
+ cd $LC_workDIR/assembly (specified in LowCoverageGeneBuildConf.pm
+  df -h /ecs4/work3/ (to check enough space on disk)
+  ~/ncftp-3.1.7/bin/ncftp ftp://ftp.broad.mit.edu/pub/assemblies/mammals/$LC_SPECIES/
+  mget *
+  gzip -d assembly.bases.gz
+  
+Downloading repeat libraries from EBI  
+  cd $LC_workDIR
+  mkdir repeat_libraries
+  cd repeat_libraries
+  ~/ncftp-3.1.7/bin/ncftp ftp://ftp.ebi.ac.uk/pub/databases/ensembl/encode/repeat_libraries
+  cd ensembl/encode/repeat_libraries/$LC_SPECIES
+  mget *\n    
+  
+  
+  
+  
+  
+  
+  
+   #foreach id (`cat assembly.agp`)
+ #grep -e '^scaffold\_$id[[:space:]]' assembly.agp >> m
+ #foreach i ( `perl -e 'foreach $i ( 1..50 ) {print "$i\n" ; }'` )
+ #
+ #For testing:
+ #grep -e '^scaffold\_1000' assembly.agp >> ../../test/assembly/assembly.agp
+ #grep -e '^scaffold\_1001' assembly.agp >> ../../test/assembly/assembly.agp
+ #grep -e '^scaffold\_1002' assembly.agp >> ../../test/assembly/assembly.agp 
+ #grep -e '^scaffold\_1003' assembly.agp >> ../../test/assembly/assembly.agp
+ #grep -e '^scaffold\_1004' assembly.agp >> ../../test/assembly/assembly.agp
+ #more my | gawk '{print $1}' | sort -u | wc -l
+ #      555
+ #more ../../test/assembly/assembly.agp | grep contig | gawk '{print $6}' > ../../test/assembly/ids
+ 
+ 
+ 
+ 
+ #  grep -i -e 'output_dir' BatchQueue.pm | gawk '{print $3}' | sed -e s/,// | sed -e s/\"//g | sed -e s/\\./\\// | sort -u
