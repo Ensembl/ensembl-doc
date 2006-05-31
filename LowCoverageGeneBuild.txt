@@ -1,17 +1,24 @@
 Overview of LowCoverageGeneBuild.pl
 ===================================
 
-1. Modify LowCoverageGeneBuildConf.pm
-2. Downloading assembly from BROAD
-3. Downloading repeat libraries from EBI
-4. Run setup
-
-
+1.  Modify LowCoverageGeneBuildConf.pm
+2.  Downloading assembly from BROAD
+3.  Downloading repeat libraries from EBI
+4.  Run setup
+5.  Run check_seqs
+6.  Run run_RepeatMask_and_independent
+7.  Run compare
+8.  Run run_RepeatMask_dependent
+9.  Run dump_RepeatMasked_sequence
+10. Run healthcheck
+11. Run backup
+12. Run clean
+13. Finishing off
 
 1.
 ==
+Update your CVS - ensembl, ensembl-pipeline, ensembl-analysis, ensembl-personal, ensembl-compara
 Modify LowCoverageGeneBuildConf.pm 
-cp -R $LC_cvsDIR/ensembl-personal/ba1/armadillo1/generic_config/* $LC_cvsDIR/ensembl-config/$LC_SPECIES/$LC_BUILD_VERSION
 
 2. Downloading assembly from BROAD
 ==
@@ -21,6 +28,13 @@ Downloading assembly from BROAD (about 5G for armadillo 2x):
   ~/ncftp-3.1.7/bin/ncftp ftp://ftp.broad.mit.edu/pub/assemblies/mammals/$LC_SPECIES/
   mget *
   gzip -d assembly.bases.gz
+  
+  #also unzip the scaffold - this file's name varies it might be 
+  assembly.agp.fasta.gz (in elephant), or scaffolds.fasta.gz (in armadillo and rabbit) or 
+  Draft_v1.agp.chromosome.fasta.gz (in tenrec).
+  
+  gzip -d scaffolds.fasta.gz
+
 
 3. Downloading repeat libraries from EBI:	
 ==
@@ -29,57 +43,91 @@ Downloading assembly from BROAD (about 5G for armadillo 2x):
   cd repeat_libraries
   ~/ncftp-3.1.7/bin/ncftp ftp://ftp.ebi.ac.uk/pub/databases/ensembl/encode/repeat_libraries
   cd ensembl/encode/repeat_libraries/$LC_SPECIES
-  mget *\n
+  mget *
 
 4.Run setup
 ==
+This will set up your config, database and load the assembly.
+Uses the taxon database to load the classification entries in the meta table.
+
+5.  Run check_seqs
+==
+This takes two scaffolds and checks that the sequences in the database correspond to the correct sequence in the
+fasta file
+
+6.  Run run_RepeatMask_and_independent
+==
+Performs RepeatMask, Supp_RepeatMask, Ab_initio_RepeatMask, Eponine, CpG, Dust, TRF and tRNAscan analyses
+
+7.  Run compare
+==
+Examines the repeat coverage from each of the three RepeatMask analyses, you will need to decide which of these
+RepeatMasks you want to use.
+
+8.  Run run_RepeatMask_dependent
+==
+Performs  Genscan, Uniprot, Unigene and Vertrna analyses
+You first need to test each of these analyses before you run the rulemanager, an explanation of how to do this is printed
+to STDERR by the script.
+
+9.  Run dump_RepeatMasked_sequence
+==
+This step can be performed now or at a later date
+
+10. Run healthcheck
+==
+First you need to check that your database.properties is pointing to the correct host
+and that ensj-healthcheck/src/org/ensembl/healthcheck/Species.java contains your species.
+
+This step must be run from within $LC_cvsDIR/ensj-healthcheck directory
+
+Backup your database before making any changes (see 11.)
+Common fixes which need to be made include:
+#delete from repeat_feature where repeat_start < 1   #provided there aren't too many
+#delete simple_feature.* from simple_feature, seq_region where simple_feature.seq_region_end > seq_region.length 
+#	and seq_region.seq_region_id=simple_feature.seq_region_id   #provided there aren't too many
+After changes rerun the healthchecks.
 
 
+11. Run backup
+==
+This will make a backup of your database using mysqldump -T
 
+12. Run clean
+==
+This step is rather slow but removes contents of assembly, repeat libraries and raw_compute directories plus
+it removes seqdump and repeatmask_dependents.out and repeatmasking.out too
 
+13. Finishing off
+==
+You need to make a copy of your database called _pre instead of _ref (eg sd3_rabbit_1_pre)
+In _pre database you need to make the following changes:
+  drop table job;
+  drop table job_status;
+  drop table rule_goal;
+  drop table rule_conditions;
+  drop table input_id_analysis;
+  drop table input_id_type_analysis;  
+  delete from analysis where logic_name = 'SubmitContig';
 
+You then need to run the healthchecks for this database eg:
+  ./run-healthcheck.sh -output info -d sd3_rabbit_1_pre -type core -species rabbit post_genebuild > & \
+  $ENSTEN/healthchecks/thirdrun_info.out
 
+and prepare a little write up for http://pre.ensembl.org/index.html
+you can copy this from Elephant and insert the appropriate stats 
+you'll find these in your assembly/BasicAssemblyOneLiner.out
+the numbers you need are:
 
+super_n50_gap          ( = N50 length for supercontigs) 
+contig_N50             ( = N50 length for contigs) 
+total_super_length     ( = total number of bases in supercontigs) 
+total_contig_length    ( = total number of bases in contigs)
 
+eg rabbit:
+super_n50_gap          = 54.49Kb 
+contig_N50             = 3.18Kb
+total_super_length     = 3.45Gb 
+total_contig_length    = 2.08Gb
 
-
-
-Downloading assembly from BROAD (about 5G for armadillo)
- cd $LC_workDIR/assembly (specified in LowCoverageGeneBuildConf.pm
-  df -h /ecs4/work3/ (to check enough space on disk)
-  ~/ncftp-3.1.7/bin/ncftp ftp://ftp.broad.mit.edu/pub/assemblies/mammals/$LC_SPECIES/
-  mget *
-  gzip -d assembly.bases.gz
-  
-Downloading repeat libraries from EBI  
-  cd $LC_workDIR
-  mkdir repeat_libraries
-  cd repeat_libraries
-  ~/ncftp-3.1.7/bin/ncftp ftp://ftp.ebi.ac.uk/pub/databases/ensembl/encode/repeat_libraries
-  cd ensembl/encode/repeat_libraries/$LC_SPECIES
-  mget *\n    
-  
-  
-  
-  
-  
-  
-  
-   #foreach id (`cat assembly.agp`)
- #grep -e '^scaffold\_$id[[:space:]]' assembly.agp >> m
- #foreach i ( `perl -e 'foreach $i ( 1..50 ) {print "$i\n" ; }'` )
- #
- #For testing:
- #grep -e '^scaffold\_1000' assembly.agp >> ../../test/assembly/assembly.agp
- #grep -e '^scaffold\_1001' assembly.agp >> ../../test/assembly/assembly.agp
- #grep -e '^scaffold\_1002' assembly.agp >> ../../test/assembly/assembly.agp 
- #grep -e '^scaffold\_1003' assembly.agp >> ../../test/assembly/assembly.agp
- #grep -e '^scaffold\_1004' assembly.agp >> ../../test/assembly/assembly.agp
- #more my | gawk '{print $1}' | sort -u | wc -l
- #      555
- #more ../../test/assembly/assembly.agp | grep contig | gawk '{print $6}' > ../../test/assembly/ids
- 
- 
- 
- 
- #  grep -i -e 'output_dir' BatchQueue.pm | gawk '{print $3}' | sed -e s/,// | sed -e s/\"//g | sed -e s/\\./\\// | sort -u
+Now you're ready to handover the _pre database, healthchecks with comments and the write up. 
