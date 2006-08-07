@@ -1,0 +1,99 @@
+ ##########################################
+ ##       DITAG ANALYSIS README          ##
+ ##########################################
+
+Get data:
+Ditags in FASTA format
+
+Prepare database:
+ typically uses core database with dna, etc. loaded + pipeline tables.
+
+ extra table setup (part of core schema from v40):
+
+CREATE TABLE ditag (
+
+       ditag_id INT NOT NULL auto_increment,
+       name VARCHAR(30),
+       type VARCHAR(30),
+       tag_count smallint(6) default 1,
+       sequence TEXT,
+
+       PRIMARY KEY ( ditag_id )
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE TABLE ditag_feature (
+
+       ditag_feature_id int(10) unsigned NOT NULL auto_increment,
+       ditag_id int(10) unsigned NOT NULL default '0',  #original ditag dbID (2:1 rel.shp)
+       ditag_pair_id int(10) unsigned NOT NULL default '0',
+       seq_region_id int(10) unsigned NOT NULL default '0',
+       seq_region_start int(10) unsigned NOT NULL default '0',
+       seq_region_end int(10) unsigned NOT NULL default '0',
+       seq_region_strand tinyint(1) NOT NULL default '0',
+       analysis_id int(10) unsigned NOT NULL default '0',
+       hit_start int(10) unsigned NOT NULL default '0',
+       hit_end int(10) unsigned NOT NULL default '0',
+       hit_strand tinyint(1) NOT NULL default '0',
+       cigar_line text default '',
+       ditag_side char default '',
+
+       PRIMARY KEY  (ditag_feature_id),
+       KEY (ditag_id),
+       KEY (ditag_pair_id)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+pipeline setup:
+
+INSERT INTO analysis VALUES (1,'2006-02-17 18:15:17','SubmitDitag',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+INSERT INTO analysis VALUES (2,'2006-02-09 18:20:45','DitagAlign',NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Ditag',NULL,NULL,NULL);
+
+
+INSERT INTO input_id_type_analysis VALUES (1,'DITAG_CHUNK');
+INSERT INTO input_id_type_analysis VALUES (2,'DITAG_CHUNK');
+
+INSERT INTO rule_goal VALUES (1,'2');
+
+INSERT INTO rule_conditions VALUES (1,'SubmitDitag');
+
+
+Setup config:
+- GB_DBHOST, etc. in Bio::EnsEMBL::Analysis::Config::Databases.pm
+- general and specific values in Bio::EnsEMBL::Analysis::Config::Ditag.pm
+- BatchQueue.pm entry:
+	{
+      logic_name => 'DitagAlign',
+      batch_size => 1,
+      #something like this:
+       resource   => 'select[myia64f<400] rusage[myia64f=10:duration=10:decay=1]',
+      #or for some big failing jobs
+       resource   => 'select[mem>2500] rusage[mem=2500]',
+      retries    => 2,
+      sub_args   => '',
+      runner     => '',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
+    },
+	
+Analysis entries:
+analysis:
+ [SubmitDitag]
+ input_id_type=DITAG_CHUNK
+
+ [DitagAlign]
+ module=Ditag
+ input_id_type=DITAG
+ 
+rule:
+ [DitagAlign]
+ condition=SubmitDitag
+
+
+Load Ditags to database and generate inut ids for alignment of DitagFeatures:
+ perl ensembl-analysis/scripts/load_ditags.pl -type ZZ11 -write -delete
+
+Run test:
+ perl ensembl-analysis/scripts/test_RunnableDB $READ_DB_ARGS -input_id ditag.ZZ11.2 -logic_name DitagAlign -module Ditag
+
+Start analysis:
+ perl ensembl-pipeline/scripts/rulemanager.pl $WRITE_DB_ARGS -once -analysis DitagAlign -input_id_type DITAG_CHUNK
+
+
