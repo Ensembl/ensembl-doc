@@ -295,3 +295,11 @@ This describes how our blast system functions and how best to use it
 This describes how our various batch submission systems work and how
 to set up a module for your system
 
+* low_coverage_pre_site_setup.txt
+This describes an automated system for producing a pre-site for a 
+low-coverage genome.
+
+* low_coverage_genebuild.txt
+This describes the process of obtaining a set of gene-scaffolds and
+genes for a low-coverage genome. 
+
