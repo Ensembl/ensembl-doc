@@ -3,8 +3,8 @@ Overview of LowCoverageGeneBuild.pl
 
 1.  Modify LowCoverageGeneBuildConf.pm
 2.  Downloading assembly from BROAD
-3.  Downloading repeat libraries from EBI
-4.  Run setup
+3.  Run setup
+4.  Downloading repeat libraries from EBI
 5.  Run check_seqs
 6.  Run run_RepeatMask_and_independent
 7.  Run compare
@@ -18,7 +18,8 @@ Overview of LowCoverageGeneBuild.pl
 1.
 ==
 Update your CVS - ensembl, ensembl-pipeline, ensembl-analysis, ensembl-personal, ensembl-compara
-Modify LowCoverageGeneBuildConf.pm 
+Modify LowCoverageGeneBuildConf.pm - fill in all fields, even for files that have not yet been created.  
+
 
 2. Downloading assembly from BROAD
 ==
@@ -32,47 +33,135 @@ Downloading assembly from BROAD (about 5G for armadillo 2x):
   #also unzip the scaffold - this file's name varies it might be 
   assembly.agp.fasta.gz (in elephant), or scaffolds.fasta.gz (in armadillo and rabbit) or 
   Draft_v1.agp.chromosome.fasta.gz (in tenrec).
-  
   gzip -d scaffolds.fasta.gz
 
+Make sure that you have these files:
+  assembly.bases
+  assembly.agp
+  Draft_v1.agp.chromosome.fasta
 
-3. Downloading repeat libraries from EBI:	
+You will also need to look at BasicStats (or BasicAssemblyOneliner if BasicStats does not exist) to get information for the website. eg. N50.
+
+3.Run setup
 ==
+This does a number of thing in the following order:
+
+a. Copy the required config files to ensembl-config/$LC_SPECIES/$LC_BUILD_VERSION
+b. Create database $LC_DBNAME
+c. load_seq_region -coord_system_name contig -rank 2
+d. load_seq_region coord_system_name scaffold -rank 1
+e. Populates meta table with assembly, genebuild and taxonomy info 
+f. load_agp
+g. set_toplevel
+h. analysis_setup
+i. rule_setup
+j. load_analysis_descriptions 
+k. make_input_ids
+
+When the script copies your config files to ensembl config, these config files will contain global variables. It is probably a good idea to replace these variables with hard-coded names. The files that will need some work are:
+/Bio/EnsEMBL/Pipeline/Config/BatchQueue.pm:      resource   => 'select[linux && my$LC_DBHOST<800] rusage[my$LC_DBHOST=10:duration=10:decay=1]',
+/Bio/EnsEMBL/Pipeline/Config/BatchQueue.pm:  DEFAULT_OUTPUT_DIR  => $LC_scratchDIR."/raw_computes/",
+/Bio/EnsEMBL/Pipeline/Config/General.pm:  PIPELINE_REPEAT_MASKING => $LC_REPMASK_CHOICE,
+
+Along the way, some db queries are made and printed to STDERR. You should have a look at the output and see if it looks right.
+
+Setup cannot be run in the background as it requires user-interaction. ie. At certain steps it will ask the user if it should continue or not: 
+- before creating the db
+- between load_agp and set_toplevel
+
+
+4. Downloading repeat libraries from EBI:	
+==
+As this is a new organism, there may not be a repeat library available.
+
+If a repeat library has been made, it can be found and downloaded from here:
   cd $LC_workDIR
   mkdir repeat_libraries
   cd repeat_libraries
   ~/ncftp-3.1.7/bin/ncftp ftp://ftp.ebi.ac.uk/pub/databases/ensembl/encode/repeat_libraries
-  cd ensembl/encode/repeat_libraries/$LC_SPECIES
+  cd $LC_SPECIES
   mget *
 
-4.Run setup
-==
-This will set up your config, database and load the assembly.
-Uses the taxon database to load the classification entries in the meta table.
+If there is no repeat library here, you will need to email Damian Keefe and ask him to make you a repeat library. When you email him, you will need to give him the location of a fasta file containing all non-redundant genome sequence ie  top-level 
+This can be made by doing:
+  /ensembl-personal/searle/scripts/fetch_slice_seq.pl \
+  -host $LC_DBPORT -user ensro -port 3306 -dbname $LC_DBNAME -path  $LC_DEFAULT \
+  -all -outfile /path/to/toplevel_unmasked/toplevel_unmasked.fa
+
+Or, if you prefer:
+  perl /ensembl-analysis/scripts/sequence_dump.pl -dbuser xxxxxxxx -dbpass xxxxxxx \
+  -dbport 3306 -dbhost $LC_DBPORT -dbname $LC_DBNAME \
+  -coord_system_name toplevel -onefile \
+  -output_dir /path/to/toplevel_unmasked
+
 
 5.  Run check_seqs
 ==
 This takes two scaffolds and checks that the sequences in the database correspond to the correct sequence in the
-fasta file
+fasta file. It is possible that the headers in your fasta files are strange and will not be parsed, in which case you'll have to fiddle. 
+
+Headers like this should be OK: 
+scaffold_127890.1-7726 (Draft_v1)
+
+The regular expression used is:
+?-xism:^>(scaffold_127890[^0-9]+)\s+.*$
+
+Another way to check that things have been loaded correctly is to compare your entire toplevel_unmasked.fa (See 4. Downloading repeat libraries from EBI) against the entire scaffolds file (Draft_v1.agp.chromosome.fasta). 
+
 
 6.  Run run_RepeatMask_and_independent
 ==
-Performs RepeatMask, Supp_RepeatMask, Ab_initio_RepeatMask, Eponine, CpG, Dust, TRF and tRNAscan analyses
+Sets off the rulemanager for:
+RepeatMask
+Supp_RepeatMask
+Ab_initio_RepeatMask
+Eponine
+CpG
+Dust
+TRF
+tRNAscan 
+
+You might prefer to run the rulemanager outside of the script.
+
+Don't forget to test_RunnableDB!
+
 
 7.  Run compare
 ==
-Examines the repeat coverage from each of the three RepeatMask analyses, you will need to decide which of these
-RepeatMasks you want to use.
+Runs the repeat-types script.
+
+Examines the repeat coverage from each of the three RepeatMask analyses (RepeatMask, Supp_RepeatMask, Ab_initio_RepeatMask).
+You will need to decide which of these RepeatMasks combinations you want to use.
+
+It's usually fine to use Repeatmask and Supp_RepeatMask together.
+
+Don't forget to fill in you $LC_REPMASK_CHOICE.
+
 
 8.  Run run_RepeatMask_dependent
 ==
-Performs  Genscan, Uniprot, Unigene and Vertrna analyses
+Sets off the rulemanager for:
+Genscan
+Uniprot
+Unigene
+Vertrna
+
+Note that all genscans must run first before the other analyses can be started.
+
+You might prefer to run the rulemanager outside of the script.
+
 You first need to test each of these analyses before you run the rulemanager, an explanation of how to do this is printed
 to STDERR by the script.
 
+
 9.  Run dump_RepeatMasked_sequence
 ==
-This step can be performed now or at a later date
+This step can be performed now or at a later date. It will submit a job to LSF for making the repeatmasked dusted genomic sequence that should eventually be pushed to /data/blastdb/Ensembl/ .
+
+It is a good idea to check that all sequences are in this file.
+
+Email isg-help to request the pushing of this file.
+
 
 10. Run healthcheck
 ==
@@ -82,10 +171,32 @@ and that ensj-healthcheck/src/org/ensembl/healthcheck/Species.java contains your
 This step must be run from within $LC_cvsDIR/ensj-healthcheck directory
 
 Backup your database before making any changes (see 11.)
+
 Common fixes which need to be made include:
-#delete from repeat_feature where repeat_start < 1   #provided there aren't too many
-#delete simple_feature.* from simple_feature, seq_region where simple_feature.seq_region_end > seq_region.length 
-#	and seq_region.seq_region_id=simple_feature.seq_region_id   #provided there aren't too many
+ delete from repeat_feature where repeat_start < 1   #provided there aren't too many
+ 
+ delete simple_feature.* from simple_feature, seq_region where simple_feature.seq_region_end \
+ > seq_region.length and seq_region.seq_region_id=simple_feature.seq_region_id   #provided there aren't too many
+
+
+The script does not automatically fill in species.ensembl_names in the meta table so you will need to do this manually.
+  insert into meta(meta_key,meta_value) values ('species.ensembl_common_name','xxx')
+  insert into meta(meta_key,meta_value) values ('species.ensembl_alias_name','xxx')
+Look here for the ensembl_common_name:
+  mysql -uensro -hecs2 -P3365 -Dncbi_taxonomy -e "select name from ncbi_taxa_name where \
+    name_class = 'genbank common name' and taxon_id = xxx"
+Look here for the ensembl_alias_name: 
+  http://cvs.sanger.ac.uk/cgi-bin/viewcvs.cgi/public-plugins/ensembl/conf/SiteDefs.pm?rev=1.10&view=markup
+  public-plugins/ensembl/conf/SiteDefs.pm
+
+
+The script does not automatically fill in repeat.analyses in the meta table so you will need to do this manually.
+Add repeat.analysis manually to meta table (this is which repeats we have run)
+  insert into meta (meta_key,meta_value) values ('repeat.analysis','Dust')"
+  insert into meta (meta_key,meta_value) values ('repeat.analysis','RepeatMask')"
+  insert into meta (meta_key,meta_value) values ('repeat.analysis','Supp_RepeatMask')"
+  insert into meta (meta_key,meta_value) values ('repeat.analysis','TRF')"
+
 After changes rerun the healthchecks.
 
 
@@ -93,10 +204,18 @@ After changes rerun the healthchecks.
 ==
 This will make a backup of your database using mysqldump -T
 
+You may prefer to do this manually:
+  mysqldump -h$LC_DBHOST -u$LC_DBUSER -p$LC_DBPASS -P3306 $LC_DBNAME -T /tmp/dir/
+
+
 12. Run clean
 ==
 This step is rather slow but removes contents of assembly, repeat libraries and raw_compute directories plus
 it removes seqdump and repeatmask_dependents.out and repeatmasking.out too
+
+
+You may like to hold off running this step for a while in case you need to consult your output dirs.
+
 
 13. Finishing off
 ==
