@@ -74,13 +74,13 @@ REQUIREMENTS
 - A query core database
 
   This database should contain the assembly and annotatation of the 
-  reference genome. This will be referred to as $QUERY_CORE_DB.
+  reference genome. This will be referred to as 'the_query_core_db'.
 
 - A target core database
 
   This database should contain the sequence and assembly of the low-
   coverage genome to be annotated. This will be referred to as
-  $TARGET_CORE_DB.
+  'the_target_core_db'
 
 - A compara database
 
@@ -89,15 +89,16 @@ REQUIREMENTS
   the following property: each bp in the target genome should be represented 
   at most once. See other documentation for how to produce a useful
   alignment with this property. This database will be referred to as
-  $COMPARA_DB, and the MethodLinkType of the processed alignment to be
-  used as $WGA_METHOD_LINK_TYPE.
+  'the_compara_db', and the MethodLinkType of the processed alignment to be
+  used as 'WGA_method_link_type'.
 
 - A pipeline database
 
   This facilitates the running of the first, WGA2Genes stage; the assumption 
   is that you will have already set up a pipeline database for the preparation 
   and processing of the WGA). This database will be referred to as 
-  $PIPELINE_DB.
+  'the_pipeline_db'. It will often be the case that your pipeline database is
+  the same as your target core database.
 
 - A kill-list
 
@@ -109,7 +110,7 @@ REQUIREMENTS
   that are known to be wrong in the query database. The script  
   ensembl-analysis/scripts/wga2genes/identify_bad_source_transcripts.pl can be run 
   against the query database to make an initial kill-list. The kill-list file will
-  be referred to as $KILL_LIST.
+  be referred to as 'the_kill_list_file'.
 
 - Code
 
@@ -136,9 +137,10 @@ on the farm using the pipeline.
 Config setup
 ------------
 
-It is necessary to plug in the details of the $QUERY_CORE_DB, $TARGET_CORE_DB 
-and $COMPARA_DB and $KILL_LIST into the appropriate places in the config 
-file, and to set INPUT_METHOD_LINK_TYPE to $WGA_METHOD_LINK_TYPE. 
+It is necessary to plug in the details of the the_query_core_db,
+the_target_core_db, the_compara_db and the_kill_list_file
+into the appropriate places in the config file, and to set INPUT_METHOD_LINK_TYPE 
+to WGA_method_link_type
 
 The values of other attributes should only be changed if you know what 
 you're doing (the .example file gives an overview of the function of each 
@@ -171,9 +173,11 @@ condition=SubmitHumanGeneSlice
 And ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/Config/BatchQueue.pm
 should have the following (minimally; you might want to add some
 resource requirements to check loads on the servers containing
-$QUERY_CORE_DB, $TARGET_CORE_DB, $COMPARA_DB and $PIPELINE_DB to make
-it play nicely with the farm. The results are written to $OUTPUT_DIR,
-so set this to something that exists and has lots of space):
+the_query_core_db, the_target_core_db, the_compara_db, and 
+the_pipeline_db it play nicely with the farm. The results are written to
+the_output_dir specified below, so make sure that this exists and has lots
+of space):
+
 
 <cut>
     {
@@ -185,7 +189,7 @@ so set this to something that exists and has lots of space):
       sub_args   => '',
       runner     => '',
       queue      => 'normal',
-      output_dir => '$OUTPUT_DIR',
+      output_dir => 'the_output_dir',
       cleanup => 'yes',
     },
 </cut>
@@ -214,7 +218,7 @@ be treated independently. So you might proceed in the following manner:
 
 
 % foreach i (1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y)
-foreach? perl ensembl-pipeline/scripts/wga2genes/make_wga2genes_iids.pl -dbname $PIPELINE_DB -dbhost *** -dbuser *** -dbpass *** -querydbname $QUERY_CORE_DB -querydbhost *** -querydbport *** -targetdbname $TARGET_CORE_DB -targetdbhost *** -comparadbname $COMPARA_DB -comparadbhost *** -aligntype $WGA_METHOD_LINK_TYPE -logic SubmitHumanGeneSlice -kill $KILL_LIST  -write -seq_region_name $i
+foreach? perl ensembl-pipeline/scripts/wga2genes/make_wga2genes_iids.pl -dbname the_pipeline_db.name -dbhost *** -dbuser *** -dbpass *** -querydbname the_query_db.name -querydbhost *** -querydbport *** -targetdbname the_target_db.name -targetdbhost *** -comparadbname the_compara_db.name -comparadbhost *** -aligntype WGA_method_link_type -logic SubmitHumanGeneSlice -kill the_kill_list_file  -write -seq_region_name $i
 foreach? end
 
 (note that here the Mitochondrion is exluded; it is common to do this 
@@ -235,15 +239,15 @@ once, it is performed by a single run of a script.
 
 - Run merge/consolidation script
 
-% perl merge_and_extend_gene_scaffolds.pl -dbname $TARGET_CORE_DB -dbuser *** -dbhost *** -agp gene_scaffolds.raw.agp -genes gene_scaffolds.raw.genes -outagp gene_scaffolds.merged.agp -outgenes gene_scaffolds.merged.genes -outlog merge.log
+% perl merge_and_extend_gene_scaffolds.pl -dbname the_target_db.name -dbuser *** -dbhost *** -agp gene_scaffolds.raw.agp -genes gene_scaffolds.raw.genes -outagp gene_scaffolds.merged.agp -outgenes gene_scaffolds.merged.genes -outlog merge.log
 
 ===============================================
 STEP 3: Loading of assembly and gene structures
 ===============================================
 
-perl load_gene_scaffolds.pl -dbname $TARGET_CORE_DB -dbuser *** -dbpass *** -dbhost *** -asm_coord_sys_name genescaffold -cmp_coord_sys_name scaffold -seqlevel -directlevel gene_scaffolds.merged.agp 
+perl load_gene_scaffolds.pl -dbname the_target_db.name -dbuser *** -dbpass *** -dbhost *** -asm_coord_sys_name genescaffold -cmp_coord_sys_name scaffold -seqlevel -directlevel gene_scaffolds.merged.agp 
 
-perl load_transcripts.pl -dbname $TARGET_CORE_DB -dbuser *** -dbpass *** -dbhost *** -logic WGA2Genes gene_scaffolds.merged.genes
+perl load_transcripts.pl -dbname the_target_db.name -dbuser *** -dbpass *** -dbhost *** -logic WGA2Genes gene_scaffolds.merged.genes
 
 
 ===================
@@ -268,4 +272,4 @@ each projected entity, it is necessary to add this information as xrefs.
 This can be done by the following script, which should be run *after*
 the main core xrefs have been loaded:
 
-perl add_source_xrefs.pl -dbname $TARGET_CORE_DB -dbuser *** -dbpass *** -dbhost *** -srcdbname $SOURCE_CORE_DB -srcdbuser *** -srcdbpass *** -srcdbhost *** -srcdbport ***
+perl add_source_xrefs.pl -dbname the_target_db.name -dbuser *** -dbpass *** -dbhost *** -srcdbname the_query_db.name -srcdbuser *** -srcdbpass *** -srcdbhost *** -srcdbport ***
