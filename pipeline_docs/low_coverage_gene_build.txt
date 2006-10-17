@@ -247,7 +247,7 @@ STEP 3: Loading of assembly and gene structures
 
 perl load_gene_scaffolds.pl -dbname the_target_db.name -dbuser *** -dbpass *** -dbhost *** -asm_coord_sys_name genescaffold -cmp_coord_sys_name scaffold -seqlevel -directlevel gene_scaffolds.merged.agp 
 
-perl load_transcripts.pl -dbname the_target_db.name -dbuser *** -dbpass *** -dbhost *** -logic WGA2Genes gene_scaffolds.merged.genes
+perl load_transcripts.pl -dbname the_target_db.name -dbuser *** -dbpass *** -dbhost *** -genelogic WGA2Genes -sflogic WGA2Genes gene_scaffolds.merged.genes
 
 
 ===================
