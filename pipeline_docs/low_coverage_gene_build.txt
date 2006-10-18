@@ -171,12 +171,13 @@ condition=SubmitHumanGeneSlice
 </cut>
 
 And ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/Config/BatchQueue.pm
-should have the following (minimally; you might want to add some
+should have the following minimally (you might want to add some
 resource requirements to check loads on the servers containing
 the_query_core_db, the_target_core_db, the_compara_db, and 
 the_pipeline_db it play nicely with the farm. The results are written to
 the_output_dir specified below, so make sure that this exists and has lots
-of space):
+of space. Also, make sure cleanup is set to 'no' below to avoid
+rare problems with duplicate output):
 
 
 <cut>
@@ -190,7 +191,7 @@ of space):
       runner     => '',
       queue      => 'normal',
       output_dir => 'the_output_dir',
-      cleanup => 'yes',
+      cleanup => 'no',
     },
 </cut>
 
