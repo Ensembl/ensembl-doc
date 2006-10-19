@@ -265,6 +265,10 @@ be run instead. The config and set-up are the same as the standard system.
 However, it might be advisable to increase PS_FRAMESHIFT_INTRON_LENGTH from
 the standard 9 to around 20. 
 
+Tip: when generating pipeline input-ids for this, it's much faster to restrict
+to those toplevel sequences that have genes on; if it contains no genes, 
+there's no need for the Pseudogene code to even look at it. 
+
 xrefs
 -----
 
