@@ -6,7 +6,7 @@ Another index system: INDICATE (by Steve Searle)
 	setenv LD_LIBRARY_PATH /nfs/acari/searle/progs/local2/lib:${LD_LIBRARY_PATH}
 
 	There is a program:
-	/nfs/acari/searle/progs/ensembl/ensembl-nci/src/bioglib/program/indicate
+	/nfs/acari/searle/progs/ensembls/ensembl/ensembl-nci/src/bioglib/program/indicate
 
 	which creates the OBDA indexes.
 
