@@ -59,7 +59,7 @@ Make sure that you have these files:
   assembly.agp                                  = contig->scaffold
   Draft_v1.agp.chromosome.fasta (or equivalent) = Broad's assembled sequence
 
-You will also need to look at BasicStats (or BasicAssemblyOneLiner if BasicStats does not exist) to get information for the website. eg. N50.
+You will also need to look at BasicAssemblyOneLiner (preferred over BasicStats) to get information for the website. eg. N50.
 
 
 3.Run setup
