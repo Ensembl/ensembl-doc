@@ -1,0 +1,163 @@
+Remember: main source is here : 
+
+/nfs/acari/jhv//cvs_checkout//ensembl-config/dog/canfam2/modules/Bio/EnsEMBL/Analysis 
+
+
+
+How to set up the OrthologueEvaluator-Run 
+============================================
+
+These config files are used by the OrthologueEvaluator Analysis : 
+
+
+   Bio/EnsEMBL/Analysis/Config/GeneBuild/OrthologeEvaluator.pm
+   Bio/EnsEMBL/Analysis/Config/GeneBuild/OrthologeEvaluatorExonerate.pm
+   Bio/EnsEMBL/Analysis/Config/GeneBuild/Databases.pm 
+   Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm 
+
+
+
+Configuration of Bio::EnsEMBL::Analysis::Config::GeneBuild::OrthologeEvaluator : 
+--------------------------------------------------------------------------------
+
+   1) Fill out the MAIN_CONFIG part of the configuration file and flag the analysis
+      which you like to run - you can run more than one analysis at one time. Also, 
+      set the location of the directory where you like to dump sequences to 
+      and add the location of the compara registry file which you've used for the 
+      compara computes ( this file holds the data to connect to the different core 
+      databases ). 
+
+       RUN_FIND_SPLIT_GENES => 0,
+       RUN_FIND_PARTIAL_GENES => 1,
+       RUN_LOCATE_MISSING_ORTHOLOGUES => 1,
+       
+       SEQUENCE_DUMP_BASE_DIR => "/lustre/work1/ensembl/jhv/project_orth_analysis/seq_dump_cow", 
+  
+       LOCATION_OF_COMPARA_REGISTRY_FILE =>  '/nfs/acari/jhv/compara_reg.example' , 
+      
+
+   2) Than fill out the different configuration parts for each analysis : 
+
+       - If you like to run RUN_LOCATE_MISSING_ORTHOLOGUES you need to fill out the 
+         section LOCATE_MISSING_ORTHOLOGUES. 
+
+       - If you like to run RUN_FIND_PARTIAL_GENES you need to fill out the 
+         section FIND_PARTIAL_GENES .  
+
+       - If you like to run RECOVER_SPLIT_GENES you need to fill out the 
+         section RUN_FIND_SPLIT_GENES. 
+
+
+  
+Configuration of Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases: 
+--------------------------------------------------------------------------------
+
+
+    1) Configure the output database : ORTHOLOGUE_DB 
+
+        ORTHOLOGUE_DB => {
+                           -dbname => 'jhv_fsk_3_41_orth',
+                           -host =>   'genebuild6',
+                           -port =>   '3306'
+                           -user =>   '***REMOVED***',
+                           -pass =>   '********',
+                         },
+
+       Define where the analysis should write it's results to.   
+
+
+Configuration of Bio::EnsEMBL::Analysis::Config::Exonerate2Genes: 
+--------------------------------------------------------------------------------
+
+    You can either use the setup-script in XXXX to write the configuration for the 
+    Exonerate2Genes analysis automaticly, your you can configure the run yourself. 
+
+    You need to enter the path to your softmasked genome in the default section of 
+    exonerate2genes : 
+
+       'DEFAULT' => {
+           'GENOMICSEQS' => '/path/to/softmasked/genome.fa' ,
+       }
+
+
+    The setup-script is the easier way : 
+    - it reads the default configuration file for the Exonerate-Runs out of 
+       
+
+    Before you run the setup-script, make sure that you have the following checkouts in 
+    your PERL5LIB. Remember, all checkouts need to be of the same branch as the one's used 
+    for the compara run. 
+
+    ensembl
+    ensembl-compara 
+    ensembl-pipeline
+    ensembl-analysis 
+       
+  
+   Run setup script to set up the analysis and the input_ids in the reference database and 
+   to store rules and conditions. This script also re-writes the Exonerte2Genes config 
+   in Bio/EnsEMBL/Analysis/Config and backs up your old config - you need to run the setup
+   script with the -write option to rewrite the Exonerate2Genes.pm config ( this is for the 
+   Exonerate runs in the second stage of the analysis). Your existing Exonerate2Genes-file 
+   file will backed up to Exonerate2Genes.pm.bak.0 and there will be a timestamp added 
+   in the top when the file has been backed up - Sorry to say but all the comments in your 
+   original file can't be transferred to the new file. 
+
+   cd /nfs/acari/jhv/cvs_checkout/ensembl-personal/jhv/projects/orthologue_analysis
+
+      perl  setup_orthologue_analysis.pl -dbname jhv_fsk_3_41_ref -dbhost genebuild2 -write 
+ 
+
+
+
+
+
+Configuration of Bio::EnsEMBL::Pipeline::Config::BatchQueue.pm :
+------------------------------------------------------------------
+
+ The setup-script configures quite a lot of different analysis - if you don't want to add
+ the parameters by hand, you can use the default configuration for this : 
+
+
+    DEFAULT_RUNNABLEDB_PATH => 'Bio/EnsEMBL/Analysis/RunnableDB', 
+    DEFAULT_CLEANUP         => 'no', 
+    DEFAULT_BATCH_QUEUE     => 'normal', 
+    DEFAULT_OUTPUT_DIR      => '/lustre/work1/ensembl/jhv/project_orth_analysis/default_output',
+
+
+
+A couple of other little things you need to have : 
+----------------------------------------------------------
+
+
+General.pm : 
+
+  cp $ENSEMBL_PIPELINE/modules/Bio/EnsEMBL/Pipeline/Config/General.pm.example\
+      $ENSEMBL_PIPELINE/modules/Bio/EnsEMBL/Pipeline/Config/General.pm 
+
+  cp $ENSEMBL_ANALYSIS/modules/Bio/EnsEMBL/Analysis/Config/General.pm.example\
+      $ENSEMBL_ANALYSIS/modules/Bio/EnsEMBL/Analysis/Config/General.pm
+
+  cp $ENSEMBL_PIPELINE/modules/Bio/EnsEMBL/Pipeline/Config/BatchQueue.pm.example\
+      $ENSEMBL_PIPELINE/modules/Bio/EnsEMBL/Pipeline/Config/BatchQueue.pm 
+
+
+
+
+
+
+
+
+
+=============================================================
+
+Required modules for the setup-script and Bio::EnsEMBL::Analysis::Tools::ConfigUtils : 
+
+- PPI;  
+- Clone;  
+- List::MoreUtils; 
+- FindBin; 
+- Data::Dumper; 
+
+Watch out - MoreUtils 1.18 is not compatible with Utils 1.14
+
