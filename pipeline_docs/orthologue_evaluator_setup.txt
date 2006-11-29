@@ -1,19 +1,50 @@
-Remember: main source is here : 
 
-/nfs/acari/jhv//cvs_checkout//ensembl-config/dog/canfam2/modules/Bio/EnsEMBL/Analysis 
 
+OrthologueEvalutation : 
+=======================
+
+  The OrthologueEvalutation process uses a compara database and several 
+  core databases to check if a genebuild contains partial or split genes 
+  or if it misses orthologues genes in other species. 
+  
+  It runs in 2 stages : PRE and POST. 
+
+PRE stage :
+=========== 
+  
+  In the PRE stage three different RunnableDB's (FindPartialGenes,FindSplitGenes 
+  and FindMissingOrthologues) query the Compara database to gather data about 
+  missing/partial/split genes. The translations of the identified genes / transcripts 
+  will be dumped and input-ids for the POST analysis will be uploaded by these 
+  runnables into the input_id_table. 
+  
+
+POST stage :
+=========== 
+  
+  The post stage uses Exonerte2Genes to make new gene predictions based on the 
+  dumped translations.
+  
+  
+  
+  
+  The setup of the different analysis can be done by a script in  
+  
+        ensembl-pipeline/scripts/setup_orthologue_evaluator.pl
+  
+  
 
 
 How to set up the OrthologueEvaluator-Run 
 ============================================
 
-These config files are used by the OrthologueEvaluator Analysis : 
+   These config files are used by the OrthologueEvaluator Analysis : 
 
 
-   Bio/EnsEMBL/Analysis/Config/GeneBuild/OrthologeEvaluator.pm
-   Bio/EnsEMBL/Analysis/Config/GeneBuild/OrthologeEvaluatorExonerate.pm
-   Bio/EnsEMBL/Analysis/Config/GeneBuild/Databases.pm 
-   Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm 
+     Bio/EnsEMBL/Analysis/Config/GeneBuild/OrthologeEvaluator.pm
+     Bio/EnsEMBL/Analysis/Config/GeneBuild/OrthologeEvaluatorExonerate.pm
+     Bio/EnsEMBL/Analysis/Config/GeneBuild/Databases.pm 
+     Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm 
 
 
 
@@ -27,19 +58,20 @@ Configuration of Bio::EnsEMBL::Analysis::Config::GeneBuild::OrthologeEvaluator :
       compara computes ( this file holds the data to connect to the different core 
       databases ). 
 
-       RUN_FIND_SPLIT_GENES => 0,
-       RUN_FIND_PARTIAL_GENES => 1,
-       RUN_LOCATE_MISSING_ORTHOLOGUES => 1,
+       RUN_FIND_SPLIT_GENES          => 0,
+       RUN_FIND_PARTIAL_GENES        => 1,
+       RUN_FIND__MISSING_ORTHOLOGUES => 1,
        
        SEQUENCE_DUMP_BASE_DIR => "/lustre/work1/ensembl/jhv/project_orth_analysis/seq_dump_cow", 
   
        LOCATION_OF_COMPARA_REGISTRY_FILE =>  '/nfs/acari/jhv/compara_reg.example' , 
       
 
+
    2) Than fill out the different configuration parts for each analysis : 
 
-       - If you like to run RUN_LOCATE_MISSING_ORTHOLOGUES you need to fill out the 
-         section LOCATE_MISSING_ORTHOLOGUES. 
+       - If you like to run RUN_FIND_MISSING_ORTHOLOGUES you need to fill out the 
+         section FIND_MISSING_ORTHOLOGUES. 
 
        - If you like to run RUN_FIND_PARTIAL_GENES you need to fill out the 
          section FIND_PARTIAL_GENES .  
@@ -54,6 +86,7 @@ Configuration of Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases:
 
 
     1) Configure the output database : ORTHOLOGUE_DB 
+       This will be the database where the Exonerate2Genes runs write their results to. 
 
         ORTHOLOGUE_DB => {
                            -dbname => 'jhv_fsk_3_41_orth',
@@ -63,14 +96,42 @@ Configuration of Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases:
                            -pass =>   '********',
                          },
 
-       Define where the analysis should write it's results to.   
+
+
+
 
 
 Configuration of Bio::EnsEMBL::Analysis::Config::Exonerate2Genes: 
 --------------------------------------------------------------------------------
 
-    You can either use the setup-script in XXXX to write the configuration for the 
-    Exonerate2Genes analysis automaticly, your you can configure the run yourself. 
+    If you use the setup-script in 
+
+                        ensembl-pipeline/scripts 
+
+    you can skip this section because the setup script will fill out the Exonerate2Genes 
+    configuration for you and back-up your existing Exonerte2Genes config. 
+
+    If you want to configure Exonerate2Genes manually, you need an entry for every  
+    logic_name used in OrthologeEvaluator.pm-Config - logic_names are the keys of the 
+    ANALYSIS_SETS -hash of every section. ( e.g. if you have configuration of an analysis 
+    'hum_dog_split' in FIND_SPLIT_GENES-section you need an entry in the Exonerte2Genes
+    config which look like this : 
+
+    'hum_dog_split' => {
+        'OUTDB' => {
+           '-user' => 'user_with_write_priv',
+           '-host' => 'dbhost',
+           '-dbname' => 'name_of_your_out_db', 
+           '-pass' => '*******',
+           '-port' => '3306'
+         },
+      'IIDREGEXP' => '(\\d+):(\\d+)',
+      'QUERYSEQS' => '/path/to/where/you/dumped/the/seqs/' , 
+      'OPTIONS' => '--model protein2genome --forwardcoordinates FALSE --softmasktarget TRUE --exhaustive FALSE  --bestn 1',
+      'COVERAGE_BY_ALIGNED' => 0,
+      'QUERYTYPE' => 'protein'
+    },
+ 
 
     You need to enter the path to your softmasked genome in the default section of 
     exonerate2genes : 
@@ -80,10 +141,27 @@ Configuration of Bio::EnsEMBL::Analysis::Config::Exonerate2Genes:
        }
 
 
-    The setup-script is the easier way : 
-    - it reads the default configuration file for the Exonerate-Runs out of 
-       
 
+
+    The easier way is to use the setup-script :  
+
+    It will read the configuration out of these modules :
+
+       Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases;
+       Bio::EnsEMBL::Analysis::Config::GeneBuild::OrthologueEvaluator;
+       Bio::EnsEMBL::Analysis::Config::GeneBuild::OrthologueEvaluatorExonerate; 
+
+
+     and writes an Exonerte2Genes.pm configuration. The script also adds rules and conditions to your 
+     reference database and adds the analysis your reference database - remember, you still need to syncronize the 
+     analysis table of your ref-database with the table in ORTHOLOGUE_DB database. 
+
+     You can use this command to do this : 
+
+        mysqldump -h host -user ensro reference_db analysis > analysis.sql 
+        mysql -h host -u user -pass **** -D ORTHOLOGUE_DB -e 'source analysis.sql' 
+  
+       
     Before you run the setup-script, make sure that you have the following checkouts in 
     your PERL5LIB. Remember, all checkouts need to be of the same branch as the one's used 
     for the compara run. 
@@ -92,7 +170,17 @@ Configuration of Bio::EnsEMBL::Analysis::Config::Exonerate2Genes:
     ensembl-compara 
     ensembl-pipeline
     ensembl-analysis 
-       
+    
+   The setup script requires some additonal libs :  
+
+       Data::Dumper FindBin  PPI  Clone  List::MoreUtils 
+
+   If you like to install these libs be aware that MoreUtils v. 1.18 is not compatible with Utils v. 1.14. 
+
+   Sanger-internals can add these modules (compiled for linux) to their PERL5LIB by 
+   sourcing this file :
+
+                     /nfs/acari/jhv/lib/set_orth_path.sh  
   
    Run setup script to set up the analysis and the input_ids in the reference database and 
    to store rules and conditions. This script also re-writes the Exonerte2Genes config 
@@ -103,12 +191,9 @@ Configuration of Bio::EnsEMBL::Analysis::Config::Exonerate2Genes:
    in the top when the file has been backed up - Sorry to say but all the comments in your 
    original file can't be transferred to the new file. 
 
-   cd /nfs/acari/jhv/cvs_checkout/ensembl-personal/jhv/projects/orthologue_analysis
 
-      perl  setup_orthologue_analysis.pl -dbname jhv_fsk_3_41_ref -dbhost genebuild2 -write 
+    perl ensembl-pipeline/scripts/setup_orthologue_analysis.pl -dbname <DBNAME> -dbhost <DBHOST> -write 
  
-
-
 
 
 
@@ -149,15 +234,4 @@ General.pm :
 
 
 
-=============================================================
-
-Required modules for the setup-script and Bio::EnsEMBL::Analysis::Tools::ConfigUtils : 
-
-- PPI;  
-- Clone;  
-- List::MoreUtils; 
-- FindBin; 
-- Data::Dumper; 
-
-Watch out - MoreUtils 1.18 is not compatible with Utils 1.14
 
