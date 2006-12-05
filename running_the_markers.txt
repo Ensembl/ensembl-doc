@@ -24,14 +24,18 @@ STS markers can be fetched for many species from UniSTS
 
 ftp://ftp.ncbi.nih.gov/repository/UniSTS/UniSTS.sts
 
-then you need to grep your species markers out of that file which
-can simply be done like this
+then you need to get the data for your species markers out of 
+that file which can be done by running a script in 
 
-grep -i 'Homo sapiens' UniSTS.sts > human.sts
+         ensembl-analysis/scripts/markers 
+
+
+  perl parse_UniSTS.pl -file UniSTS.sts -species "Canis familiaris" \
+       -outfile dog_markers.txt 
 
 
 Some species have other marker sets like you can get markers for rat from
-RGD 
+RGD. 
 
 You also need to fetch the map location files for at least the UniSTS 
 markers these files specify the map location for each marker in the genome.
