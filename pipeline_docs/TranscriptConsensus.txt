@@ -1,0 +1,72 @@
+TranscriptConsensus
+===================
+
+Transcript consensus attempts to find the most supported transcript(s) from a cluster.
+It works by collapsing the cluster into a non redundant set of introns and exons which are then assigned a score 
+based on how may identical features were collapsed compared to how many non identical features the collapsed feature 
+overlaps.
+It was designed to be used after the similarity genebuild and EST / cDNA alignments have been run and needs a large 
+number of transcripts to run on.
+
+It is an extension of TranscriptCoalescer and so uses the same configuration files to determine
+which gene sets to use and which databases to get them from:
+Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases.pm
+Bio::EnsEMBL::Analysis::Config::GeneBuild::TranscriptCoalescer.pm
+
+In addition it has it's own configuration file:
+Bio::EnsEMBL::Analysis::Config::GeneBuild::TranscriptConsensus.pm
+
+The Module may be used to add UTR to the genes if required, using whichever dna set you have chosen (cDNAs, ESTs).
+The added UTR is scored in the same way as the coding exons and so contributes to the overall  transcript score, UTR 
+may also be down-weighted so that genes with UTR score less well, and so are filtered out unless there is a lot of 
+evidence for the UTR.
+
+
+Example configuration:
+######################
+
+  FILTER_SINGLETONS => 0,
+  FILTER_NON_CONSENSUS => 0,
+  FILTER_ESTS       => 0,
+Pre-filtering - this is run before the clustering to remove genes with unsupported exons (singletons) or genes with 
+non-consensus splice sites, the numbers chosen in the config are the maximum number to tolerate before the transcript is filtered, here they are all 0 so the filtering is turned off.
+This is an aggressive approach, and can often filter out useful things, however sometimes it is very useful for 
+untangling clusters that have become joined.
+  
+  
+
+  ADD_UTR => 1,
+This will prevent addition of UTR if set to zero, ESTs / cDNAs can still be used to help improve the scoring even if 
+they are not used to add UTR.
+  
+
+  MIN_CONSENSUS => 4,
+  
+For clusters with veryu few transcripts the scoring is ineffective and so this option lets you ignore small clusters 
+In this case all the transcripts are written to the final database.
+  
+
+  UTR_PENALTY => 0.1,
+  
+Make UTR addition more or less conservative 0 = neutral 1 = never add UTR
+  
+  # penalty to stop "spindly" exons
+  END_EXON_PENALTY => 0.3,
+  
+ This penalty is designed to stop "spindly" exons where the transcripts is over extended
+  
+
+  EST_OVERLAP_PENALTY => 0.1,
+  
+This penalises internal exons that overlap an EST / cDNA transcript but not an exon
+  
+  SHORT_INTRON_PENALTY => 10,  
+  SHORT_EXON_PENALTY => 10,     
+This is a penalty for short exons and introns, ( lots of little exons can artificially inflate a transcripts score ).
+  
+  GOOD_PERCENT  => 0,
+This defines how many transcripts we wish to keep, i.e.:
+ 0 = only the highest scoring transcript / transcripts
+ 2 = the top 2% highest scoring transcripts
+ 100 = all possible transcripts.
+  
