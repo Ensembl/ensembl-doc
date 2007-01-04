@@ -94,7 +94,7 @@ REQUIREMENTS
 
 - A pipeline database
 
-  This facilitates the running of the first, WGA2Genes stage; the assumption 
+  This facilitates the running of the first, WGA2Genes stage (the assumption 
   is that you will have already set up a pipeline database for the preparation 
   and processing of the WGA). This database will be referred to as 
   'the_pipeline_db'. It will often be the case that your pipeline database is
