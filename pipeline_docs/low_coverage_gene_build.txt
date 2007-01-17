@@ -48,14 +48,15 @@ The procedure has six phases:
     break-point). This step is not needed if the results of all raw 
     computes were stored at the sequence level (usually contigs).
 
-(5) Run the later stages of the Ensembl gene-build
+(5) Run some "standard" gene-build components
 
-    It may be appropriate to run the Ensembl GeneBuilder module,
-    in order to cluster transcripts into genes (and thence all subsequent
-    stages of a normal gene-build, for example protein annotation). 
-    In addition, it is often sensible to run some Genewises/Exonerates 
+    It is often sensible to run some Genewises/Exonerates 
     at this point, in the style of the classical gene-build, targetting 
-    regions not covered by projected genes.
+    regions not covered by projected genes. Whether you do this or not
+    depends on how much species-specific data is available. 
+
+    Note: protein annotation and xrefs are still required as the last
+    steps of the build process.
 
 (6) Extra things
 
