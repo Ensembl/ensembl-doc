@@ -650,7 +650,7 @@ overlapping with genes with these types are not aligned).
 
 For bitty genomes, the script can take a few hours or more to run. It 
 is possible to parallelise the process, because the script also optionally
-accespts the name of a file of slice ids, allowing it to consider a 
+accepts the name of a file of slice ids, allowing it to consider a 
 subset of the genome. In order to exploit this, we might proceed thus:
 
 % mkdir /some/where/tlslices
@@ -844,6 +844,12 @@ Bio::EnsEMBL::Pipeline::Config::GeneBuild::Blessed
 
 This must at least exist. If you have blessed types then they are
 specified in an array of hashes.
+
+It reads the input gene type from
+
+Bio::EnsEMBL::Pipeline::Config::GeneBuild::Targetted
+and
+Bio::EnsEMBL::Pipeline::Config::GeneBuild::Similarity
 
 INPUT_DB: GB_, reference db
           GB_GW, genewise db 
