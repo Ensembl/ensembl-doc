@@ -1,0 +1,65 @@
+*********************************************
+* Ensembl stable ID mapping developer guide *
+*********************************************
+
+Author: Patrick Meidl <meidl@ebi.ac.uk>
+
+Please post questions to the Ensembl developers mailinglist
+<ensembl-dev@ebi.ac.uk>
+
+
+This document describes the technical details of the Ensembl stable ID mapping
+implementation. It's intended for people who need to modify or extend the
+existing code. If you merely want the run the stable ID mapping, please refer
+to user_guide.txt.
+
+
+Table of content
+================
+
+Files
+Design overview
+Configuration
+Logging
+How to extend the application
+Wishlist
+
+
+-------------------------------------------------------------------------------
+Design overview
+-------------------------------------------------------------------------------
+
+- explain algorithm
+
+- explain how code is split up into scripts and modules: wrappers, components,
+  lsf, ...
+
+
+-------------------------------------------------------------------------------
+Configuration
+-------------------------------------------------------------------------------
+
+- explain ConfParser:
+  - conf file, overwritten by commandline arguments
+  - validity, requirement checks done
+  - implicit (general) parameters
+  - how to access parameters in your script
+
+
+-------------------------------------------------------------------------------
+Logging
+-------------------------------------------------------------------------------
+
+- explain how Logger works:
+  - log to file, fallback to STDERR
+  - caveats when using lsf
+
+- log level:
+  - guide on which levels to use
+  - how to set log level
+
+
+-------------------------------------------------------------------------------
+Wishlist
+-------------------------------------------------------------------------------
+

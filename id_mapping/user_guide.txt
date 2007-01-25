@@ -1,0 +1,22 @@
+****************************************
+* Ensembl stable ID mapping user guide *
+****************************************
+
+Author: Patrick Meidl <meidl@ebi.ac.uk>
+
+Please post questions to the Ensembl developers mailinglist
+<ensembl-dev@ebi.ac.uk>
+
+
+This document describes how to use the Ensembl stable ID mapping application.
+If you intend to modify or extend the code, please refer to
+developer_guide.txt.
+
+Table of content
+================
+
+Files
+Overview
+Run the stable ID mapping
+Troubleshooting
+
