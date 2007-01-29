@@ -135,6 +135,10 @@ genome that should contain one or more genes. Because each of these
 slices can be considered independently, the process can be parallelised
 on the farm using the pipeline. 
 
+Unlike normal RunnableDBs, the output is not written to a database,
+but instead to stdout, in AGP and GFF format. 
+
+------------
 Config setup
 ------------
 
@@ -147,7 +151,7 @@ The values of other attributes should only be changed if you know what
 you're doing (the .example file gives an overview of the function of each 
 attribute).
 
-
+---------------
 Pipeline set-up
 ---------------
 
@@ -227,6 +231,21 @@ foreach? end
 because the annotated mitochrondrion is usally loaded separately for 
 the target genome). 
 
+--------------------
+Things to be wary of
+--------------------
+
+- If testing with test_RunnableDB, do not use the "-verbose"
+  flag. This assumes that the output is reference to an arracy of
+  genes/features, which in this case it is not. Instead, use the
+  "-write" flag, which writes the output to the display (the results
+  are not written back to a database in this system). 
+
+- It is normal to get warnings about attributes ("Cannot get
+  attributes without an adaptor") and alignent features ("Insert
+  followed by Delete") during this process.
+
+
 =====================================================
 STEP 2: Consolidation and extension of gene scaffolds
 =====================================================
@@ -256,6 +275,7 @@ perl load_transcripts.pl -dbname the_target_db.name -dbuser *** -dbpass *** -dbh
 STEP 6: Extra stuff
 ===================
 
+-------------------
 Pseudogene analysis
 -------------------
 
@@ -270,6 +290,7 @@ Tip: when generating pipeline input-ids for this, it's much faster to restrict
 to those toplevel sequences that have genes on; if it contains no genes, 
 there's no need for the Pseudogene code to even look at it. 
 
+-----
 xrefs
 -----
 
