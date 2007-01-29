@@ -144,8 +144,9 @@ Config setup
 
 It is necessary to plug in the details of the the_query_core_db,
 the_target_core_db, the_compara_db and the_kill_list_file
-into the appropriate places in the config file, and to set INPUT_METHOD_LINK_TYPE 
-to WGA_method_link_type
+into the appropriate places in the config file 
+(Bio::EnsEMBL::Analysis::Config::WGA2Genes), and to set 
+INPUT_METHOD_LINK_TYPE to WGA_method_link_type (usually "CONTIG_AWARE_NET").
 
 The values of other attributes should only be changed if you know what 
 you're doing (the .example file gives an overview of the function of each 
@@ -245,6 +246,7 @@ Things to be wary of
   attributes without an adaptor") and alignent features ("Insert
   followed by Delete") during this process.
 
+- supply "-input_id_type HUMANGENESLICE" to the rulemanager.pl script to speed thing up
 
 =====================================================
 STEP 2: Consolidation and extension of gene scaffolds
@@ -260,7 +262,7 @@ once, it is performed by a single run of a script.
 
 - Run merge/consolidation script
 
-% perl merge_and_extend_gene_scaffolds.pl -dbname the_target_db.name -dbuser *** -dbhost *** -agp gene_scaffolds.raw.agp -genes gene_scaffolds.raw.genes -outagp gene_scaffolds.merged.agp -outgenes gene_scaffolds.merged.genes -outlog merge.log
+% perl merge_and_extend_gene_scaffolds.pl -dbname the_target_db.name -dbuser *** -dbhost the_target_db.host -agp gene_scaffolds.raw.agp -genes gene_scaffolds.raw.genes -outagp gene_scaffolds.merged.agp -outgenes gene_scaffolds.merged.genes -outlog merge.log
 
 ===============================================
 STEP 3: Loading of assembly and gene structures
