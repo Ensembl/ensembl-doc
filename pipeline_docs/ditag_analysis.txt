@@ -1,14 +1,35 @@
+
  ##########################################
  ##       DITAG ANALYSIS README          ##
  ##########################################
 
-Get data:
-Ditags in FASTA format
+This analysis attempts to prepare sequence tags and align them to the genome.
+The tags are start or start & end of expressed sequences of the types ditag
+(GIS, GCS, and similar) and CAGE.
+For more details on the ditag technology see e.g. this:
+Ng P, Wei CL, Sung WK, Chiu KP, Lipovich L, Ang CC, Gupta S, Shahab A, Ridwan A, Wong CH, Liu ET, Ruan Y.
+Gene identification signature (GIS) analysis for transcriptome characterization and genome annotation.
+Nat. Methods 2(2), 105-11 (2005).
 
-Prepare database:
+
+1. Get data
+============
+Ditags in FASTA format.
+Sources:
+mouse
+ GIS: ftp://fantom.gsc.riken.jp/FANTOM3/GIS/
+ GSC: ftp://fantom.gsc.riken.jp/FANTOM3/GSC/
+ or preprocessed from the PET-Tool at: http://www.gis.a-star.edu.sg/PET_Tool
+
+human 
+ CAGE: http://fantom31p.gsc.riken.jp/cage/download/hg17/
+
+
+2. Prepare database
+================
  typically uses core database with dna, etc. loaded + pipeline tables.
 
- extra table setup (part of core schema from v40):
+ extra table setup (part of core schema since v40):
 
 CREATE TABLE ditag (
 
@@ -44,19 +65,27 @@ CREATE TABLE ditag_feature (
 
 pipeline setup:
 
-INSERT INTO analysis VALUES (1,'2006-02-17 18:15:17','SubmitDitag',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
-INSERT INTO analysis VALUES (2,'2006-02-09 18:20:45','DitagAlign',NULL,NULL,NULL,NULL,NULL,NULL,NULL,'Ditag',NULL,NULL,NULL);
+Use ensembl-pipeline/scripts/analysis_setup.pl with the following:
+
+<cut>
+[SubmitDitag]
+module=Dummy
+input_id_type=DITAG
+
+[DitagAlign]
+input_id_type=DITAG
+</cut>
+
+And ensembl-pipeline/scripts/rule_setup.pl with the following:
+
+<cut>
+[DitagAlign]
+condition=SubmitDitag
+</cut>
 
 
-INSERT INTO input_id_type_analysis VALUES (1,'DITAG_CHUNK');
-INSERT INTO input_id_type_analysis VALUES (2,'DITAG_CHUNK');
-
-INSERT INTO rule_goal VALUES (1,'2');
-
-INSERT INTO rule_conditions VALUES (1,'SubmitDitag');
-
-
-Setup config:
+3. Setup config
+===============
 - GB_DBHOST, etc. in Bio::EnsEMBL::Analysis::Config::Databases.pm
 - general and specific values in Bio::EnsEMBL::Analysis::Config::Ditag.pm
 - BatchQueue.pm entry:
@@ -66,34 +95,28 @@ Setup config:
       #something like this:
        resource   => 'select[myia64f<400] rusage[myia64f=10:duration=10:decay=1]',
       #or for some big failing jobs
-       resource   => 'select[mem>2500] rusage[mem=2500]',
+      # resource   => 'select[mem>2500] rusage[mem=2500]',
       retries    => 2,
       sub_args   => '',
       runner     => '',
       runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
     },
-	
-Analysis entries:
-analysis:
- [SubmitDitag]
- input_id_type=DITAG_CHUNK
-
- [DitagAlign]
- module=Ditag
- input_id_type=DITAG
- 
-rule:
- [DitagAlign]
- condition=SubmitDitag
 
 
+4. Load ditag sequences
+=======================
 Load Ditags to database and generate inut ids for alignment of DitagFeatures:
  perl ensembl-analysis/scripts/load_ditags.pl -type ZZ11 -write -delete
+The script creates a temporary file that is loaded into the database using the -write option.
+The file is removed imidiately when using the -delete option
 
+5. Produce alignment
+====================
 Run test:
  perl ensembl-analysis/scripts/test_RunnableDB $READ_DB_ARGS -input_id ditag.ZZ11.2 -logic_name DitagAlign -module Ditag
 
 Start analysis:
  perl ensembl-pipeline/scripts/rulemanager.pl $WRITE_DB_ARGS -once -analysis DitagAlign -input_id_type DITAG_CHUNK
 
+This needs to be repeated for different ditag types and usually takes between 1 and 2 days.
 
