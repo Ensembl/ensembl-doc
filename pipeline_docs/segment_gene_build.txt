@@ -1,0 +1,115 @@
+==========================================
+Predicting TcR/Ig gene segments in Ensembl
+==========================================
+
+The "classical" Ensembl gene-build performs badly in genomic regions
+containing clusters of Immunoglobulin/T-cell repeptor gene
+segments. This is because many proteins in Uniprot are full-length
+products of a transcript expressed from the genome after the associated 
+V(D)J recombination event. When aligned back to the genome using a
+spliced-alignment program (e.g. Genewise, Exonerate), the segment
+boundaries are often incorrectly predicted because the junctions have a
+very different sequence signal to that of splice sites. In addition,
+the C and V segments are often mult-exon, making delineation of the
+predicted "transcript" into V/D/J/C segments non trival. 
+
+To overcome this problem, we make use of the IMGT database
+(http://imgt.cines.fr/) which contains annotations of individual gene
+segments on RNA and genomic DNA reference entries. Our strategy then
+is extract the segments for our species of interest from IMGT and
+align those to the genome (using Exonerate). The gene segments are
+then transferred into a database that contains an existing, standard
+gene-build, removing transcripts that "interfere" (overlap at the exon
+level) with segments (in the assumption that they are wrong).
+
+
+
+========
+OVERVIEW
+========
+
+The procedure can be broken down into the following stages:
+
+(1) Download and preparation of the IMGT database flat file
+
+(2) Extraction of relevant segment sequences from the file file
+
+(3) Alignment of segment sequences to the genome using Exonerate
+
+(4) Run the IgSegBuilder, which uses the Exonerate alignments to
+    construct the set of gene segments
+
+(5) (optional) If supplying the gene segments as a patch for an
+    existing build, transfer them into the target database, removing
+    interferring gene structures asserted to be incorrect. 
+
+
+============
+REQUIREMENTS
+============
+
+- Code
+
+  The following CVS check-outs are required (and the path to the
+  "modules" directory in each of the check-outs should be added to
+  PERL5LIB): 
+
+  ensembl
+  ensembl-analysis
+  ensembl-pipeline
+  ensembl-personal/klh/imgt
+
+  As normal, bioperl is also required. For the extraction of sequence
+  segments from the IMGT flat-file, it is necessary to use a recent
+  version of bioperl (1.5+). 
+
+
+- Databases
+
+  (1) A pipeline database. This database should contain the sequence
+      and assembly of the genome of interest, and will store the
+      results of the Exonerate alignments. 
+
+  (2) An output database. This will be the the database into which
+      the gene-segments are written by the IgSegBuilder stage. 
+
+  (3) A release database (optional). If providing the gene segments as
+      a patch for an existing build, this database will contain the
+      genes, features and all other data from that build (and is the
+      database that will be patched and handed over).  
+
+- Data
+
+  (1) The IMGT database flat-file. 
+
+  (2) A list of entries to ignore ("kill list") when extracting
+      sub-sequences from the IMGT flat-file. The latest list can be
+      found in ensembl-personal/klh/imgt/data/kill_list.txt
+
+
+======================================================
+STEP 1: Download and preparation of the IMGT flat file
+======================================================
+        
+The database distribution can be obtained from:
+
+    ftp://ftp.cines.fr/IMGT/IMGT.zip
+    
+After unzipping, the flat-file is IMGT/imgt.dat.Z, which should be
+moved into another directory and uncompressed (don't be fooled by the
+apparently already-uncompressed imgt-dat; this is a small file and
+seems to be an artefact). 
+    
+Some of the downstream processes require the flat-file to be indicate
+indexed, which can be peformed thus: 
+
+ ~searle/progs/production_code/ensembl-trunk_1106/ensc-core/src/Programs/indicate --data_dir $WORK/ig/IMGT/database -f imgt.dat -i $WORK/ig/IMGT/database/indicate_idx -l ID -r ID -p emblParser
+
+
+======================================================
+STEP 2: Extraction of relevant segments from flat-file
+======================================================
+
+ensembl-personal/klh/imgt/scripts contains two scripts to help with
+this task. The first, extract_segments_from_imgt.pl, fetches
+segments with the specified tag or tags from the flat file. 
