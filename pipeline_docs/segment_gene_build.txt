@@ -112,4 +112,137 @@ STEP 2: Extraction of relevant segments from flat-file
 
 ensembl-personal/klh/imgt/scripts contains two scripts to help with
 this task. The first, extract_segments_from_imgt.pl, fetches
-segments with the specified tag or tags from the flat file. 
+segments with the specified tag or tags from the flat file. The
+second, contant_regions_from_imgt.pl, extracts constant regions from
+genomic DNA entries the flat file. A specialist script is needed to do
+this, because the constant regions can contain multiple exons and also
+UTR which needs to be removed. 
+
+Examples:
+
+perl extract_segments_from_imgt.pl -tag L-PART1:L-PART2:V-REGION -tag L-REGION:V-REGION -tag L-V-REGION -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 30 -Cstopallow 2 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat
+
+This example extracts human V segments from the file (including the
+leader sequence). The following points are of note:
+
+- LV regions are flagged in different ways in different entries. Three
+  different variants of the "-tag" option are therefore supplied.
+
+- Rejection of entries with the keywords "orphon", "Ig-surrogate" and
+  "Ig-surrogate-vpreb" because these refer to sequences that are not
+  part of the core Ig/TcR gene segment set.
+
+- We restrict ourselves to entries that have been processed by the
+  IMGT team, either manually or automatically (i.e. we do not consider
+  the "keyword" annotation class).
+
+- We translate the sequences, resulting in a set of peptides to
+  represent the segments. 
+
+- We allow stop codons within 2 residues of the C-terminus of the
+  protein, which can sometimes happen in functional V segments (the 3'
+  end can be edited away by the recombination event, so these segments
+  are stop-free and functional in some recombinations). 
+
+- We reject entries that are found in a "kill list" file (ones that
+  we know to be wrong or misleading to the build process). 
+
+perl extract_segments_from_imgt.pl -tag C-REGION -tax Homo_sapiens -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat
+
+perl constant_regions_from_imgt.pl -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -translate -minlength 150 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat
+
+These two examples extract human C segments from the file, using both
+the generic script and the constant-region-specific script. 
+
+perl extract_segments_from_imgt.pl -tag D-REGION -tax Homo_sapiens -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat
+
+This example extracts human D segments from the file. Since D segments
+are very short, we restrict to genomic DNA entries and extract 50 bps
+of flanking sequence which will make the placement on the genome more
+specific. The position of the D-segment itself within the extracted
+sequence is stored in the header line. This information can be
+extracted into a file to be used as "annotation" for the cdna2genome
+model in Exonerate, thus (if the output of th above is D.fa):
+
+perl -ne '/\>(\S+)\s+.+cds=(\d+)\-(\d+)/ and print "$1 + $2 ", $3-$2+1, "\n";' D.fa > D.annotation
+
+The command-lines to prepare the file necessary for Ig segment
+annotation in human and mouse are found at the end of this document. 
+
+
+
+====================================================================
+STEP 3: Alignment of segment sequences to the genome using Exonerate
+====================================================================
+
+
+
+
+
+
+=================================================
+APPENDIX A: preparation of IMGT segment sequences
+ for human and mouse
+=================================================
+
+Rules when extracting data from IMGT flat-file
+
+Encoded in the script:
+
+- Ignore pseudogenes (by scanning keywords and looking for the /pseudo tag)
+
+- Ignore partial segments
+
+
+Specified by command-line options:
+
+- Ignore entries annotated as "orphon" because these will
+  map to non-standard-locus positions on the genome and will
+  therefore be misleading. 
+
+- Ignore entries with the "Ig-surrogate" keyword, because these
+  are Ig "helper" proteins and not segments (also added
+  Ig-surrogate-vpreb to the bad keywords list because some of these
+  do not also have the "Ig-surrogate" keyword)
+
+- Only process entries of the "by annotator" and "automatic" class
+  (thus ignoring the "keyword" class, which have only been
+  keyword annotated)
+
+Human
+-----
+
+perl extract_segments_from_imgt.pl -tag L-PART1:L-PART2:V-REGION -tag L-REGION:V-REGION -tag L-V-REGION -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 30 -Cstopallow 2 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > L_V.human.pep.fa
+
+perl extract_segments_from_imgt.pl -tag D-REGION -tax Homo_sapiens -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/database/imgt.dat > D.human.cdna.fa
+
+perl extract_segments_from_imgt.pl -tag J-REGION -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -minlength 10 -translate -Nstopallow 2 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > J.human.pep.fa
+
+perl extract_segments_from_imgt.pl -tag J-REGION -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > J.human.cdna.fa
+
+perl extract_segments_from_imgt.pl -tag C-REGION -tax Homo_sapiens -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > C.from_RNA.human.pep.fa
+
+perl constant_regions_from_imgt.pl -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -translate -minlength 150 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > C.from_gen_DNA.human.pep.fa
+
+perl -ne '/\>(\S+)\s+.+cds=(\d+)\-(\d+)/ and print "$1 + $2 ", $3-$2+1, "\n";' J.human.cdna.fa > J.human.cdna.annotation
+
+perl -ne '/\>(\S+)\s+.+cds=(\d+)\-(\d+)/ and print "$1 + $2 ", $3-$2+1, "\n";' D.human.cdna.fa > D.human.cdna.annotation
+
+Mouse
+-----
+
+perl extract_segments_from_imgt.pl -tag L-PART1:L-PART2:V-REGION -tag L-REGION:V-REGION -tag L-V-REGION -tag V-REGION -tax Mus_musculus -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 30 -Cstopallow 2  -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > L_V.mouse.pep.fa
+
+perl extract_segments_from_imgt.pl -tag D-REGION -tax Mus_musculus -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > D.mouse.cdna.fa
+
+perl extract_segments_from_imgt.pl -tag J-REGION -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -minlength 10 -translate -Nstopallow 2 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > J.mouse.pep.fa 
+
+perl extract_segments_from_imgt.pl -tag J-REGION -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > J.mouse.cdna.fa
+
+perl extract_segments_from_imgt.pl -tag C-REGION -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > C.from_RNA.mouse.pep.fa
+
+perl constant_regions_from_imgt.pl -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -translate -minlength 150 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > C.from_gen_DNA.mouse.pep.fa
+
+perl -ne '/\>(\S+)\s+.+cds=(\d+)\-(\d+)/ and print "$1 + $2 ", $3-$2+1, "\n";' J.mouse.cdna.fa > J.mouse.cdna.annotation
+
+perl -ne '/\>(\S+)\s+.+cds=(\d+)\-(\d+)/ and print "$1 + $2 ", $3-$2+1, "\n";' D.mouse.cdna.fa > D.mouse.cdna.annotation
