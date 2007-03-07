@@ -145,7 +145,7 @@ PROGRAM     : None
 MODULE      : RunnableDB/ProteinAnnotation/PrositePattern.pm
 DATA        :
  Pattern file (data/blastdb/Ensembl/interpro_scan/prosite.patterns)
- Confirmation file (/data/blastdb/Ensembl/confirm.patterns)
+ Confirmation file (/data/blastdb/Ensembl/interpro_scan/confirm.patterns)
 
 
 PrositeProfiles
@@ -155,7 +155,7 @@ DESCRIPTION : Hits to the Prosite Profiles database of protein domain profiles
 PROGRAM     : pfscan 
 MODULE      : RunnableDB/ProteinAnnotation/PrositeProfile.pm
 DATA        :
- Profile file (/data/blastdb/Ensembl/interpro_scan/prosite.dat)
+ Profile file (/data/blastdb/Ensembl/interpro_scan/prosite.profiles)
 
 
 Pfam
@@ -479,7 +479,7 @@ input_id_type=CHUNK
 [scanprosite]
 db=Prosite_patterns
 db_file=/data/blastdb/Ensembl/interpro_scan/prosite.patterns
-parameters=-confirm => /data/blastdb/Ensembl/confirm.patterns
+parameters=-confirm => /data/blastdb/Ensembl/interpro_scan/confirm.patterns
 module=ProteinAnnotation/PrositePattern
 gff_source=Prosite_pattern
 gff_feature=domain
@@ -487,7 +487,7 @@ input_id_type=CHUNK
 
 [pfscan]
 db=Prosite_profiles
-db_file=/data/blastdb/Ensembl/interpro_scan/prosite.dat
+db_file=/data/blastdb/Ensembl/interpro_scan/prosite.profiles
 program=pfscan
 program_file=pfscan
 module=ProteinAnnotation/PrositeProfile
