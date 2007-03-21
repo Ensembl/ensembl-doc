@@ -2,7 +2,7 @@
 RUNNING THE WGA2Genes PIPELINE
 ==============================
 
-The function of this system is as follows: given a low-coverge/gappy
+The function of this system is as follows: given a low-coverage/gappy
 genome to annotate (the target), an annotated, reference genome (the
 query) and a filtered whole-genome alignment (WGA) between the two,
 project annotation from the query onto the target through the WGA, 
@@ -17,7 +17,7 @@ The procedure has six phases:
 
 (1) Calculation of candidate gene scaffolds and gene structures
 
-    This step is performed by the ensembl-analyis RunnableDB WGA2Genes, 
+    This step is performed by the ensembl-analysis RunnableDB WGA2Genes, 
     the input_id is a slice id for the reference genome. This step works 
     best if the slice ids are "intelligently" constructed, and there is a 
     script to do this. 
@@ -34,7 +34,7 @@ The procedure has six phases:
 (3) Loading of new assembly and gene structures
 
     There are two products of the above initial steps: an AGP describing
-    the assembly of the gene scaffolds from their consituent scaffolds, and
+    the assembly of the gene scaffolds from their constituent scaffolds, and
     GFF-like file describing the gene structures on these gene scaffolds. These
     can be loaded into your core target database with the ensembl-analysis
     scripts wga2genes/load_gene_scaffolds.pl and wga2genes/load_transcripts.pl
@@ -74,7 +74,7 @@ REQUIREMENTS
 
 - A query core database
 
-  This database should contain the assembly and annotatation of the 
+  This database should contain the assembly and annotation of the 
   reference genome. This will be referred to as 'the_query_core_db'.
 
 - A target core database
@@ -217,7 +217,7 @@ genome. However, only top-level sequences that both (a) are aligned
 to the target genomes, and (b) contain non-killed genes/transcripts, need 
 input ids (for the human genome, this means that haplotypes, which are not 
 treated by compara, can be ignored). If the script is not supplied with a 
-seq_region_name, it will contruct input ids for all top-level, reference
+seq_region_name, it will construct input ids for all top-level, reference
 (i.e. no HAPs) non-duplicate (i.e. PARs present only only once)
 sequences. This can take a bit of time, so it pays to parallelise the
 task by using the fact that each top-level sequence region can
@@ -228,8 +228,8 @@ be treated independently. So you might proceed in the following manner:
 foreach? perl ensembl-pipeline/scripts/wga2genes/make_wga2genes_iids.pl -dbname the_pipeline_db.name -dbhost *** -dbuser *** -dbpass *** -querydbname the_query_db.name -querydbhost *** -querydbport *** -targetdbname the_target_db.name -targetdbhost *** -comparadbname the_compara_db.name -comparadbhost *** -aligntype WGA_method_link_type -logic SubmitHumanGeneSlice -kill the_kill_list_file  -write -seq_region_name $i
 foreach? end
 
-(note that here the Mitochondrion is exluded; it is common to do this 
-because the annotated mitochrondrion is usally loaded separately for 
+(note that here the Mitochondrion is excluded; it is common to do this 
+because the annotated mitochrondrion is usually loaded separately for 
 the target genome). 
 
 --------------------
@@ -237,13 +237,13 @@ Things to be wary of
 --------------------
 
 - If testing with test_RunnableDB, do not use the "-verbose"
-  flag. This assumes that the output is reference to an arracy of
+  flag. This assumes that the output is reference to an array of
   genes/features, which in this case it is not. Instead, use the
   "-write" flag, which writes the output to the display (the results
   are not written back to a database in this system). 
 
 - It is normal to get warnings about attributes ("Cannot get
-  attributes without an adaptor") and alignent features ("Insert
+  attributes without an adaptor") and alignment features ("Insert
   followed by Delete") during this process.
 
 - supply "-input_id_type HUMANGENESLICE" to the rulemanager.pl script to speed thing up
@@ -270,7 +270,7 @@ STEP 3: Loading of assembly and gene structures
 
 perl load_gene_scaffolds.pl -dbname the_target_db.name -dbuser *** -dbpass *** -dbhost *** -asm_coord_sys_name genescaffold -cmp_coord_sys_name scaffold -seqlevel -directlevel gene_scaffolds.merged.agp 
 
-perl load_transcripts.pl -dbname the_target_db.name -dbuser *** -dbpass *** -dbhost *** -genelogic WGA2Genes -sflogic ensembl_projection gene_scaffolds.merged.genes
+perl load_transcripts.pl -dbname the_target_db.name -dbuser *** -dbpass *** -dbhost *** -genelogic ensembl_projection -sflogic WGA2Genes gene_scaffolds.merged.genes
 
 
 ===================
@@ -283,7 +283,7 @@ Pseudogene analysis
 
 Because the system routinely produces transcript structures that include
 exons placed in gaps, the standard Pseudogene-calling code is inappropriate
-for these 2x builds. A specilised derivative RunnableDB, Pseudogene2x, should
+for these 2x builds. A specialised derivative RunnableDB, Pseudogene2x, should
 be run instead. The config and set-up are the same as the standard system. 
 However, it might be advisable to increase PS_FRAMESHIFT_INTRON_LENGTH from
 the standard 9 to around 20. 
