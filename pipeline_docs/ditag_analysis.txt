@@ -29,7 +29,7 @@ human
 ================
  typically uses core database with dna, etc. loaded + pipeline tables.
 
- extra table setup (part of core schema since v40):
+ extra table setup (NOW PART OF CORE SCHEMA):
 
 CREATE TABLE ditag (
 
@@ -72,14 +72,14 @@ Use ensembl-pipeline/scripts/analysis_setup.pl with the following:
 module=Dummy
 input_id_type=DITAG
 
-[DitagAlign]
+[ExonerateTags]
 input_id_type=DITAG
 </cut>
 
 And ensembl-pipeline/scripts/rule_setup.pl with the following:
 
 <cut>
-[DitagAlign]
+[ExonerateTags]
 condition=SubmitDitag
 </cut>
 
@@ -90,10 +90,10 @@ condition=SubmitDitag
 - general and specific values in Bio::EnsEMBL::Analysis::Config::Ditag.pm
 - BatchQueue.pm entry:
 	{
-      logic_name => 'DitagAlign',
+      logic_name => 'ExonerateTags,
       batch_size => 1,
       #something like this:
-       resource   => 'select[myia64f<400] rusage[myia64f=10:duration=10:decay=1]',
+       resource   => 'select[mygenebuild1<400] rusage[mygenebuild1=10:duration=10:decay=1]',
       #or for some big failing jobs
       # resource   => 'select[mem>2500] rusage[mem=2500]',
       retries    => 2,
@@ -105,7 +105,7 @@ condition=SubmitDitag
 
 4. Load ditag sequences
 =======================
-Load Ditags to database and generate inut ids for alignment of DitagFeatures:
+Load Ditags to database and generate input ids for alignment of DitagFeatures:
  perl ensembl-analysis/scripts/load_ditags.pl -type ZZ11 -write -delete
 The script creates a temporary file that is loaded into the database using the -write option.
 The file is removed imidiately when using the -delete option
@@ -113,10 +113,10 @@ The file is removed imidiately when using the -delete option
 5. Produce alignment
 ====================
 Run test:
- perl ensembl-analysis/scripts/test_RunnableDB $READ_DB_ARGS -input_id ditag.ZZ11.2 -logic_name DitagAlign -module Ditag
+ perl ensembl-analysis/scripts/test_RunnableDB $READ_DB_ARGS -input_id ditag.ZZ11.2 -logic_name ExonerateTags -module ExonerateTags
 
 Start analysis:
- perl ensembl-pipeline/scripts/rulemanager.pl $WRITE_DB_ARGS -once -analysis DitagAlign -input_id_type DITAG_CHUNK
+ perl ensembl-pipeline/scripts/rulemanager.pl $WRITE_DB_ARGS -once -analysis ExonerateTags -input_id_type DITAG_CHUNK
 
 This needs to be repeated for different ditag types and usually takes between 1 and 2 days.
 
