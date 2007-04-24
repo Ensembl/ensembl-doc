@@ -294,6 +294,10 @@ Seg => {
 identifier given as input id, the BASE_DIR is ignored; so it is not
 necessary to define any entries in the config for these analyses). 
 
+(Note2: Even where an analysis will use the default values, it is 
+necessary to have a blank hash keyed on that logic-name, in order to
+satisfy the config-checking code.  See ProteinAnnotation.pm.example).
+
 In addition to this specific configuration, it is also necessary to
 fill out the configuration general for use of the Ensembl pipeline
 system. In particular, entries in the "BatchQueue.pm" section of the
