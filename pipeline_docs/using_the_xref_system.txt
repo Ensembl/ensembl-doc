@@ -1,46 +1,58 @@
-This document will describe how to run the our xref system to cross link
-genes in an ensembl database with other databases identifiers.
+This document will describe how to run the Xref system to cross link
+genes in an Ensembl database with other database's identifiers.
 
-There is a more detailed document in the ensembl code which gives you an 
-overview of how the system works 
+There is a more detailed document in the ensembl code which gives you an
+overview of how the system works:
 
-ensembl/misc_scripts/xref_mapping/ensembl_xrefs.pdf
+    ensembl/misc_scripts/xref_mapping/ensembl_xrefs.pdf
 
 
 Code
-----
+------------------------------------------------------------------------
 
-Before you do this you will need a couple of pieces of code:
+Before starting, you will need to get a couple of pieces of code:
 
-ensembl
-exonerate
+    ensembl     - Ensembl Core API for Perl
+    bioperl     - A Perl API for bioinformatics
+    exonerate   - A sequence aligner, written in C
 
-Both of which are availible from teh sanger cvs repository.
+See
 
-You also need bioperl which is again freely availible
+    http://www.ensembl.org/info/software/api_installation.html
 
-bioperl-live (bioperl-release-1-2-3)
+for installation instructions for the Ensembl and BioPerl APIs.
 
-The overview document should describe how to get these.
+Exonerate is available from
+
+    http://www.ebi.ac.uk/~guy/exonerate/
 
 
 Setup
------
+------------------------------------------------------------------------
 
-You first need to check the sql file 
-ensembl/misc_scripts/xref_mapping/sql/populate_metadata.sql to make sure
-all the URLS which points to the data for your species or generic data 
-sets are correct.
+Make sure that the file 'xref_config.ini' in
+'ensembl/misc_scripts/xref_mapping/' is up to date.
 
-The xref database is setup by the xref_parser.pl script
+This file contains two types of section: 'source' sections that define
+data sources, and 'species' sections that define species and that
+connects sources to species.  Each section is made up of a number
+of key-value pairs and the valid keys for each type of section are
+described in the file itself.
 
-You also need a config file.
+The ini-file needs to be converted into a SQL file using the script
+'xref_config2sql.pl' (located in the same directory as the ini-file):
 
-This file is a series of key values pairs which show the xref_mapper.pl
-script where to look for its data.
+    ./xref_config2sql.pl >sql/populate_metadata.sql
 
-First with the header xref you need details of your xref database:
+The reason for overwriting 'sql/populate_metadata.sql' is that the
+'xref_parser.pl' script will use that particular file name to populate
+the Xref database later.
 
+For the mapper stage you also need a short configuration file describing
+the location of the Xref database and of the Ensembl database(s) that
+you're working with.
+
+First, with the header 'xref', you need details of your Xref database:
 
 xref
 host=yourhost
@@ -50,7 +62,8 @@ user=username
 password=passworld
 dir=/path/to/ensembl/misc-scripts/xref_mapping/xref
 
-Then you need details for the databases you want to load xrefs into:
+Following that, you need details for the databases you want to load the
+Xrefs into:
 
 species=homo_sapiens
 host=yourhost
@@ -60,56 +73,59 @@ user=username
 password=password
 dir=/path/to/ensembl/misc-scripts/xref_mapping/test
 
-Note the species name needs to be in the form genus_species other formats
-or alias won't work.
+Note the species name needs to be in the form genus_species other
+formats or aliases won't work.
+
+If you want to create the xref database before running
+anything else you can do this using the SQL in
+'ensembl/misc-scripts/xref_mapping/sql/table.sql' but the first script
+you run can do this for you so it isn't obligatory.
 
 
-If you want to create the xref database before running anything else
-you can do this using the sql in 
-ensembl/misc-scripts/xref_mapping/sql/table.sql but the first script you
-run can do this for you so it isn't obligatory.
+Running the Xref system
+------------------------------------------------------------------------
 
+Once you have all this setup you can run the process.  Both the
+'xref_parser.pl' and 'xref_mapper.pl' scripts discussed here can be
+found in 'ensembl/misc_scripts/xref_mapping/'.
 
-Runing the xrefs
-----------------
+Assuming you have created 'sql/populated_metadata.sql' as described
+above, run 'xref_parser.pl'.  This script takes database arguments a
+list of species delimted by commas and a create flag to indicate whether
+to create the Xref database.
 
-Once you have all this setup you can run the process. Both scripts
-discussed here can be found in ensembl/misc_scripts/xref_mapping.
+An example command line for this script would look like this:
 
-First run xref_parser.pl. This script takes database arguments a
-list of species delimted by commas and a create flag to indicate whether to
-create the xref database.
+    perl xref_parser.pl -user user -pass pass -host host -port 3306 \
+        -dbname xref_db_name -species species_name -create
 
-An example commandline for this script would look like this:
+This would create the specified database and load all the data.  You can
+also specify source if you don't want all the data in the meta data file
+loaded.  Note both species and source can appear on the command line
+multiple times.
 
-perl xref_parser.pl -user user -pass pass -host host -port 3306 
--dbname xref_db_name -species species_name -create
+With the xref database loaded you can now run the mapping.  This process
+using LSF to submit jobs to the farm.  Currently there is no other way
+to run this process.
 
-This would create the specified database and load all the data. 
-You can also specify source if you don't want all the data in the 
-meta data file loaded. Note both species and source can appear
-on the commandline multiple times.
+The 'xref_mapper.pl' script takes the configuration file to find out
+where the data is kept and where to load it.  Other script arguments
+include
 
+    'dumpcheck'             - ensures only files which don't already
+                              exist are dumped,
+    'useexistingmapping'    - which ensures that the existing '*.map'
+                              files (from a previous run) will not be
+                              recreated,
+    'upload'                - load the data to the tables, and
+    'deleteexisting'        - delete any existing mapping.
 
-With the xref database loaded you can now run the mapping. This process
-using LSF to submit jobs to a cpu farm. Currently there is no other
-way to run this process.
+An example command line would be
 
-xref_mapper.pl takes the config file to find out where the data is kept and
-where to load it. Other script arguments include dumpcheck which ensures 
-only files which don't already exist are dumped, useexistingmapping, using 
-the existing .map files, upload load the data to the tables and 
-deleteexisting delete any existing mapping
-
-an example commandline would be
-
-perl xref_mapping.pl -file xref_mapping.input -dumpcheck
--upload
+    perl xref_mapping.pl -file xref_mapping.input -dumpcheck -upload
 
 This would run the mapping and then load the tables.
 
-On our 1000CPU farm this generally takes about 11/2hrs for a species like
-human. Excessively different numbers of genes from usual can alter this 
-timing.
-
-
+On our 1000 CPU farm this generally takes about 1.5 hours for a species
+like human, but the timings may differ significantly for species with
+very different number of genes.
