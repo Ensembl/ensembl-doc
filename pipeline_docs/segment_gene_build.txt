@@ -39,9 +39,13 @@ The procedure can be broken down into the following stages:
 (4) Run the IgSegBuilder, which uses the Exonerate alignments to
     construct the set of gene segments
 
-(5) (optional) If supplying the gene segments as a patch for an
-    existing build, transfer them into the target database, removing
-    interferring gene structures asserted to be incorrect. 
+(5) Integration of segments into main build.
+
+ The precise mechanics of
+    this depend on whether the segments are being supplied as a patch
+    for a current, release build, or are available at the time of the
+    main build itself. 
+
 
 
 ============
@@ -61,7 +65,9 @@ REQUIREMENTS
 
   As normal, bioperl is also required. For the extraction of sequence
   segments from the IMGT flat-file, it is necessary to use a recent
-  version of bioperl (1.5+). 
+  version of bioperl (1.5+). Also, you might find ensembl-config
+  useful as it contains exonerate settings for the March 2006 human
+  and mouse builds.
 
 
 - Databases
@@ -174,6 +180,138 @@ annotation in human and mouse are found at the end of this document.
 ====================================================================
 STEP 3: Alignment of segment sequences to the genome using Exonerate
 ====================================================================
+ 
+We use Exonerate to align the segment sequences to the genome. The
+model used mostly is the standard protein2genome, but we also subvert
+the use of the new cdna2genome model to short align D/J segments with
+flanking sequence, the reported CDS of the prediction corresponding to
+the segment itself. 
+
+ 
+Some exonerate parameters used:
+
+--bestn
+
+In the main, exonerate is run using --bestn 1, so that only the best
+alignment for each query sequence is reported. However, there are some
+cases where the correct alignment is not the best scoring one; this is
+apparent in the mouse TcR Beta locus for example, which contains a
+duplication. For this reason, we sometimes use --bestn > 1 (say 5),
+and then use a custom filter,
+Bio::EnsEMBL::Analysis::Tools::IgTranscriptFilter, to choose the best
+alignment (or alignments) for each query. 
+
+
+--maxintron
+
+The introns of the segments are small, so to give exonerate a better
+chance to find the correct alignment we explicitly set limits: 0 for
+the intronless segments (D and J), 1000 for the single-intron LV
+segments, and 5000 for the C segments.
+
+
+--softmasktarget
+
+This needs to be set to false for the LV alignments, because a small
+number of them lie in low-complexity regions. 
+
+
+--percent
+
+This tells exonerate only to report matches that have score that is
+within the given percentage of the best possible score for that
+alignment. We use it on the J segment protein alignments in
+particular, some of which are too different to the genome to be
+aligned accurately (resulting in a "best" alignment to the wrong
+place). 
+
+
+--forcegtag
+
+This is set to true for the human/mouse C segment protein alignment
+because all C segments have consensus splice-sites in these
+genomes. It may not be appropriate to do this for other (especially
+draft) genomes. 
+
+
+--score
+
+For some very small queries (e.g. some J segment protein queries), the
+score of the correct alignment is below the default minimum score
+cutoff; we therefore explicitly set the score cutoff to zero for these
+types. 
+
+
+The precise settings used for the first human and mouse builds can be
+found in ensembl-config,
+human/NCBI36_ig/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm, and
+mouse/NCBIM36_ig/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm.
+
+
+======================================================
+STEP 4: Run the IgSegBuilder
+======================================================
+
+The IgSegBuilder RunnableDB takes the raw transcript-models produced
+by exonerate and does the following
+
+(a) Clusters transcripts into gene
+
+(b) Prunes redundant transcripts
+
+(c) Adjusts transcript boundaries so that they begin/end with the
+expected sequence motif (a splice site or a recombination signal
+sequence). 
+
+(d) Removes "dubious" genes (e.g. short D/J segments that are not
+located anywhere near any C/LV segments). 
+
+The result is a set of final, Ig/TcR gene segments. 
+
+The module works on slice input ids, and can cope with whole
+chromomes. Since it is likely that only a small number of top-level
+sequences will contain raw exonerate alignments, it is more efficient
+to make input ids for these slices only; having an input id for each
+toplevel sequence will ensure that the whole genome is analysed but
+the vast majority of jobs will do nothing. 
+
+Config
+------
+
+Configuration for the module is defined in
+Bio/EnsEMBL/Analysis/Config/GeneBuild/IgSegmentBuilder.pm. The
+variables are as follows:
+
+TRANDB_DATABASES_NAME - the name of the database (in
+Config/GeneBuild/Databases.pm) that contains the raw exonerate
+transcript models. 
+
+OUTPUTDB_DATABASES_NAME - the name of the database (in
+Config/GeneBuild/Databases.pm) to which the result genes will be
+written. 
+
+{LV|C|D_J}_LOGICS - defines which logic names in
+the exonerate database correspond to each of the four different
+segment types. These are lists, so transcripts produced in several
+different ways (with correspondingly different analyses) can be used
+together to for the final set of C gene segments (for example). 
+
+{LV|C|D|J}_OUTPUT_BIOTYPE - the biotype that will be attached to the
+result genes and transcripts in the output database
+
+SUPPORTING_FEATURE_OUTPUT_LOGIC - if the supporting features for the
+results transcripts/exons are to be attached to a different analysis
+to that of the genes/transcripts themselves, specify the logic name of
+that analysis here. 
+
+D_J_PROXIMITY_THRESHOLD - D/J gene segments are are not within the
+given distance of a C/LV segment are rejected.
+
+
+
+======================================================
+STEP 5: Integration of segments into main build
+======================================================
 
 
 
@@ -246,3 +384,6 @@ perl constant_regions_from_imgt.pl -tax Mus_musculus -rejectkeyword orphon -reje
 perl -ne '/\>(\S+)\s+.+cds=(\d+)\-(\d+)/ and print "$1 + $2 ", $3-$2+1, "\n";' J.mouse.cdna.fa > J.mouse.cdna.annotation
 
 perl -ne '/\>(\S+)\s+.+cds=(\d+)\-(\d+)/ and print "$1 + $2 ", $3-$2+1, "\n";' D.mouse.cdna.fa > D.mouse.cdna.annotation
+
+
+
