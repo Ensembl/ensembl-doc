@@ -1,8 +1,8 @@
 This document will describe how to run the Xref system to cross link
 genes in an Ensembl database with other database's identifiers.
 
-There is a more detailed document in the ensembl code which gives you an
-overview of how the system works:
+There is a more detailed document (from 2004) in the ensembl code which
+gives you an overview of how the system works:
 
     ensembl/misc_scripts/xref_mapping/ensembl_xrefs.pdf
 
