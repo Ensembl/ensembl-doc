@@ -1,7 +1,7 @@
 This document will describe how to run the Xref system to cross link
 genes in an Ensembl database with other database's identifiers.
 
-There is a more detailed document (from 2004) in the ensembl code which
+There is a more detailed document (from 2004) in the Ensembl code which
 gives you an overview of how the system works:
 
     ensembl/misc_scripts/xref_mapping/ensembl_xrefs.pdf
@@ -76,10 +76,13 @@ dir=/path/to/ensembl/misc-scripts/xref_mapping/test
 Note the species name needs to be in the form genus_species other
 formats or aliases won't work.
 
-If you want to create the xref database before running
-anything else you can do this using the SQL in
-'ensembl/misc-scripts/xref_mapping/sql/table.sql' but the first script
-you run can do this for you so it isn't obligatory.
+If you want to create the xref database before running anything else you
+can do this using the SQL in
+
+    ensembl/misc-scripts/xref_mapping/sql/table.sql
+
+but the first script you run ('xref_parser.pl') can do this for you so
+it isn't obligatory.
 
 
 Running the Xref system
@@ -128,4 +131,4 @@ This would run the mapping and then load the tables.
 
 On our 1000 CPU farm this generally takes about 1.5 hours for a species
 like human, but the timings may differ significantly for species with
-very different number of genes.
+a number of genes very different from that of human.
