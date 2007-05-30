@@ -41,11 +41,7 @@ The procedure can be broken down into the following stages:
 
 (5) Integration of segments into main build.
 
- The precise mechanics of
-    this depend on whether the segments are being supplied as a patch
-    for a current, release build, or are available at the time of the
-    main build itself. 
-
+(6) Xrefs to the IMGT/LIGM-DB and IMGT/GENE-DB databases
 
 
 ============
@@ -109,7 +105,7 @@ seems to be an artefact).
 Some of the downstream processes require the flat-file to be indicate
 indexed, which can be peformed thus: 
 
- ~searle/progs/production_code/ensembl-trunk_1106/ensc-core/src/Programs/indicate --data_dir $WORK/ig/IMGT/database -f imgt.dat -i $WORK/ig/IMGT/database/indicate_idx -l ID -r ID -p emblParser
+ ~searle/progs/production_code/ensembl-trunk_1106/ensc-core/src/Programs/indicate --data_dir $WORK/ig/IMGT/october2006/database -f imgt.dat -i $WORK/ig/IMGT/october2006/database/indicate_idx -l ID -r ID -p emblParser
 
 
 ======================================================
@@ -273,7 +269,13 @@ chromomes. Since it is likely that only a small number of top-level
 sequences will contain raw exonerate alignments, it is more efficient
 to make input ids for these slices only; having an input id for each
 toplevel sequence will ensure that the whole genome is analysed but
-the vast majority of jobs will do nothing. 
+the vast majority of jobs will do nothing.
+
+Note: the analysis under which these jobs are run should have
+logic_name "ensembl_segment"; this analysis will be attached to the
+final genes and transcripts, and is the analysis expected by the
+web-code for correct display. 
+
 
 Config
 ------
@@ -290,7 +292,7 @@ OUTPUTDB_DATABASES_NAME - the name of the database (in
 Config/GeneBuild/Databases.pm) to which the result genes will be
 written. 
 
-{LV|C|D_J}_LOGICS - defines which logic names in
+{LV|C|D|J}_LOGICS - defines which logic names in
 the exonerate database correspond to each of the four different
 segment types. These are lists, so transcripts produced in several
 different ways (with correspondingly different analyses) can be used
@@ -313,9 +315,124 @@ given distance of a C/LV segment are rejected.
 STEP 5: Integration of segments into main build
 ======================================================
 
+The final step is to combine the set of gene segments with models
+produced by the "standard" gene-build, to produce a final, full gene
+set. The precise mechanics of how this is done will vary on a
+case-by-case basis. For human and mouse release 42, existing builds
+were patched in the following way:
+
+1) Any gene overlapping at the exon level with a gene segments was
+   deleted.
+
+2) The gene segments were added.
+
+This was done with the script
+ensembl-analysis/scripts/ig/transfer_gene_segments.pl.
+
+
+If the gene segments are available whilst a full-build is being
+performed, the script can still be used. It should be run as the last
+step, before stable id mapping (or in the case of a brand new build,
+creation) is performed.
+
+Stable ids
+----------
+
+For human and mouse 42, it was decided that the gene segments should
+be given brand-new stable ids, and that the stable ids of all deleted
+genes, transcripts and translations should be retired. The
+transfer_gene_segments.pl script performs this functionality (updating
+the stable id mapping tables appropriately) when supplied with the
+"-patch" option. A stable-id mapping run was therefore not
+necessary. This strategy can be applied in when adding segments to an
+existing build as a patch, where no other gene updates/changes are
+involved. 
+
+For future builds of human and mouse on the same assembly, the
+segments should be integrated with the main build before stable id
+mapping is performed (as explained above). The stable id mapping
+process should then reassign the correct ids to the gene
+segments. However, it is worth checking that it has worked correctly;
+if any of the segment ids from the previous assembly build have been
+retired, or if any of the segment ids in the new build are brand-new
+and unique to this build, something has gone wrong with the
+mapping. In this case, the offending stable ids might need to be
+rescued manually. There is no script support for this unlikely event,
+so if it happens, it's best to consult with the core team at the
+earliest opportunity.
+
+For future builds of human and mouse on new assemblies, the segments
+should be integrated with the main build before stable id
+mapping. However, in this case, there is a chance that stable id
+mapping might legitimately result in stable id gain/loss. This can
+happen if the sequence in the Ig/TcR regions has changed, resulting in
+gene gain or loss (since these regions are mature in human and mouse,
+this is rare, but can still happen). But it should be checked that the
+stable id gains and losses correspond to gene gain/loss in the gene
+segment set. 
 
 
 
+======================================================
+STEP 6: Xrefs to IMGT databases
+======================================================
+
+We provide Xrefs back to two databases from the IMGT group:
+
+(a) IMGT/LIGM-DB - contains the annotated sequences from which the
+source protein/cDNA data for the build was extracted 
+
+(b) IMGT/GENE-DB - contains descriptions and annotation for all known
+Ig and TcR gene segments in human and mouse. 
+
+These xrefs are defined in a file which maps stable ids to IMGT
+entities. This file is supplied as a source when performing the
+Xref_Parsing step of the core xrefs (see other documentation).
+
+For the initial segments builds in human and mouse, this file had to
+be created from scratch. This was done using the script
+ensembl-analysis/scripts/ig/xref_gene_segments.pl, which should be run
+after stable ids for the segments have been assigned:
+
+perl xref_gene_segments.pl -dbhost *** -dbuser *** -dbpass *** -dbport *** -dbname *** -indexdir $WORK/ig/IMGT/october2006/database -indexfile indicate_idx -allgenenames > Segment_xrefs.txt
+
+Xrefs to IMGT/LIGM-DB are obtained via the supporting
+features of the segment transcripts; we link genes, transcripts and
+translations back to the original parent sequence of the protein/cDNA
+that was aligned to infer the model structure.
+
+Xrefs to IMGT/GENE-DB are more difficult to obtain, largely because the
+annotation of gene names and descriptions in IMGT entries is
+incomplete. For each stable id then, a list of candidate gene names
+and descriptions is inferred automatically, each reported with a
+percentage identity between the segment and IMGT sequence entry from
+which the information was derived (from now on called the "score"). 
+
+The Segment_xrefs.txt must therefore be "curated", choosing the most
+appropriate IMGT/GENE-DB name and description for each segment. A
+useful resource for this task is the IMGT/GENE-DB website, which has
+images for the Ig/TcR regions in human and mouse, showing genes and
+their names (example:
+http://imgt.cines.fr/textes/IMGTrepertoire/LocusGenes/locus/human/IGH/Hu_IGHmap.html,
+which is the Ig heavy chain locus in human). Segments with no
+candidate name/description reported by the script can often be
+annotated using these graphs along with contextual information
+(i.e. the names of the neighbouring genes). For segments with multiple
+candidate names, it is most often the one with the highest score that
+is correct. A word of caution though: the IMGT/GENE-DB graphs
+represent the "textbook" view of these regions (albeit quite a new
+text book); it is possible that the build process will discover novel
+segments not represented on these graphs. 
+
+Impact of stable id mapping on xrefs
+------------------------------------
+
+When rebuilding on a genome that already had a segment set, it is
+important to check that the stable-id mapping went as expected. If
+stable-ids were gained/lost, then the IMGT xref file needs to be
+updated to reflect the gained/lost ids. A good way of doing this would
+be to run the above script on the whole set, using the result to
+manually edit the central xref file to reflect the changes. 
 
 
 =================================================
@@ -350,17 +467,17 @@ Specified by command-line options:
 Human
 -----
 
-perl extract_segments_from_imgt.pl -tag L-PART1:L-PART2:V-REGION -tag L-REGION:V-REGION -tag L-V-REGION -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 30 -Cstopallow 2 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > L_V.human.pep.fa
+perl extract_segments_from_imgt.pl -tag L-PART1:L-PART2:V-REGION -tag L-REGION:V-REGION -tag L-V-REGION -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 30 -Cstopallow 2 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > L_V.human.pep.fa
 
-perl extract_segments_from_imgt.pl -tag D-REGION -tax Homo_sapiens -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/database/imgt.dat > D.human.cdna.fa
+perl extract_segments_from_imgt.pl -tag D-REGION -tax Homo_sapiens -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > D.human.cdna.fa
 
-perl extract_segments_from_imgt.pl -tag J-REGION -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -minlength 10 -translate -Nstopallow 2 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > J.human.pep.fa
+perl extract_segments_from_imgt.pl -tag J-REGION -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -minlength 10 -translate -Nstopallow 2 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > J.human.pep.fa
 
-perl extract_segments_from_imgt.pl -tag J-REGION -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > J.human.cdna.fa
+perl extract_segments_from_imgt.pl -tag J-REGION -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > J.human.cdna.fa
 
-perl extract_segments_from_imgt.pl -tag C-REGION -tax Homo_sapiens -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > C.from_RNA.human.pep.fa
+perl extract_segments_from_imgt.pl -tag C-REGION -tax Homo_sapiens -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > C.from_RNA.human.pep.fa
 
-perl constant_regions_from_imgt.pl -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -translate -minlength 150 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > C.from_gen_DNA.human.pep.fa
+perl constant_regions_from_imgt.pl -tax Homo_sapiens -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -translate -minlength 150 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > C.from_gen_DNA.human.pep.fa
 
 perl -ne '/\>(\S+)\s+.+cds=(\d+)\-(\d+)/ and print "$1 + $2 ", $3-$2+1, "\n";' J.human.cdna.fa > J.human.cdna.annotation
 
@@ -369,17 +486,17 @@ perl -ne '/\>(\S+)\s+.+cds=(\d+)\-(\d+)/ and print "$1 + $2 ", $3-$2+1, "\n";' D
 Mouse
 -----
 
-perl extract_segments_from_imgt.pl -tag L-PART1:L-PART2:V-REGION -tag L-REGION:V-REGION -tag L-V-REGION -tag V-REGION -tax Mus_musculus -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 30 -Cstopallow 2  -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > L_V.mouse.pep.fa
+perl extract_segments_from_imgt.pl -tag L-PART1:L-PART2:V-REGION -tag L-REGION:V-REGION -tag L-V-REGION -tag V-REGION -tax Mus_musculus -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 30 -Cstopallow 2  -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > L_V.mouse.pep.fa
 
-perl extract_segments_from_imgt.pl -tag D-REGION -tax Mus_musculus -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > D.mouse.cdna.fa
+perl extract_segments_from_imgt.pl -tag D-REGION -tax Mus_musculus -rejectkeyword orphon  -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > D.mouse.cdna.fa
 
-perl extract_segments_from_imgt.pl -tag J-REGION -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -minlength 10 -translate -Nstopallow 2 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > J.mouse.pep.fa 
+perl extract_segments_from_imgt.pl -tag J-REGION -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -minlength 10 -translate -Nstopallow 2 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > J.mouse.pep.fa 
 
-perl extract_segments_from_imgt.pl -tag J-REGION -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > J.mouse.cdna.fa
+perl extract_segments_from_imgt.pl -tag J-REGION -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -mol genomic_DNA -mol DNA -keyword germline_configuration -flank 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > J.mouse.cdna.fa
 
-perl extract_segments_from_imgt.pl -tag C-REGION -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > C.from_RNA.mouse.pep.fa
+perl extract_segments_from_imgt.pl -tag C-REGION -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -class automatic -class by_annotators -translate -minlength 50 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > C.from_RNA.mouse.pep.fa
 
-perl constant_regions_from_imgt.pl -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -translate -minlength 150 -kill ensembl-personal/klh/imgt/data/kill_list.txt imgt.dat > C.from_gen_DNA.mouse.pep.fa
+perl constant_regions_from_imgt.pl -tax Mus_musculus -rejectkeyword orphon -rejectkeyword Ig-surrogate -rejectkeyword Ig-surrogate-vpreb -translate -minlength 150 -kill ensembl-personal/klh/imgt/data/kill_list.txt $WORK/ig/IMGT/october2006/database/imgt.dat > C.from_gen_DNA.mouse.pep.fa
 
 perl -ne '/\>(\S+)\s+.+cds=(\d+)\-(\d+)/ and print "$1 + $2 ", $3-$2+1, "\n";' J.mouse.cdna.fa > J.mouse.cdna.annotation
 
