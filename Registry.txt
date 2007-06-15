@@ -96,24 +96,28 @@ Method load_all
     *or* equivalently (since just after release 45 in June 2007):
 
         ; Section names carries no meaning, except for the 'default'
-        ; section which is special.  Its settings will be implicit
-        ; for all other sections in the file but may be overridden by
-        ; individual sections.  There should be no 'alias' settings in
-        ; the 'default' section.
+        ; section which is special.  Its settings (except for 'alias')
+        ; will be implicit for all other sections in the file but may be
+        ; overridden by individual sections.
+        ;
+        ; For a species name alias to be installed, a section must
+        ; contain both the 'species' setting and one or more 'alias'
+        ; settings.  The 'species' setting may be inherited from the
+        ; 'default' section.
 
         [default]
         host    = name.host.ac.uk
         user    = anonymous
         port    = 4444
         species = Homo Sapiens
-
-        [my_core_db]
-        group   = core
-        dbname  = homo_sapiens_core_20_34c
         alias   = H_Sapiens
         alias   = homo sapiens
         alias   = Homo_Sapiens
         alias   = Human
+
+        [my_core_db]
+        group   = core
+        dbname  = homo_sapiens_core_20_34c
 
         [my_estgene_db]
         group   = estgene
