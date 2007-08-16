@@ -3,10 +3,10 @@
  ##       DITAG ANALYSIS README          ##
  ##########################################
 
-This analysis attempts to prepare sequence tags and align them to the genome.
-The tags are start or start & end of expressed sequences of the types ditag
-(GIS, GCS, and similar) and CAGE.
-For more details on the ditag technology see e.g. this:
+This analysis attempts to prepare sequence tags and align them to the genome using Exonerate.
+The tags are start or start & end of expressed sequences of the types CAGE and ditag
+(GIS, GCS, and similar).
+For more details on the ditag technology see e.g.:
 Ng P, Wei CL, Sung WK, Chiu KP, Lipovich L, Ang CC, Gupta S, Shahab A, Ridwan A, Wong CH, Liu ET, Ruan Y.
 Gene identification signature (GIS) analysis for transcriptome characterization and genome annotation.
 Nat. Methods 2(2), 105-11 (2005).
@@ -19,49 +19,25 @@ Sources:
 mouse
  GIS: ftp://fantom.gsc.riken.jp/FANTOM3/GIS/
  GSC: ftp://fantom.gsc.riken.jp/FANTOM3/GSC/
- or preprocessed from the PET-Tool at: http://www.gis.a-star.edu.sg/PET_Tool
+ CAGE: http://fantom31p.gsc.riken.jp/cage/download/mm5
 
 human 
  CAGE: http://fantom31p.gsc.riken.jp/cage/download/hg17/
+ GIS-PET & ChIP-PET preprocessed from the PET-Tool at: http://www.gis.a-star.edu.sg/PET_Tool
+
+1.b. Dump genome sequence (unmasked)
+===================================
+  e.g. like this:
+  perl ensembl-analysis/scripts/sequence_dump.pl -dbhost host -dbport port -dbname name \
+       -dbuser user -coord_system_name toplevel -output_dir dir -onefile
+
+  push to /data/blastdb/Ensembl/...
 
 
 2. Prepare database
 ================
  typically uses core database with dna, etc. loaded + pipeline tables.
-
- extra table setup (NOW PART OF CORE SCHEMA):
-
-CREATE TABLE ditag (
-
-       ditag_id INT NOT NULL auto_increment,
-       name VARCHAR(30),
-       type VARCHAR(30),
-       tag_count smallint(6) default 1,
-       sequence TEXT,
-
-       PRIMARY KEY ( ditag_id )
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
-CREATE TABLE ditag_feature (
-
-       ditag_feature_id int(10) unsigned NOT NULL auto_increment,
-       ditag_id int(10) unsigned NOT NULL default '0',  #original ditag dbID (2:1 rel.shp)
-       ditag_pair_id int(10) unsigned NOT NULL default '0',
-       seq_region_id int(10) unsigned NOT NULL default '0',
-       seq_region_start int(10) unsigned NOT NULL default '0',
-       seq_region_end int(10) unsigned NOT NULL default '0',
-       seq_region_strand tinyint(1) NOT NULL default '0',
-       analysis_id int(10) unsigned NOT NULL default '0',
-       hit_start int(10) unsigned NOT NULL default '0',
-       hit_end int(10) unsigned NOT NULL default '0',
-       hit_strand tinyint(1) NOT NULL default '0',
-       cigar_line text default '',
-       ditag_side char default '',
-
-       PRIMARY KEY  (ditag_feature_id),
-       KEY (ditag_id),
-       KEY (ditag_pair_id)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+ (the ditag & ditag_features tables are now part of the core schema.)
 
 pipeline setup:
 
@@ -70,10 +46,10 @@ Use ensembl-pipeline/scripts/analysis_setup.pl with the following:
 <cut>
 [SubmitDitag]
 module=Dummy
-input_id_type=DITAG
+input_id_type=DITAG_CHUNK
 
 [ExonerateTags]
-input_id_type=DITAG
+input_id_type=DITAG_CHUNK
 </cut>
 
 And ensembl-pipeline/scripts/rule_setup.pl with the following:
@@ -83,19 +59,33 @@ And ensembl-pipeline/scripts/rule_setup.pl with the following:
 condition=SubmitDitag
 </cut>
 
+(parameters: xxx_setup.pl -dbhost x -dbname xx -dbuser xx -dbpass xx -read -file xx)
+
+In order to store the different types of ditags seperately you should also add analysis entries 
+for them, eg. for mouse:
+ insert into analysis set logic_name="FANTOM_GIS_PET_raw", created=now(), module="ExonerateTags";
+ insert into analysis set logic_name="FANTOM_GSC_PET_raw", created=now(), module="ExonerateTags";
+ insert into analysis set logic_name="FANTOM_CAGE",        created=now(), module="ExonerateTags"; 
+After running each of them, you can simply change the analysis_ids of the ditag_features:
+ update ditag_feature set analysis_id=[specific-type] where analysis_id=[general-type, ExonerateTags];
+to get them out of the way.
+
 
 3. Setup config
 ===============
-- GB_DBHOST, etc. in Bio::EnsEMBL::Analysis::Config::Databases.pm
-- general and specific values in Bio::EnsEMBL::Analysis::Config::Ditag.pm
+- GB_DBHOST in Bio::EnsEMBL::Analysis::Config::Databases.pm
+- general and specific values in Bio::EnsEMBL::Analysis::Config::ExonerateTags
+  Uncomment the lines for the type of ditag you are analysing at the time.
 - BatchQueue.pm entry:
 	{
       logic_name => 'ExonerateTags,
       batch_size => 1,
       #something like this:
+      queue      => 'normal',
        resource   => 'select[mygenebuild1<400] rusage[mygenebuild1=10:duration=10:decay=1]',
       #or for some big failing jobs
-      # resource   => 'select[mem>2500] rusage[mem=2500]',
+      #queue       => 'bigmem',
+      # resource   => 'select[mem>4000] rusage[mem=4000]',
       retries    => 2,
       sub_args   => '',
       runner     => '',
@@ -108,15 +98,49 @@ condition=SubmitDitag
 Load Ditags to database and generate input ids for alignment of DitagFeatures:
  perl ensembl-analysis/scripts/load_ditags.pl -type ZZ11 -write -delete
 The script creates a temporary file that is loaded into the database using the -write option.
-The file is removed imidiately when using the -delete option
+The file is removed imidiately after loading when using the -delete option.
+The scripts reads from Bio::EnsEMBL::Analysis::Config::ExonerateTags and
+Bio::EnsEMBL::Analysis::Config::Databases, so remember to keep them in
+sync with the anaylis you are doing.
+
 
 5. Produce alignment
 ====================
 Run test:
  perl ensembl-analysis/scripts/test_RunnableDB $READ_DB_ARGS -input_id ditag.ZZ11.2 -logic_name ExonerateTags -module ExonerateTags
+ (Sometimes needs to be run in the bigmem queue)
 
 Start analysis:
  perl ensembl-pipeline/scripts/rulemanager.pl $WRITE_DB_ARGS -once -analysis ExonerateTags -input_id_type DITAG_CHUNK
 
+Check the number of ditag_features and compare to previous release. You will want to get at least 60% hits,
+so the number of ditag_features should be higher than the number of ditags (pairs!).
+
 This needs to be repeated for different ditag types and usually takes between 1 and 2 days.
+
+
+6. Reduce Complexity
+====================
+
+Check for redundancy in loaded ditags:
+ perl scripts/reduce_complexity.pl -duplication -oldanalysis FANTOM_GSC > duplicates.sql
+Collapse same locations if necessary:
+ perl scripts/reduce_complexity.pl -oldanalysis FANTOM_GSC -newanalysis FANTOM_GSC_collapsed -oldtype ZZ11 -newtype ZZ11_c [-write]
+
+Rename the analysis' at the end, as only the collapsed set should be drawn for web display.
+
+7. Check display
+================
+
+Ditags can now be displayed in Apollo.
+Alternatively upload as DAS track.
+
+Before / at the release make sure the official DAS track is displayed properly and the links to the appropriate
+credit pages work.
+Currently we have:
+ http://www.ensembl.org/Homo_sapiens/ditags/CHIP_PET.html
+ http://www.ensembl.org/Homo_sapiens/ditags/GIS_PET.html (sme page)
+ http://www.ensembl.org/Homo_sapiens/ditags/FANTOM_CAGE.html
+ http://www.ensembl.org/Mus_musculus/ditags/FANTOM_GIS_PET.html
+ http://www.ensembl.org/Mus_musculus/ditags/FANTOM_CAGE.html
 
