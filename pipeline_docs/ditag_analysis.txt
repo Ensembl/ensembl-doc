@@ -75,18 +75,18 @@ to get them out of the way.
 ===============
 - GB_DBHOST in Bio::EnsEMBL::Analysis::Config::Databases.pm
 - general and specific values in Bio::EnsEMBL::Analysis::Config::ExonerateTags
-  Uncomment the lines for the type of ditag you are analysing at the time.
+  Uncomment the lines for the type of ditag library (eg GSC ditags for mouse) you are analysing at the time.
 - BatchQueue.pm entry:
 	{
       logic_name => 'ExonerateTags,
       batch_size => 1,
       #something like this:
       queue      => 'normal',
-       resource   => 'select[mygenebuild1<400] rusage[mygenebuild1=10:duration=10:decay=1]',
+      resource   => 'select[mygenebuild1<400] rusage[mygenebuild1=10:duration=10:decay=1]',
       #or for some big failing jobs
-      #queue       => 'bigmem',
-      # resource   => 'select[mem>4000] rusage[mem=4000]',
-      retries    => 2,
+      #queue      => 'bigmem',
+      #resource   => 'select[mem>4000] rusage[mem=4000]',
+      retries    => 1,
       sub_args   => '',
       runner     => '',
       runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
@@ -102,7 +102,8 @@ The file is removed imidiately after loading when using the -delete option.
 The scripts reads from Bio::EnsEMBL::Analysis::Config::ExonerateTags and
 Bio::EnsEMBL::Analysis::Config::Databases, so remember to keep them in
 sync with the anaylis you are doing.
-
+Repeat the loading for all sets (of the library) you want to run in the same analysis.
+So for the mouse GSC tags, load ZZ11, ZZ12, ZZ13 and ZZ13
 
 5. Produce alignment
 ====================
@@ -113,21 +114,24 @@ Run test:
 Start analysis:
  perl ensembl-pipeline/scripts/rulemanager.pl $WRITE_DB_ARGS -once -analysis ExonerateTags -input_id_type DITAG_CHUNK
 
-Check the number of ditag_features and compare to previous release. You will want to get at least 60% hits,
+Check the number of ditag_features and compare to previous release. You will want to get hits for at least 60% of the ditags,
 so the number of ditag_features should be higher than the number of ditags (pairs!).
+Move the ditag_features for the analysis Exonerate_Tags to the type they are, eg. FANTOM_GSC", to keep them seperated.
 
-This needs to be repeated for different ditag types and usually takes between 1 and 2 days.
+The steps 4 & 5 need to be repeated for the different ditag libraries and usually takes between 1 and 2 days.
 
 
-6. Reduce Complexity
-====================
+6. Reduce Complexity & Mess
+===========================
 
 Check for redundancy in loaded ditags:
  perl scripts/reduce_complexity.pl -duplication -oldanalysis FANTOM_GSC > duplicates.sql
 Collapse same locations if necessary:
  perl scripts/reduce_complexity.pl -oldanalysis FANTOM_GSC -newanalysis FANTOM_GSC_collapsed -oldtype ZZ11 -newtype ZZ11_c [-write]
-
 Rename the analysis' at the end, as only the collapsed set should be drawn for web display.
+
+Run the script scripts/remove_messy_tags.pl to remove clusters of nasty ditags.
+
 
 7. Check display
 ================
