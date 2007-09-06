@@ -44,6 +44,10 @@ The ini-file needs to be converted into a SQL file using the script
 
     ./xref_config2sql.pl >sql/populate_metadata.sql
 
+or
+
+    ./xref_config2sql.pl my_own_xref_config.ini >sql/populate_metadata.sql
+
 The reason for overwriting 'sql/populate_metadata.sql' is that the
 'xref_parser.pl' script will use that particular file name to populate
 the Xref database later.
