@@ -139,3 +139,12 @@ Finally, each marker feature contains a map_weight, which is the total number
 of placements for that marker. We update the table with the following one liner. 
 
 echo "select count(*) as count, marker_id from marker_feature group by marker_id having count >=1" | mysql -u yourhost -pyourpass -h yourhost -Pyourport your_database | tail +2 | perl -ne '/(\d+)\s+(\d+)/ and print "update marker_feature set map_weight = $1 where marker_id = $2;\n"' | mysql -u youruser -h yourhost -pyourpass -Pyourport your_database
+
+Alternatively there is a script you can use which will update the weights and
+also delete the markers that map too many times or not at all.
+The script also populates the unmapped_object table so users can track why some
+markers are not represented.
+
+ensembl-analysis/scripts/markers/unmapped_markers.pl
+
+This script takes the standard database arguments.
