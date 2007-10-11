@@ -139,8 +139,14 @@ Automatic configuration of the setup of the Orthologue-evaluation analyses
      Use these commands in your reference/ pipeline-database : 
 
         delete from rule_conditions where rule_id > X ; 
-        delete from rule_goal where rule_id > X ; 
-       
+        delete from rule_goal where rule_id > X ;  
+
+    Some useful SQL to check the rules in your ref-db : 
+
+      select rg.* , rc.*, logic_name ,a.analysis_id 
+      from rule_conditions rc, rule_goal rg , analysis a 
+      where rc.rule_id = rg.rule_id 
+      and a.analysis_id = rg.goal order by rg.rule_id ; 
 
 
     Remember to synchronize the analysis tables before you start the analysis - this 
@@ -180,6 +186,16 @@ Automatic configuration of the setup of the Orthologue-evaluation analyses
    in the top when the file has been backed up - Sorry to say but all the comments in your 
    original file can't be transferred to the new file. 
 
+   ATTENTION ! 
+
+   Best is to query the ref-db for the maximum rule-id before you run the 
+   automatic setup script, or to back-up your rule tables before running the script : 
+
+       select max(rule_id) from rule_conditions ; 
+       select max(rule_id) from rule_goal ; 
+       
+       create table rg_bak select * from rule_goal ; 
+       create table rc_bak select * from rule_conditions ; 
 
     perl ensembl-pipeline/scripts/setup_orthologue_analysis.pl \
      -dbname <DBNAME> -dbhost <DBHOST> -write 
