@@ -3,28 +3,46 @@
 OrthologueEvalutation : 
 =======================
 
-  The OrthologueEvalutation process uses a compara database and several 
-  core databases to check if a genebuild contains partial or split genes 
+  The OrthologueEvalutation process uses comparative data to compare data of a 
+  specific gene-set against the data of other sets. It uses a compara database 
+  and several core databases to check if a genebuild contains partial or split genes 
   or if it misses orthologues genes in other species. 
   
   It runs in 2 stages : PRE and POST. 
 
-PRE stage :
-=========== 
+
+
+PRE stage - Identification of problematic gene models  :
+============================================================= 
+
+  The PRE stage gathers data out ouf different core-databases and out out of 
+  core-databases and performs comparisions beetween the parameters of orthologues
+  genes and the set which needs to be analysed. If anormalities / problems 
+  are identified, the PRE stage writes input_ids into the input_id_analysis table
+  to run a second analysis on these problematic gene models to fix them. 
+  The fixing will be done in the POST stage, using a different RunnableDB. 
+
   
-  In the PRE stage three different RunnableDB's (FindPartialGenes,FindSplitGenes 
-  and FindMissingOrthologues) query the Compara database to gather data about 
-  missing/partial/split genes. The translations of the identified genes / transcripts 
-  will be dumped and input-ids for the POST analysis will be uploaded by these 
-  runnables into the input_id_table. 
+  The PRE stage also dumps the translations of the identified genes / transcripts 
+  will be dumped, as they are needed to fix some of the gene models as well. 
+  The file names of the dumped translations will be uploaded for the POST analysis 
+   will be uploaded by these runnables into the input_id_table.  
+
+
+  RunnableDB's involved in the pre-stage : 
+  ------------------------------------------
+  - FindPartialGenes
+  - FindSplitGenes 
+  - FindMissingOrthologues
+  - FindFalseIntrons
   
 
-POST stage :
-=========== 
+
+POST stage - Fix problematic gene models which were identified in the PRE stage :
+====================================================================================== 
   
   The post stage uses Exonerte2Genes to make new gene predictions based on the 
   dumped translations.
-  
   
   
   
@@ -33,6 +51,10 @@ POST stage :
         ensembl-pipeline/scripts/setup_orthologue_evaluator.pl
   
   
+  Remember : The RunnableDB OrthologueEvaluator.pm is just a collection of methods 
+  which are used in FindFalseIntrons, FindMissingOrthologues etc. - it is not an 
+  analysis itself. 
+
 
 
 How to set up the OrthologueEvaluator-Run 
