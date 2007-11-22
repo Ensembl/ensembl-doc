@@ -1,0 +1,126 @@
+
+        
+1 - set up the analysis :
+
+[TranscriptCoalescer]
+module=TranscriptCoalescer
+input_id_type=tc_slice
+
+
+[Submit_tc_slice]
+module=Dummy
+input_id_type=tc_slice
+
+
+
+2 - fill out the 3 config files :
+
+The configuration for TranscriptCoalescer is splitted (by now )
+in 3 files : 2 files hold configuration detais to connect to different
+databases and the third file holds details about the biotypes and logic_names
+of the genes / predictions you like to fetch out of these databases.
+
+First, TranscriptCoalescer and script to make input_ids read the file
+with the biotype/logic_name configuration, than it reads the config-files
+for the database connections and tries to find the same hashkeys used in the
+TranscriptCoalescer.pm config in these files and use the database-details to
+connect to that specific database.
+
+The Database-configuration files read by TranscriptCoalscer are :
+
+    Bio::EnsEMBL::Analysis::Config::Exonerate2Genes;
+    Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases;
+
+The Configuration-file with logic_names and biotypes is here :
+
+   Bio::EnsEMBL::Analysis::Config::GeneBuild::TranscriptCoalescer;
+
+Remember : Each hashkey used in the TranscriptCoalsecer.pm MUST have a counterpart
+in one of the Database-configuration-files.
+
+
+  TranscriptCoalscer.pm :
+  Specify the logic_names (for ab_initio) and biotypes for
+  each set of predictions/genes you like to use as input in the
+  TranscriptCoalescer.pm file, and add them to one of the three sets
+  (EST_SETS, SIMGW_SETS or ABINITIO_SETS ) as well.
+
+   Your est-genes made by Exonerate2Genes should be in the EST_SETS,
+   your abinitio-predictions should go in the ABINITIO-SETS and the
+   gene predictions based on similarity genewise should go into SIMGW_SETS.
+
+
+
+    REFERENCE_DB => {
+                      BIOTYPES              => [],
+                      AB_INITIO_LOGICNAMES  => ['GeneFinder'] ,
+                     },
+
+
+     ......
+
+
+     ABINITIO_SETS =>['GeneFinder']
+
+
+
+
+   The Database-configuration is dynamic - if you have additional databases
+   just add another hashkey for this set of predictions/supporting evidence
+   like this :
+
+   MY_VERY_SPECIAL_DB => {
+                         BIOTYPES => ['more_special_biotype'],
+                         AB_INITIO_LOGICNAMES  => [],
+                        },
+
+
+
+   Than add the same hashkey (MY_VERY_SPECIAL_DB) to the Databases.pm file as
+   well such that TranscriptCoalescer knows which database to use to
+   fetch the genes/predictions you've specified above :
+
+     MY_VERY_SPECIAL_DB => {
+                             -dbname => 'special_db',
+                             -host => '',
+                             -port => '',
+                             -user => '',
+                             -pass => '',
+                            },
+
+
+    Fill out the COALESCER_DB entry as well - this will be the OUT database
+    where TranscriptCoalescer writes the new genes to.
+
+
+
+
+3 - make input_ids :
+
+    TranscriptCoalescer works on gene-clusters, so we don't want that it works
+    Standards-slices - instead, we pre-cluster all genes on a certain coord_system,
+    identify gaps between gene-clusters and use these 'cluster-islands' as input.
+    A script called make_TranscriptCoalescer_inputIDS.pl does the job for you - you
+    need to specify the dbconnection parameters to your refdb. The results are written
+    in a file which you than can source in using the command
+
+     mysql -h ia64g -D my_refdb -u***REMOVED*** -pxxxxxx  < input_ids.sql
+
+    perl ensembl-pipeline/scripts/GeneBuild/make_TranscriptCoalescer_inputIDS.pl \
+    -seq_region_name all \
+    -dbname -dbhost -dbport (def 3306 ) -dbuser ( def ensro )
+    -outfile <input_id_file_which_will_be_written.sql>
+    -coord_system chromosome
+    -slice_size <def. 100_000>
+    -logic_name <logic_name_of_tc_analysis>
+
+    The jobs runs long so it's worth submitting it to the long-queue - i made some small
+     changes to the script which are untested now.... .
+
+
+4 - Run analysis
+
+    Please shout if something's not working !
+
+
+
