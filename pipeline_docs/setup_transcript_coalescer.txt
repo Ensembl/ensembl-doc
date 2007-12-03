@@ -2,6 +2,9 @@
         
 1 - set up the analysis :
 
+File : transcript_coalescer_analysis.conf : 
+
+
 [TranscriptCoalescer]
 module=TranscriptCoalescer
 input_id_type=tc_slice
@@ -13,10 +16,19 @@ input_id_type=tc_slice
 
 
 
-2 - fill out the 3 config files :
+perl ensembl-pipeline/scripts/analysis_setup.pl $dbcon $db -read  \
+      -file transcript_coalescer_analysis.conf 
+
+perl ensembl-pipeline/scripts/RuleHandler.pl $dbcon $db -insert \
+      -condition Submit_tc_slice -goal TranscriptCoalescer  
+
+
+
+
+l - fill out the config files :
 
 The configuration for TranscriptCoalescer is splitted (by now )
-in 3 files : 2 files hold configuration detais to connect to different
+in 3 files : 2 files hold configuration details to connect to different
 databases and the third file holds details about the biotypes and logic_names
 of the genes / predictions you like to fetch out of these databases.
 
@@ -26,10 +38,17 @@ for the database connections and tries to find the same hashkeys used in the
 TranscriptCoalescer.pm config in these files and use the database-details to
 connect to that specific database.
 
+
 The Database-configuration files read by TranscriptCoalscer are :
 
     Bio::EnsEMBL::Analysis::Config::Exonerate2Genes;
     Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases;
+
+    If all your Database-configuration is done in Databases.pm you don't have 
+    to worry about the Exonerate2Genes.pm - the Exoenrate2Genes.pm config file 
+    is basically only read becasue you could have stored some of your database
+    configuration in it as well... 
+
 
 The Configuration-file with logic_names and biotypes is here :
 
