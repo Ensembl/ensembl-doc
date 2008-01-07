@@ -96,14 +96,16 @@ run ncRNA_update.pl
 This sets up the pipeline databases and starts the first stage of the analysis ie: a BLAST search
 
 perl ncRNA_update.pl <options> 
--pass *   - the database write password 
--verbose
--dbsetup  - this will create the pipeline databases (it will delete any existing databases with the same name on the same instance)
--refresh  - this obtains the latest copy of the RFAM and miRBase files and formats blast databases from them 
--species  - comma separated list of species from the config to work on, if blank all species are run
--norfam   - this flag blocks the RFAM analysis from running if you only want to update miRNAs
+  -pass *   the database write password 
+  -verbose
+  -dbsetup  this will create the pipeline databases (it will delete any existing databases with the same name on the same instance)
+  -refresh  this obtains the latest copy of the RFAM and miRBase files and formats blast databases from them 
+  -species  comma separated list of species from the config to work on, if blank all species are run
+  -norfam   this flag blocks the RFAM analysis from running if you only want to update miRNAs
+
 writes the rulemanager command and path to a shell script species.csh
 * = required
+
 When the script is run, first the configuration is written and checked, then the RFAM and miRBase files are prepared, if
 specified. Next the databases are created and the appropriate data is copied from the reference databases, assembly, seq_regions
 etc, next the pipeline set-up is done, the input ids and rules are created. Finally the rule managers are run, each with a separate
@@ -123,10 +125,11 @@ hits to be analysed. The script prepares the input ids for the final stages  of 
 
 The command line options are essentially the same as for the previous script.
 perl predict_ncRNA.pl 
--pass *(password) 
--species (species list) 
--verbose 
--norfam  (Only run miRNA annotation)
+  -pass *    password 
+  -species   species list 
+  -verbose 
+  -norfam    Only run miRNA annotation
+
 (* required)
 
 Again, once it has been run, use the appropriate shell script to restart the pipeline.
@@ -140,20 +143,22 @@ Once the analyses are run, the non coding RNA gene objects will have been stored
 A final script: transfer_ncRNAs.pl issued to transfer the ncRNAs from the pipeline database into the database on the staging
 server.
 transfer_ncRNAs
--pass * 
--write      write protect off
--verbose 
--delete     deletes non coding genes that are already on the staging server before writing the new ones.
--merge      If the new ncRNA overlaps an old ncRNA, delete the old one and replace it with the new one
--increment  If the new ncRNA overlaps an old ncRNA, keep the old ncRNA
--dbname *   the database to write to  on the staging server
--dbhost * 
--dbport * 
--species *  name of the species (same as in the config) only 1 species at a time can be written
--analysis * analysis logic name of the genes to delete ie: ncRNA
--xrefs      a file name in which to dump out all the xref data for use by the xref system
--skipchecks dont do checks
--whitelist list of dbids to keep
+  -pass * 
+  -write       write protect off
+  -verbose 
+  -delete      deletes non coding genes that are already on the staging server before writing the new ones.
+  -merge       If the new ncRNA overlaps an old ncRNA, delete the old one and replace it with the new one
+  -increment   If the new ncRNA overlaps an old ncRNA, keep the old ncRNA
+  -dbname *    the database to write to  on the staging server
+  -dbhost * 
+  -dbport * 
+  -species *   name of the species (same as in the config) only 1 species at a time can be written
+  -analysis *  analysis logic name of the genes to delete ie: ncRNA
+  -xrefs       a file name in which to dump out all the xref data for use by the xref system
+  -skipchecks  dont do checks
+  -whitelist   list of dbids to keep
+  -release *   intended emsembl release number
+
 * = essential
 Only 1 species at a time please
 It is important to use the -xrefs flag to store the xref data as the xref system needs it.
