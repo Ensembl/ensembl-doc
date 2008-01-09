@@ -491,7 +491,7 @@ input_id_type=CHUNK
 
 [pfscan]
 db=Prosite_profiles
-db_file=/data/blastdb/Ensembl/interpro_scan/prosite.profiles
+db_file=/data/blastdb/Ensembl/interpro_scan_old/prosite.profiles
 program=pfscan
 program_file=pfscan
 module=ProteinAnnotation/PrositeProfile
