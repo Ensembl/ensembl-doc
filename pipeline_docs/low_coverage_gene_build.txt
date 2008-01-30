@@ -185,13 +185,30 @@ the_output_dir specified below, so make sure that this exists and has lots
 of space. Also, make sure cleanup is set to 'no' below to avoid
 rare problems with duplicate output):
 
-
 <cut>
     {
       logic_name => 'WGA2Genes',
       runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
       batch_size => 500,
       resource   => '',
+      retries    => 3,
+      sub_args   => '',
+      runner     => '',
+      queue      => 'normal',
+      output_dir => 'the_output_dir',
+      cleanup => 'no',
+    },
+</cut>
+
+WGA2Genes hits the_compara_db particularly hard, so it might be worth 
+setting up resource requirements as follows:
+
+<cut>
+   {
+      logic_name => 'WGA2Genes',
+      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
+      batch_size => 50,
+      resource   => 'select[mygenebuildx<500] rusage[mygenebuildx=10]',
       retries    => 3,
       sub_args   => '',
       runner     => '',
