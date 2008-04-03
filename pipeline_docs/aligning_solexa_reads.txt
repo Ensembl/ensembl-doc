@@ -1,0 +1,172 @@
+This document outlines how to align solexa reads to the geneome and to transcripts ( useful for confirming gene models. )
+
+This is pretty straight forward, it is not that different to aligning ESTs to the genome using exonerate, the only real difference is that we use the ExonerateSolexa and ExonerateSolexaTranscripts modules and config in ensembl-analysis. 
+
+GenomicAlignment
+================
+
+The first thing to do is to chunk up the reads into smaller files, because the reads are so short ( ~30bp) I have found that chunk sizes of up to 50,000 work well ). Because the numbers of reads are often very large this step can take a while...
+
+So I used steves fastasplit code to do the chunking thus:
+
+Number of reads in file solexa.fasta = 26,756,935
+
+mkdir Chunks
+fastasplit.linux solexa.fasta 2600 Chunks/
+ nPerFile = 10291 nHeader = 26756935 nChunk = 2600
+Remainder = 335
+
+
+Example config
+==============
+
+The Solexa modues inherit from the ExonerateAlignFeature runnable so we need to fill in the config for this module:
+
+solexa_genome_align => {
+      GENOMICSEQS => 'path/to/my/genome/file/genome.fa',
+      QUERYSEQS   => '/path/to/my/solexa/chunk/files/Chunks',
+      FILTER => { OBJECT     => 'Bio::EnsEMBL::Analysis::Tools::BasicFilter',
+      		PARAMETERS => {
+                    -score => 'greaterthan 150',
+		    -percent_id => 'greaterthan 90',
+                   },              
+                },
+                OPTIONS => "--model affine:local --forwardcoordinates FALSE ".
+                          "--softmasktarget TRUE --exhaustive FALSE --score 150 ".
+                          "--saturatethreshold 100 --dnahspthreshold 60 --dnawordlen 14 --bestn 1",
+             }
+
+Then we need to fill out the specific config for the Solexa modules:
+Here is an example config I used for genomic alignments - from  Bio::EnsEMBL::Analysis::Config::GeneBuild::ExonerateSolexa
+
+ 	   solexa_genome_align =>  {
+	     # The database connections used are defined in 
+	     # Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases
+
+	     # Database to write the output features into
+	     OUT_DB   => 'TEST_DB',
+
+	     # Compress identical dna align features
+	     COMPRESSION => '1',
+
+	     # Specific config for ExonerateSolexaTranscript
+	     ##############################################
+
+	     # Database to fetch the trancripts from
+	     TRANSDB => '',
+	     # Biotype of the transcripts to fetch ( if left blank all transcripts are fetched )
+	     BIOTYPE => '',
+	     # If set only reads supporting introns will be written to the database
+	     # the value is the minimum overlap required on exons at both ends of the intron for the read
+	     # to be considered overlapping 
+	     INTRON_OVERLAP => '',
+	     }
+
+The compression option will collapse identical align features and store the numbers of reads that have been collapsed in the e-value feild, this is useful for limiting the number of features you have in the DnaAlignFeature table which can get very high where there is a lot of Solexa data.
+
+Then we can set up the alignment, input ids first:
+
+   perl $BASEDIR/ensembl-pipeline/scripts/make_input_ids "my db args"  -logic_name submit_solexa_chunk -file -dir /path/to/solexa/chunks/Chunks
+
+Set up the batchqueue etc, then run the rulemanager. ( remember to use database throttling in the batchqueue as writing millions of features to the database can put a high load on the instance).
+
+Transcript Alignment:
+=====================
+
+To align reads against transripts we first need to dump the DNA sequence of our genes to a flat file - the transcripts need to have an identifier in the fasta header; I used the transcript->display_id call to give to allow use of stable ids or internal ids if they are not availiable. 
+
+##########################################################
+# NB:It is important that the transcript sequences you dump are the same as the ones in the database the module will read from otherwise the jobs will fail.
+
+Once the sequences are dumped we can run the analysis using the Bio::EnsEMBL::Analysis::RunnableDB::ExonerateSolexaTranscript module. This will fetch the transcripts from the database and use the cdna2genome method call to move the aligned reads up onto the genome - they then get written to the output database in the same way as usual. 
+
+Then just set up the batchqueue etc, and run the rulemanager. ( again, remember to use database throttling ).	
+
+Example Config:
+==============
+
+from Bio::EnsEMBL::Analysis::Config::ExonerateAlignFeature
+
+solexa_trans_align => {
+      GENOMICSEQS => 'path/to/my/transcript/file/transcript.fa',
+      QUERYSEQS   => '/path/to/my/solexa/chunk/files/Chunks',
+      FILTER => { OBJECT     => 'Bio::EnsEMBL::Analysis::Tools::BasicFilter',
+      		PARAMETERS => {
+                    -score => 'greaterthan 150',
+		    -percent_id => 'greaterthan 90',
+                   },              
+                },
+                OPTIONS => "--model affine:local --forwardcoordinates FALSE ".
+                          "--softmasktarget TRUE --exhaustive FALSE --score 150 ".
+                          "--saturatethreshold 100 --dnahspthreshold 60 --dnawordlen 14 --bestn 1",
+             }
+	  }
+	  
+----------------------------------------------------------------
+	    
+from Bio::EnsEMBL::Analysis::Config::GeneBuild::ExonerateSolexa
+
+   solexa_trans_align  =>  {
+	     # The database connections used are defined in 
+	     # Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases
+
+	     # Database to write the output features into
+	     OUT_DB   => 'TEST_DB',
+
+	     # Compress identical dna align features
+	     COMPRESSION => '1',
+
+	     # Specific config for ExonerateSolexaTranscript
+	     ##############################################
+
+	     # Database to fetch the trancripts from
+	     TRANSDB => 'GENEBUILD_DB',
+	     # Biotype of the transcripts to fetch ( if left blank all transcripts are fetched )
+	     BIOTYPE => '',
+	     # If set only reads supporting introns will be written to the database
+	     # the value is the minimum overlap required on exons at both ends of the intron for the read
+	     # to be considered overlapping 
+	     INTRON_OVERLAP => '7',
+	     }
+
+Here I have set the database holding my transcripts to GENEBUILD_DB - defined in Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases.
+I have left the biotype blank so all the transcripts will be fetched and I have defined an INTRON_OVERLAP of 7 - this means that only reads that support introns will be written to the final database and they must overlap the flanking exons by at least 7bp each end before they are used. This is useful for further reducing the number of alignments you write to the final database. Leaving this value blank will cause all the alingments to be written to the database
+
+
+==============================================================
+
+Both these approaches can align the solexa reads with missmatches - I use an exonerate score cutoff of >= 150 as this seems to give the good quality alignments.
+
+
+Here are some example analyses and rules for both types of analysis:
+
+Analysis 
+========
+
+[submit_solexa_chunk]
+input_id_type=FILE
+
+
+[solexa_genome_align]
+program=exonerate-0.9.0
+program_file=/usr/local/ensembl/bin/exonerate-0.9.0
+module=Bio::EnsEMBL::Analysis::RunnableDB::ExonerateSolexa
+input_id_type=FILE
+
+
+[solexa_trans_align]
+program=exonerate-0.9.0
+program_file=/usr/local/ensembl/bin/exonerate-0.9.0
+module=Bio::EnsEMBL::Analysis::RunnableDB::ExonerateSolexaTranscript
+input_id_type=FILE
+
+
+Rules
+=====
+[solexa_trans_align]
+condition=submit_solexa_chunk
+
+[solexa_genome_align]
+condition=submit_solexa_chunk
+
+
