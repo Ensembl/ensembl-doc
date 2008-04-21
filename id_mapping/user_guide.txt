@@ -15,12 +15,15 @@ developer_guide.txt.
 Table of content
 ================
 
+Overview
 Files
 Overview
 Quickref
 Run the stable ID mapping
 Logging
 Troubleshooting
+Tools
+
 
 -------------------------------------------------------------------------------
 Files
@@ -63,7 +66,7 @@ Quickref
   stamped logfiles in your log directory (default $dumppath/log).
 
   If you want to review your configuration before actually running the code, use
-  the -i option.
+  the -i (--interactive) option.
 
 3. Watch it run:
 
@@ -115,3 +118,12 @@ Three ways of logging:
 
   use --logauto and --logautobase
 
+
+<todo> explain loglevels
+
+
+-------------------------------------------------------------------------------
+Files
+-------------------------------------------------------------------------------
+
+~/bin/latest (for reading logfiles)
