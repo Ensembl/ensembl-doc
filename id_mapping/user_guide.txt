@@ -1,5 +1,5 @@
 ****************************************
-* Ensembl stable ID mapping user guide *
+* Ensembl stable Id mapping user guide *
 ****************************************
 
 Author: Patrick Meidl <meidl@ebi.ac.uk>
@@ -8,22 +8,50 @@ Please post questions to the Ensembl developers mailinglist
 <ensembl-dev@ebi.ac.uk>
 
 
-This document describes how to use the Ensembl stable ID mapping application.
+This document describes how to use the Ensembl stable Id mapping application.
 If you intend to modify or extend the code, please refer to
 developer_guide.txt.
+
 
 Table of content
 ================
 
 Overview
 Files
-Overview
-Quickref
-Run the stable ID mapping
+Running the stable Id mapping
+Configuration parameters
 Logging
 Troubleshooting
 Tools
 
+
+-------------------------------------------------------------------------------
+Overview
+-------------------------------------------------------------------------------
+
+The stable ID mapping process maps stable IDs for genes, exons, transcripts and
+translations between databases. The original database is referred to as the
+"source", the new database as the "target".
+
+The process involves running a set of scripts which will read input from both
+source and target dbs and generate tab-delimited data files (stable Id tables
+and archive) which can option be uploaded into the target db. You will usually
+run the wrapper script (called run.pl) which will wrap the whole process up and
+also optionally submits the process to the farm via LSF.
+
+The program has three modes:
+
+  - normal: this will run the full stable Id mapping process.
+  
+  - upload: assuming that you earlier did a full run without uploading the
+    results into the target db, this will upload the results from the dump files
+    into the db.
+
+  - check_only: this will only perform the initial consistency check and exit.
+
+In addition to the result data, the stable Id mapping application also generates
+a text summary of the mapping process, detailed mapping statistics, debug
+output and logs.
 
 -------------------------------------------------------------------------------
 Files
@@ -32,71 +60,233 @@ Files
 All scripts are in ensembl/misc-scripts/idmapping/. Paths in this document are
 relative to this directory unless stated otherwise.
 
+The Perl modules specific to the stable Id mapping are at
+ensembl/modules/Bio/EnsEMBL/IdMapping/.
+
 Documentation is at ensembl-doc/id_mapping/.
+
+All these files are kept in the Ensembl CVS repository. Scripts and modules are
+in the "ensembl" CVS module, whereas the documentation is in the separate
+"ensembl-doc" module.
 
 
 -------------------------------------------------------------------------------
-Quickref
+Running the stable Id mapping
 -------------------------------------------------------------------------------
 
 1. Configure:
 
-  Make a copy of the default configuration (default.conf) and adapt it (there
-  are comments in the default conf which will help you understand the settings).
+  Make a copy of the default configuration (default.conf) and adapt it.
 
-  Use the --conf option to use this configuration when you run the stable ID
-  mapping.
+  Use the --conf option to use this configuration when you run the stable Id
+  mapping. You can also override configuration parameters on the commandline.
 
-  This application uses Bio::EnsEMBL::Utils::ConfParser to read and parse the
-  configuration file and commandline options (the latter override the former),
-  please refer to documentation in this module if you experience problems.
+  Please see the "Configuration parameters" section below for details.
 
 2. Run it:
 
-  To run the stable ID mapping, use the run.pl script. This script is a wrapper
-  (and optional dispatcher) for dump_cache.pl and id_mapping.pl, and you will
-  therefore get log output in individual files for these scripts. to former
-  builds a cache by dumping all needed data to files, the latter does the actual
-  mapping.
+  To run the stable Id mapping, use the run.pl script. This script is a wrapper
+  (and optional LSF dispatcher) for dump_cache.pl (which creates an object cache
+  and serialises this data to files) and id_mapping.pl (which does the actual
+  mapping).
 
-  You can dispatch this script automatically to the farm by using the --lsf
-  option (it will re-exec itself with the same parameters on the farm).
-
-  Another useful option is --logouto which will automatically generate time
-  stamped logfiles in your log directory (default $dumppath/log).
+  You can dispatch this script automatically to the farm by configuring your LSF
+  options and then using the --lsf parameter. The script will then only do the
+  initial checks locally and then re-exec itself with the same parameters on the
+  farm.
 
   If you want to review your configuration before actually running the code, use
   the -i (--interactive) option.
 
 3. Watch it run:
 
-  Since log output is directly written to a file on lustre or nfs, you can use
-  `tail -f` to check the logs live.
+  Depending on your logging settings (see below), log output is either written
+  directly to a file on lustre or nfs, so you can use `tail -f` to check
+  the logs while the application runs, or output is temporarily written to a
+  file in /tmp on the execution host, so you need to ssh into the host and tail
+  the file there.
 
 4. Check the results:
 
-  All output will be in the 'dumppath' you configured, separated into
+  All output will be in the 'basedir' you configured, separated into
   subdirectories. Look at summary_email.txt for an overview and at log/ for
-  logs, stats/ for detailed stats and debug/ for debug output. if you want to
+  logs, stats/ for detailed stats and debug/ for debug output. If you want to
   manually upload results, the table data is in the tables/ directory.
 
   There is also a script called utils/compare_results.pl which will compare
-  results from two different mapping runs (perl and java). This script is in an
-  early stage though so might be buggy and is certainly incomplete.
+  results from two different mapping runs (perl and java). This is mostly useful
+  for debugging changes made to the code.
+
+5. Run the healthchecks:
+
+  There is an "id_mapping" healthcheck group which can be run to ensure all the
+  stable ID and archive data is correct. 
+
+  A typical example for running the healthchecks would be:
+
+    $ ensj-healthcheck/run-healthcheck.sh -config ~/homo_sapiens.properties \
+        -d homo_sapiens_core_49_36k -species homo_sapiens -type core id_mapping
+
+  Please refer to the healthcheck documentation for further details.
 
 5. Re-run from a checkpoint:
 
-  If the stable ID mapping fails to whatever reason, fix the problem and then
-  re-run it. At various points checkpoint information is written to files and
-  the script will automatically read this information rather than re-computing
-  it.
+  If the stable Id mapping fails to whatever reason, fix the problem and then
+  re-run it. At various points, checkpoint information is written to files and
+  the script will automatically read this information and pick up execution from
+  this checkpoint, rather than re-computing everything from scratch - if you
+  deliberately want to do a clean new run, you'll have to delete the old output
+  first (or configure a fresh basedir).
 
   If, for debugging purporses, you want to force a re-run from a particular
   checkpoint, you can do this by selectively removing the "checkpoint" files. A
-  common scenario during code development is to skip the cache building, this is
-  done by deleting all output but the cache/ directory. for more elaborate stuff
-  you'll have to look at the other output and delete the right files (needs some
-  familiarity with the code; a utility script to do this is planned).
+  common scenario during code development is to run the application based on an
+  existing object cache, and this is done by deleting all output but the cache/
+  directory. for more elaborate stuff you'll have to look at the other output
+  and delete the right files (needs some familiarity with the code; a utility
+  script to do this might be nice).
+
+
+-------------------------------------------------------------------------------
+Configuration parameters
+-------------------------------------------------------------------------------
+
+This application uses Bio::EnsEMBL::Utils::ConfParser to read and parse the
+configuration file and commandline options. It will first read the configuration
+file (default.conf or the custom configuration passed in with the --conf
+commandline option) and then optionally override these setting with options
+passed in on the commandline. It also checks for presence and correct type of
+required parameters. Please refer to developer_guide.txt and the Pod in the
+ConfParser details for details.
+
+Below is a description of all configuration parameters. Some of it references
+more detailed section later in this document. Also look in default.conf in case
+this documentation gets out of date/sync.
+
+Base directory:
+---------------
+
+  basedir - base directory for all output (which will be in subdirectories of 
+            this directory). If it doesn't exist, it will be created.
+
+Logging:
+--------
+
+  See section "Logging" below for chosing the right settings.
+
+  loglevel - (optional) controls log verbosity.
+             Values (ordered by ascending verbosity): ERROR, WARNING, INFO
+             (default), DEBUG
+
+  logpath - (optional) directory for logfiles. Default: '$basedir/log'
+  logfile - (optional) log filename
+
+Database connection settings:
+-----------------------------
+
+  sourcehost - source db host (e.g. 'ens-livemirror')
+  sourceport - source db port (e.g. '3306')
+  sourceuser - source db username (e.g. 'ensro' since only read access is
+               required for source db)
+  sourcepass - source db password (blank for user ensro)
+  sourcedbname - source db name (e.g. homo_sapiens_core_48_36j)
+
+  targethost - target db host (e.g. 'ens-staging')
+  targetport - target db port (e.g. '3306')
+  targetuser - target db username (e.g. '***REMOVED***' since read/write access is
+               required for target db)
+  targetpass - target db password
+  targetdbname - target db name (e.g. homo_sapiens_core_49_36k)
+
+Caching:
+--------
+
+  See section "Caching" below for chosing the right settings.
+
+  cache_method - (optional) caching strategy.
+                 Values: build_cache_auto (default), build_cache_by_seq_region,
+                 build_cache_all
+
+  build_cache_auto_threshold - (optional) max number of toplevel seq_regions
+                               before switching to build_cache_all (default:
+                               100)
+
+  build_cache_concurrent_jobs - (optional) max number of concurrent LSF jobs
+                                when building cache by seq_region (default: 200)
+
+Limit to region:
+----------------
+
+  This is mostly useful for code testing and debugging
+
+  region - (optional) only run for this region. Expects same format as returned
+           by $slice->name (e.g. chromosome:NCBI36:1:1:2000000:1)
+  
+  chromosomes - (optional) only run for these chromosomes (comma-separated list)
+
+LSF:
+----
+
+  See section "LSF" below for chosing the right settings.
+
+  lsf_opt_run                 = "-M3500000 -R'select[type==X86_64 && mem>3500],rusage[mem=3500]'"
+  ;lsf_opt_run                 = "-M7500000 -R'select[type==X86_64 && mem>7500],rusage[mem=7500]'"
+  ;lsf_opt_dump_cache          = "-M1700000 -R'select[type==X86_64 && mem>1700],rusage[mem=1700]'"
+
+ScoreBuilder:
+-------------
+
+  min_exon_length             = 15
+  exonerate_path              = /usr/local/ensembl/bin/exonerate-0.8.2
+  exonerate_bytes_per_job     = 250000
+  exonerate_jobs              = 0
+  exonerate_concurrent_jobs   = 200
+  exonerate_threshold         = 0.5
+  exonerate_extra_params      = '--bestn 100'
+  transcript_score_threshold  = 0
+  synteny_rescore_jobs        = 20
+  ;lsf_opt_synteny_rescore     = 
+
+InternalIdMapper:
+-----------------
+
+  ;plugin_internal_id_mappers_gene = \
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::init_basic,\
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::synteny,\
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::best_transcript,\
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::biotype,\
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::internal_id
+
+  ;plugin_internal_id_mappers_transcript = \
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::init_basic,\
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::non_exact_translation,\
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::mapped_gene,\
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::internal_id,\
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::single_gene
+
+  ;plugin_internal_id_mappers_exon = \
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblExonGeneric::init_basic,\
+  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblExonGeneric::mapped_transcript
+
+StableIdMapper:
+---------------
+
+  mapping_types               = gene,transcript,translation,exon
+  ;plugin_stable_id_generator  = Bio::EnsEMBL::IdMapping::StableIdGenerator::EnsemblGeneric
+
+Result upload:
+--------------
+
+  ; upload results into db
+  upload_events               = 1
+  upload_stable_ids           = 1
+  upload_archive              = 1
+  dry_run = 0
+
+URL prefix for clicklists:
+--------------------------
+
+  urlprefix                   = http://jun2007.archive.ensembl.org/Pan_troglodytes/geneview?gene=
 
 
 -------------------------------------------------------------------------------
@@ -123,7 +313,27 @@ Three ways of logging:
 
 
 -------------------------------------------------------------------------------
-Files
+Caching
 -------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------
+LSF
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+Troubleshooting
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+Tools
+-------------------------------------------------------------------------------
+
+There are several scripts in ensembl/misc-scripts/id_mapping/utils/ which
+perform auxiliary tasks related to the stable Id mapping. Please see the Pod in
+these scripts for details.
+
 ~/bin/latest (for reading logfiles)
+

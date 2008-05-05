@@ -20,6 +20,7 @@ Table of content
 Files
 Design overview
 Configuration
+Plugins
 Logging
 How to extend the application
 Wishlist
@@ -72,14 +73,4 @@ Wishlist
 Known issues
 -------------------------------------------------------------------------------
 
-1. Cache and serialisation:
-
-The cache allows lookup of object by different properties (e.g. you can get
-genes by gene ID or by transcript ID). When the cache is initially created, you
-will get identical gene objects back from these different calls. But after
-serialisation and deserialisation of the cache, the different cache hashes will
-point to different object (the two genes will have the same properties, but
-reference two different memory locations). This can become an issue when you
-modify an object retrieved from one hash, then get the (supposedly) same object
-from another hash - you will find that your modifications aren't there.
 
