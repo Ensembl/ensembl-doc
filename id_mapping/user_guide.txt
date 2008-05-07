@@ -21,6 +21,8 @@ Files
 Running the stable Id mapping
 Configuration parameters
 Logging
+Caching
+LSF
 Troubleshooting
 Tools
 
@@ -155,19 +157,45 @@ This application uses Bio::EnsEMBL::Utils::ConfParser to read and parse the
 configuration file and commandline options. It will first read the configuration
 file (default.conf or the custom configuration passed in with the --conf
 commandline option) and then optionally override these setting with options
-passed in on the commandline. It also checks for presence and correct type of
-required parameters. Please refer to developer_guide.txt and the Pod in the
-ConfParser details for details.
+passed in on the commandline (option format same as used by Getopt::Long). It
+also checks for presence and correct type of required parameters. Please refer
+to developer_guide.txt and the Pod in the ConfParser details for details.
+
+The configuration file is a Windows ini style file, containing a list of
+key/value pairs separated by '='. Note that for parameters accepting a list of
+options, separate them by commas *without* whitespace. For long parameter values
+you can terminate your line with '\' to allow multi-line values.
 
 Below is a description of all configuration parameters. Some of it references
 more detailed section later in this document. Also look in default.conf in case
-this documentation gets out of date/sync.
+this documentation gets out of date/sync. Parameters are mandatory unless marked
+"optional" or where a default value is given.
 
-Base directory:
----------------
+
+General:
+--------
+
+  conffile - (optional) read configuration from this file (default:
+             ensembl/misc-scripts/default.conf)
+
+  mode - (optional) run mode. Values: normal (default), upload, check_only
 
   basedir - base directory for all output (which will be in subdirectories of 
             this directory). If it doesn't exist, it will be created.
+
+  no_check - (optional) skip initial checks of prerequisites
+
+  no_check_empty_tables - (optional) if set, don't check if stable Id and
+                          archive tables are empty
+
+  interactive - (optional) run interactively (will display settings and ask
+                you to confirm before continuing)
+
+  help - (optional) show help screen and exit
+
+  is_component - (optional) is set, this script is considered a "component" of a
+                 wrapper script. This will suppress interactive mode and has
+                 some other consequences; used internally only
 
 Logging:
 --------
@@ -178,8 +206,18 @@ Logging:
              Values (ordered by ascending verbosity): ERROR, WARNING, INFO
              (default), DEBUG
 
-  logpath - (optional) directory for logfiles. Default: '$basedir/log'
+  logpath - (optional) directory for logfiles (default: '$basedir/log')
   logfile - (optional) log filename
+
+  logauto - (optional) log filename will be auto-generated (default: TRUE if
+            using --lsf, else FALSE)
+
+  logautobase - (optional) use this prefix for auto-generated log filename
+
+  logautoid - (optional) auto-generated part of log filename. Will be passed on
+              to component scripts (internal use only)
+
+  logappend - (optional) append to existing logfile if found (default: FALSE)
 
 Database connection settings:
 -----------------------------
@@ -188,7 +226,7 @@ Database connection settings:
   sourceport - source db port (e.g. '3306')
   sourceuser - source db username (e.g. 'ensro' since only read access is
                required for source db)
-  sourcepass - source db password (blank for user ensro)
+  sourcepass - (optional) source db password (blank for user ensro)
   sourcedbname - source db name (e.g. homo_sapiens_core_48_36j)
 
   targethost - target db host (e.g. 'ens-staging')
@@ -214,79 +252,123 @@ Caching:
   build_cache_concurrent_jobs - (optional) max number of concurrent LSF jobs
                                 when building cache by seq_region (default: 200)
 
-Limit to region:
-----------------
+Limit to region or biotypes:
+----------------------------
 
-  This is mostly useful for code testing and debugging
+  biotypes - (optional) only run for genes of listed biotypes
 
   region - (optional) only run for this region. Expects same format as returned
            by $slice->name (e.g. chromosome:NCBI36:1:1:2000000:1)
   
   chromosomes - (optional) only run for these chromosomes (comma-separated list)
-
+  
 LSF:
 ----
 
   See section "LSF" below for chosing the right settings.
 
-  lsf_opt_run                 = "-M3500000 -R'select[type==X86_64 && mem>3500],rusage[mem=3500]'"
-  ;lsf_opt_run                 = "-M7500000 -R'select[type==X86_64 && mem>7500],rusage[mem=7500]'"
-  ;lsf_opt_dump_cache          = "-M1700000 -R'select[type==X86_64 && mem>1700],rusage[mem=1700]'"
+  lsf - (optional) if set, run.pl will do initial checks locally, then submit
+        itself to the farm via LSF
+
+  lsf_opt_run - (optional) bsub options for run.pl if using --lsf
+
+  lsf_opt_dump_cache - (optional) bsub options for cache building if using
+                       build_cache_by_seq_region (dump_by_seq_region.pl)
+
+  lsf_opt_synteny_rescore - (optional) bsub options for synteny rescoring
+                            (synteny_rescore.pl)
 
 ScoreBuilder:
 -------------
 
-  min_exon_length             = 15
-  exonerate_path              = /usr/local/ensembl/bin/exonerate-0.8.2
-  exonerate_bytes_per_job     = 250000
-  exonerate_jobs              = 0
-  exonerate_concurrent_jobs   = 200
-  exonerate_threshold         = 0.5
-  exonerate_extra_params      = '--bestn 100'
-  transcript_score_threshold  = 0
-  synteny_rescore_jobs        = 20
-  ;lsf_opt_synteny_rescore     = 
+  min_exon_length - (optional) don't include exons shorter than this length in
+                    exonerate alignment (default: 15)
+
+  exonerate_path - exonerate binary to use for exon alignments
+
+  exonerate_bytes_per_job - (optional) limit exonerate to process this number of
+                            source file bytes per LSF job (default: 25000)
+
+  exonerate_jobs - (optional) use this nuber of LSF jobs (default: 0 - will
+                   determine job number from exonerate_bytes_per_job instead)
+
+  exonerate_concurrent_jobs - (optional) max number of concurrent exonerate LSF
+                              jobs (default: 200)
+
+  exonerate_threshold - (optional) will be multiplied by 100 and then passed to
+                        exonerate --percent option (default: 0.5)
+
+  exonerate_extra_params - (optional) extra exonerate parameters (e.g.
+                           '--bestn 100')
+  
+  transcript_score_threshold - (optional) discard transcript scores below this
+                               threshold (default: 0)
+  
+  synteny_rescore_jobs - number of synteny rescoring LSF jobs (default: 20)
 
 InternalIdMapper:
 -----------------
 
-  ;plugin_internal_id_mappers_gene = \
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::init_basic,\
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::synteny,\
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::best_transcript,\
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::biotype,\
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::internal_id
+  Please refer to the "Plugins" section in the developer_guide.txt for more
+  information about InternalIdMapper plugins.
 
-  ;plugin_internal_id_mappers_transcript = \
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::init_basic,\
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::non_exact_translation,\
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::mapped_gene,\
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::internal_id,\
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::single_gene
+  plugin_internal_id_mappers_gene:
+  
+    Plugin chain to run for mapping gene internal Ids. If not configured, these
+    default plugins will be used:
 
-  ;plugin_internal_id_mappers_exon = \
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblExonGeneric::init_basic,\
-  ;    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblExonGeneric::mapped_transcript
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::init_basic
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::synteny
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::best_transcript
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::biotype
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblGeneGeneric::internal_id
+
+  plugin_internal_id_mappers_transcript:
+
+    Plugin chain to run for mapping transcript internal Ids. If not configured,
+    these default plugins will be used:
+
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::init_basic
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::non_exact_translation
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::mapped_gene
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::internal_id
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblTranscriptGeneric::single_gene
+
+  plugin_internal_id_mappers_exon:
+
+    Plugin chain to run for mapping exon internal Ids. If not configured, these
+    default plugins will be used:
+
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblExonGeneric::init_basic
+    Bio::EnsEMBL::IdMapping::InternalIdMapper::EnsemblExonGeneric::mapped_transcript
 
 StableIdMapper:
 ---------------
 
-  mapping_types               = gene,transcript,translation,exon
-  ;plugin_stable_id_generator  = Bio::EnsEMBL::IdMapping::StableIdGenerator::EnsemblGeneric
+  mapping_types - (optional) only map stable Ids for these object types
+                  (default: gene,transcript,translation,exon)
+
+  plugin_stable_id_generator - (optional) plugin to generate new stable Ids
+          (default: Bio::EnsEMBL::IdMapping::StableIdGenerator::EnsemblGeneric)
 
 Result upload:
 --------------
 
-  ; upload results into db
-  upload_events               = 1
-  upload_stable_ids           = 1
-  upload_archive              = 1
-  dry_run = 0
+  If set to a true value, these parameters cause the uploading of the mapping
+  results into the appropriate db tables (default: FALSE).
+
+  upload_events - upload stable_id_event and mapping_session tables
+  upload_stable_ids - upload stable Id tables
+  upload_archive - upload gene_archive and peptide_archive tables
+
+  dry_run - (optional) do a dry run (i.e. without any uploads; overrides the
+  upload_* settings; default: FALSE)
 
 URL prefix for clicklists:
 --------------------------
 
-  urlprefix                   = http://jun2007.archive.ensembl.org/Pan_troglodytes/geneview?gene=
+  urlprefix - prefix to use for clicklists (e.g. 
+              http://feb2008.archive.ensembl.org/Homo_sapiens/geneview?gene=)
 
 
 -------------------------------------------------------------------------------
