@@ -48,6 +48,19 @@ or
 
     ./xref_config2sql.pl my_own_xref_config.ini >sql/populate_metadata.sql
 
+
+NOTE: For ncRNA xrefs, you will need to modify the location of the file
+      specified in xref_config.ini. For example:
+      Cow has the following:
+        data_uri = file:Bos_taurus/ncRNA/ncRNA.txt
+      and it needs to be changed to the location that sw4 (or whoever 
+      does ncRNAs) has given you for this particular release.
+      eg. For release 50, the location of cow ncRNA file changed to:
+        data_uri = file:///nfs/acari/sw4/cvs_checkout/ensembl-personal/sw4/ncRNA/Release50/Xrefs/bos_taurus.txt
+      It should be written with three slashes after 'file:', in the
+      way you would write it if looking at the file in your browser.
+
+
 The reason for overwriting 'sql/populate_metadata.sql' is that the
 'xref_parser.pl' script will use that particular file name to populate
 the Xref database later.
