@@ -112,8 +112,8 @@ Both Spliced_elsewhere and PSILC require scripts to be run before they can be
 used, the scripts take the flags from the flag table and create input ids out 
 of them to run the analysis. The scripts to do this are here:
 
-ensembl-pipeline/scripts/Pseudogenes/prepare_PSILC.pl
-ensembl-pipeline/scripts/Pseudogenes/prepare_Spliced_elsewhere.pl
+ensembl-analysis/scripts/Pseudogenes/prepare_PSILC.pl
+ensembl-analysis/scripts/Pseudogenes/prepare_Spliced_elsewhere.pl
 
 These also take configuration from the pseudogene config module.
 
