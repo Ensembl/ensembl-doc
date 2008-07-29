@@ -48,6 +48,13 @@ Uniprot and NCBI ftp sites provide pre-made sets of data. For
 example the REFSEQ proteome for mouse can be found here at the NCBI
 ftp://ftp.ncbi.nlm.nih.gov/genomes/M_musculus/protein/.
 
+We create a protein index file of the proteome, for faster access to
+the sequences.  We use a program written in C called 'indicate' to 
+create our protein index file. You'll need to check out our ensc-core 
+code to access it.  Once you have indicate, you can do the following:
+indicate -d $PWD -f your_proteome.fa -i your_proteome_index -p SingleWordParser 
+
+
 2. Evidence Alignment
 
 Before any CDS prediction can happen we need to align the source
@@ -539,7 +546,7 @@ POST_GENEWISE_MASK, Compare the output gene models to the gene for masking.
 REPEATMASKING,  If the input dna sequence is to be masked the logic names of the features to use should be in this array
 SOFTMASKING, The masking would be done using lower case letters rather than N's
 SEQFETCHER_OBJECT, The object to use to fetch the protein sequences out of an index file, by default this is Bio::EnsEMBL::Pipeline::SeqFetcher::OBDAIndexSeqFetcher.
-SEQFETCHER_PARAMS, Constructor parameters for the Seqfetcher object
+SEQFETCHER_PARAMS, Constructor parameters for the Seqfetcher object. See also SEQFETCHER_DIR for an explanation of the dir required. 
 USE_KILL_LIST, A binary switch for the use of the kill list. This is a database structure which can be used to store identifiers of protein sequences not to be used in the annotation process and the api for the structure is discussed future down the document.
 LIMIT_TO_FEATURE_RANGE, This is a binary variable which alters what sequence is given to the BlastMiniGenewise Runnable, if this is switched on each protein align feature which is in the database is used to generate a slice plus extra padding if defined below and that is given to the BlastMiniGenewise Runnable along with that single protein id. If this is switched off
 FEATURE_RANGE_PADDING, If the limit to feature range is switched on this defined the additional padding which is added to the sequence
