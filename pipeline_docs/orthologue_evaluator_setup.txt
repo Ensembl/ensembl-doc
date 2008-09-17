@@ -131,6 +131,19 @@ Configuration of Bio::EnsEMBL::Analysis::Config::Databases:
                          },
 
 
+Add the location of your softmasked dusted genome to Exonertate2Genes / DEFAULT 
+--------------------------------------------------------------------------------
+
+
+    You need to enter the path to your softmasked genome in the default section of 
+    exonerate2genes : 
+
+     vi ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm
+ 
+       'DEFAULT' => {
+           'GENOMICSEQS' => '/path/to/softmasked/genome.fa' ,
+       }
+
 
 
 Automatic configuration of the setup of the Orthologue-evaluation analyses 
