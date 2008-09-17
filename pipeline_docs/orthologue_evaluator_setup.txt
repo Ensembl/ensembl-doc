@@ -63,8 +63,9 @@ How to set up the OrthologueEvaluator-Run
    These config files are used by the OrthologueEvaluator Analysis : 
 
      Bio/EnsEMBL/Analysis/Config/GeneBuild/OrthologeEvaluator.pm
-     Bio/EnsEMBL/Analysis/Config/GeneBuild/OrthologeEvaluatorExonerate.pm
-     Bio/EnsEMBL/Analysis/Config/GeneBuild/Databases.pm 
+     Bio/EnsEMBL/Analysis/Config/GeneBuild/OrthologeEvaluatorExonerate.pm  
+
+     Bio/EnsEMBL/Analysis/Config/Databases.pm 
      Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm 
 
 
@@ -111,12 +112,12 @@ Configuration of Bio::EnsEMBL::Analysis::Config::GeneBuild::OrthologeEvaluator :
 
 
   
-Configuration of Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases: 
+Configuration of Bio::EnsEMBL::Analysis::Config::Databases: 
 --------------------------------------------------------------------------------
 
 
     1) Configure the output database : ORTHOLOGUE_DB
-       in ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Config/GeneBuild/Databases.pm
+       in ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Config/Databases.pm
  
        This will be the database where the Exonerate2Genes runs write their results to. 
 
@@ -137,7 +138,7 @@ Automatic configuration of the setup of the Orthologue-evaluation analyses
 
     It will read the configuration out of these modules :
 
-       Bio::EnsEMBL::Analysis::Config::GeneBuild::Databases;
+       Bio::EnsEMBL::Analysis::Config::Databases;
        Bio::EnsEMBL::Analysis::Config::GeneBuild::OrthologueEvaluator;
        Bio::EnsEMBL::Analysis::Config::GeneBuild::OrthologueEvaluatorExonerate; 
 
