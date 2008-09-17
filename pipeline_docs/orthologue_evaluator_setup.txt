@@ -68,6 +68,7 @@ How to set up the OrthologueEvaluator-Run
      Bio/EnsEMBL/Analysis/Config/Databases.pm 
      Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm 
 
+     
 
 
 Configuration of Bio::EnsEMBL::Analysis::Config::GeneBuild::OrthologeEvaluator : 
@@ -220,8 +221,9 @@ Automatic configuration of the setup of the Orthologue-evaluation analyses
        create table rg_bak select * from rule_goal ; 
        create table rc_bak select * from rule_conditions ; 
 
-    perl ensembl-pipeline/scripts/setup_orthologue_analysis.pl \
-     -dbname <DBNAME> -dbhost <DBHOST> -write 
+
+      perl ensembl-pipeline/scripts/setup_orthologue_evaluator.pl \
+        -dbname <DBNAME> -dbhost <DBHOST> -write 
  
 
 
