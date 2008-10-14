@@ -30,7 +30,8 @@ The main genebuild process can be divided into 8 main stages.
    8. Merging prediction sets of varying qualities
    9. Creating a non-redundant set of models
    10. Identifying pseudogenes and other problematic CDS structures
-   11. Code
+   11. Post-genebuild processing
+   12. Code
 
 ===============================
 1. Finding evidence sources
@@ -489,7 +490,38 @@ the Alpheaus gene assessments.
 
 
 ===============================
-11. Code
+11. Post-genebuild processing
+===============================
+
+After the gene set is complete, we do:
+
+(i) Xrefs
+
+The xref system cross-references the structures in our database with sequences 
+in external databases. For example, human gene models that are found in the 
+CCDS set will be cross-referenced to the CCDS database and they will have a 
+link out to the external CCDS site. There are a number of databases that we 
+cross-reference to including EMBL, Uniprot, Unigene, RefSeq, Interpro, GO.
+
+The relevant modules can be found here:
+ensembl/misc-scripts/xref_mapping/
+
+See ensembl-doc/pipeline_docs/using_the_xref_system.txt for some explanation.
+
+(ii) Protein annotation
+
+Translations in the core database are searched for domains eg:
+Prints, PrositePatterns, PrositeProfiles, Pfam, Tigerfam, Smart, Superfamily, Pirsf
+Seq, SignalP, Ncoils, Tmhmm
+
+See ensembl-doc/pipeline_docs/protein_annotation.txt
+
+(iii) ncRNAs
+
+See ensembl-doc/pipeline_docs/ncRNAs.txt
+
+===============================
+12. Code
 ===============================
 
 The majority of the code below is found in the ensembl module
