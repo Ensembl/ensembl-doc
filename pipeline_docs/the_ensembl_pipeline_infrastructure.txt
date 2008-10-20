@@ -1,11 +1,37 @@
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ THE ENSEMBL PIPELINE INFRASTRUCTURE
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 This document describes the Ensembl pipeline infrastructure.  The topics
 covered are code, schema, rules, setup and the scripts which can be used to run
 the pipeline.
 
 
+Overview
+========
+1. Introduction
+2. Code
+3. Schema
+4. Rules
+5. Setup
+6. Scripts
+
+
+=====================
+1. Introduction
+=====================
+
+Definition:
+
 The pipeline system is a collection of code and database tables which 
-allow a set of dependancies between analyses to be defined then then run in a 
+allow a set of dependancies between analyses to be defined and then run in a 
 parallel fashion by submission to a compute resource. 
+
+What the pipeline does for us:
+
+The pipeline handles all communication between the algorithm being run 
+(eg. genewise) with its modules in ensembl-analysis, and the database that the
+results of the algorithm are written to.
 
 The system can recognise job failures and re-try failed jobs (up to a set 
 number of times). The system is also able to recognise jobs which have 
@@ -16,12 +42,51 @@ RunnableDBs. Runnables run the analysis programs and parse the results, while
 RunnableDBs communicate between the databases and the Runnables, retrieving
 input data and storing the results.
 
+The pipeline code is independent of the analysis code and it is therefore very
+flexible in its use. Most algorithms, with the appropriate modules in ensembl-
+analysis, can be run in the ensembl-pipeline system.
 
 
-Code
-====
+                                 SubmitContig
 
-The ensembl pipeline, like the ensembl core, is coded in perl. In order to
+                                      ||
+                                      \/
+   Algorithm                    Contig sequence
+   (analysis executable)             
+   +                     ---------->  || 
+   parameters                         \/
+
+                                Input_id (job) <-----------
+                                                          |
+                                      ||                  |
+                                      \/                  |
+                                                          |
+                                 Run on farm              | retry if failed
+                                      ||                  |
+                                      \/                  |
+                                                          |
+                                Results parsed            |
+                                                          |
+                                      ||                  |
+                                      \/  -----------------
+
+                              Results stored in db
+
+
+
+An analysis is usually run using the RuleManager script:
+ensembl-pipeline/scripts/rulemanager.pl
+
+The monitor script is useful for providing an overview of how jobs are
+progressing:
+ensembl-pipeline/scripts/monitor
+
+
+=====================
+2. Code
+=====================
+
+The ensembl-pipeline code, like the ensembl core, is coded in perl. In order to
 run the ensembl pipeline you need perl and mysql installed. You also need
 some ensembl specific code which is freely available via cvs.
 
@@ -34,31 +99,85 @@ ensembl-analysis
 
 You also need bioperl which is also freely available:
 bioperl-live (bioperl-release-1-2-3)
+(Some parts of the code may require older or newer versions of bioperl.)
 
+The stable branch of the ensembl core code is branch-ensembl-50 at the 
+time of writing. This corresponds to Ensembl release 50. The branch number 
+is incremented with each release.
 
-The current stable branch of the pipeline and analysis code is
-branch-ensembl-29. This code may work with more recent versions of the 'core'
-ensembl code but we can only guarantee it will work if you use the same branch
-for the core code.
+Ensembl-analysis and ensembl-pipeline code are not branched. Instead we run
+directly from the HEAD code. We recommend that the ensembl-analysis and 
+ensembl-pipeline code be checked out from cvs at the same time as the 
+ensembl (core) code, to minimise incompatability between older and newer
+modules. 
 
 The document overview.txt gives instructions on how to download these pieces 
 of code.
 
+In a normal genebuild process, the following additional checkouts also may be 
+required from CVS:
+ensembl-compara
+ensembl-doc
+ensembl-external
+ensembl-killlist
+ensj-healthcheck
+
+A note on ensembl-config:
+
+For each genebuild, we also create an ensembl-config directory structure. This
+is not available from cvs.
+
+The ensembl-config directory contains configuration files used in the genebuild 
+process. Example configuration files, with default values, can be found in 
+ensembl-pipeline and ensembl-analysis. The example files are usually copied into
+ensembl-config and then modified according the the species and analysis being 
+run. For example, when genebuilding Human assembly NCBI36 we would copy file 
+ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Config/Databases.pm.example to 
+ensembl-config/human/NCBI36/Bio/EnsEMBL/Analysis/Config/Databases.pm. 
+
+A note on Runnables and RunnableDBs:
+
+RunnableDB provides an interface to the database from the particular analysis 
+(Runnable). The role of a RunnableDB is:
+-> Fetches sequence from the database 
+-> Passes data to Runnable (where Runnable performs its function) 
+-> Fetches output from Runnable 
+-> Writes output to db
+
+Runnable is a wrapper and is stand-alone from the database. The role of a 
+Runnable is: 
+-> Accepts data from RunnableDB
+-> Passes data to Module eg. Exonerate
+-> Fetches output
+-> Parses output and creates ensembl-objects
+-> Passes output to RunnableDB
 
 
-Schema
-======
+=====================
+3. Schema
+=====================
 
 The parts of the database schema that are essential for the pipeline involve
-7 tables.  One is part of the core schema while the other 6 are specific to the
+7 tables:
+analysis                    # ensembl (core)
+input_id_analysis           # ensembl-pipeline
+input_id_type_analysis      # ensembl-pipeline
+job                         # ensembl-pipeline
+job_status                  # ensembl-pipeline
+rule_conditions             # ensembl-pipeline
+rule_goal                   # ensembl-pipeline
+
+Note that one table is part of the core schema (ensembl/sql/table.sql) while the other 6 are specific to the
 pipleine and are defined by the file ensembl-pipeline/sql/table.sql
+
+A discussion of each of these table follows:
 
 analysis
 --------
 
 This table is part of the core code. The table holds information about all the
 different analyses contained in the database. There is a coresponding object in
-the core code Bio::EnsEMBL::Analysis
+the core code Bio::EnsEMBL::Analysis for each program listed in the analysis table.
 
 These are its columns:
 
@@ -84,6 +203,28 @@ to specify which analyses needs to be run and is also used by a lot of code
 to fetch results back out of the databases), and module (which defines which
 RunnableDB module the pipeline needs when running a particular job).
 
+Parameters are read out of the analysis table for some analyses.
+
+In cases where the same Bio::EnsEMBL::Analysis module is used for more than one analysis,
+each analysis has it's own entry in the analysis table and its own logic_name. In the example 
+below, analysis_ids 2 and 4 hold essentially the same information. The only 
+difference is that the analyses will be run on different sets of data as specified in the 
+db_file column.
+
+EXAMPLE:
+
+  mysql -u xxx -h xxx -D xxx -e "select * from analysis"
++-------------+---------------------+----------------------+------------------+------------+------------------------------------------------------------+---------+-----------------+--------------+------------+---------------------+----------------+------------+-------------+
+| analysis_id | created             | logic_name           | db               | db_version | db_file    | program | program_version | program_file | parameters | module              | module_version | gff_source | gff_feature |
++-------------+---------------------+----------------------+------------------+------------+------------------------------------------------------------+---------+-----------------+--------------+------------+---------------------+----------------+------------+-------------+
+|        1 | 2008-08-27 10:13:20 | SubmitESTChunks      | NULL             | NULL       | NULL    | NULL    | NULL            | NULL         | NULL       | NULL                | NULL           | NULL       | NULL        |
+|        2 | 2008-08-27 10:13:20 | est_exonerate        | human_ests1       | NULL       | /path/to/human_ests1    | NULL    | NULL            | NULL         | NULL       | Exonerate2Genes     | NULL           | NULL       | NULL        |
+|        3 | 2008-10-13 10:26:48 | SubmitSmallESTChunks | NULL             | NULL       | NULL    | NULL    | NULL            | NULL         | NULL       | NULL                | NULL           | NULL       | NULL        |
+|        4 | 2008-10-13 10:26:48 | small_est_exonerate  | human_ests2 | NULL       | /path/to/human_ests2 | NULL    | NULL            | NULL         | NULL       | Exonerate2Genes     | NULL           | NULL       | NULL        |
++-------------+---------------------+----------------------+------------------+------------+------------------------------------------------------------+---------+-----------------+--------------+------------+---------------------+----------------+------------+-------------+
+
+We have 4 analysis: SubmitESTChunks, est_exonerate, SubmitSmallESTChunks and small_est_exonerate.
+ 
 
 input_id_type_analysis
 ----------------------
@@ -104,10 +245,69 @@ input_id_type, the type of input id this analysis should use. This
                treated in a different manner to other analyses.
 
 
+We usually match input_id_types with Dummy logic_names. For example, input_id_type = ESTCHUNK would be associated with Dummy logic_name of SubmitESTChunks. An input_id_type = CONTIG would be associated with Dummy logic_name of SubmitContig. 
+
+Note that the input_id_type of the Dummy analysis is always the same as the input_id_type of its analysis.
+
+EXAMPLE: 
+
+  mysql -u xxx -h xxx -D xxx -e "select * from input_id_type_analysis"
++-------------+---------------+
+| analysis_id | input_id_type |
++-------------+---------------+
+|           1 | ESTCHUNK      |
+|           2 | ESTCHUNK      |
+|           3 | ESTSMALLCHUNK |
+|           4 | ESTSMALLCHUNK |
++-------------+---------------+
+
+Dummy analysis SubmitESTChunks has input_id_type = ESTCHUNK
+Analysis est_exonerate has input_id_type = ESTCHUNK
+Dummy analysis SubmitSmallESTChunks has input_id_type = ESTSMALLCHUNK 
+Analysis small_est_exonerate has input_id_type = ESTSMALLCHUNK
+
+
 input_id_analysis
 -----------------
 
 This table records which analyses have been run sucessfully on which input ids.
+
+This table is also where the pipeline initially gets its input ids.  Before the
+pipeline is run, input ids are created and stored in this table, linked to
+dummy analyses which don't indicate an analysis but instead are markers for the
+start of rule flows.  For example, the dummy analysis associated with input ids
+of type CONTIG might be called SubmitContig.
+
+What is an input_id?
+
+For each analysis to be run (eg. RepeatMasker), the analysis is divided into 
+many smaller jobs that can be run in parallel. The analysis can be divided by
+genomic region (the genome is divided into slices, contigs or chromosomes) or
+by data files (one large fasta file is divided into a number of smaller files
+called chunks).
+
+For example:
+
+For each analysis (RepeatMasker), each of its small jobs has its own 
+unique input_id. The input_id is first inserted into the input_id_analysis table 
+under analysis_id of the analysis' submission analysis (which will be SubmitContig 
+with input_id_type = CONTIG if RepeatMasker's input_id_type is CONTIG) as an 
+indication to the pipeline code that the job needs to be run (see below, 
+make_input_ids script). After the job has run successfully, the same input_id 
+(read from SubmitContig) is written to the input_id_analysis table under the 
+analysis_id (RepeatMasker) and the job is thus recorded as having finished 
+successfully.  
+
+Action process:
+
+- RepeatMasker is to be run on contigs
+- Add Repeatmasker and SubmitContig to the analysis table, both analyses
+  need an entry in input_id_type analysis og CONTIG
+- make_input_ids scripts submits all contigs to input_id_analysis table under
+  analysis_id for SubmitContig
+- Pipeline submits contigs to the farm, RepeatMasker is run on each contig, and 
+  the results are written to the database
+- An entry is added to input_id_analysis table under analysis_id for Repeatmasker
 
 These are its columns:
 
@@ -120,11 +320,31 @@ db_version, the version of database searched (this isn't always used)
 result, whether the analysis produced any results (this column is not 
         currently used)
 
-This table is also where the pipeline initially gets its input ids.  Before the
-pipeline is run, input ids are created and stored in this table, linked to
-dummy analyses which don't indicate an analysis but instead are markers for the
-start of rule flows.  For example, the dummy analysis associated with input ids
-of type CONTIG might be called SubmitContig.
+EXAMPLE:
+
+  mysql -u xxx -h xxx -D xxx -e "select * from input_id_analysis limit 10"
++--------------------------------+---------------+-------------+---------------------+------------+------------+--------+
+| input_id                       | input_id_type | analysis_id | created             | runhost    | db_version | result |
++--------------------------------+---------------+-------------+---------------------+------------+------------+--------+
+| human_ests_chunk_0000001       | ESTCHUNK      |           1 | 2008-08-27 14:22:48 |            |            |      0 |
+| human_ests_chunk_0000002       | ESTCHUNK      |           1 | 2008-08-27 14:22:48 |            |            |      0 |
+| human_ests_chunk_0000003       | ESTCHUNK      |           1 | 2008-08-27 14:22:48 |            |            |      0 |
+| human_ests_chunk_0000000       | ESTCHUNK      |           2 | 2008-10-02 19:19:19 | bc-12-4-14 |            |      0 |
+| human_ests_chunk_0000001       | ESTCHUNK      |           2 | 2008-09-10 15:31:53 | bc-11-3-06 |            |      0 |
+| human_ests_chunk_0000002       | ESTCHUNK      |           2 | 2008-09-06 23:18:32 | bc-7-2-06  |            |      0 |
+| small_human_ests_chunk_0000000 | ESTSMALLCHUNK |           3 | 2008-10-13 10:28:44 |            |            |      0 |
+| small_human_ests_chunk_0000001 | ESTSMALLCHUNK |           3 | 2008-10-13 10:28:43 |            |            |      0 |
+| small_human_ests_chunk_0000002 | ESTSMALLCHUNK |           3 | 2008-10-13 10:28:41 |            |            |      0 |
+| small_human_ests_chunk_0000000 | ESTSMALLCHUNK |           4 | 2008-10-13 10:28:44 |            |            |      0 |
+| small_human_ests_chunk_0000001 | ESTSMALLCHUNK |           4 | 2008-10-13 10:28:43 |            |            |      0 |
+| small_human_ests_chunk_0000002 | ESTSMALLCHUNK |           4 | 2008-10-13 10:28:41 |            |            |      0 |
++--------------------------------+---------------+-------------+---------------------+------------+------------+--------+
+
+Dummy analyses SubmitESTChunks (ESTCHUNK) and SubmitSmallESTChunks 
+(ESTSMALLCHUNK) have both submitted 3 input_ids to the input_id_analysis
+table. 
+Analysis est_exonerate has run all 3 jobs, buth small_est_exonerate has yet to
+run its jobs. 
 
 
 rule_goal
@@ -135,10 +355,21 @@ rule should execute.
 
 These are its columns:
 
-rule_id, the numeric id for each rule
+rule_id, the numeric id for each rule (foreign key, automatically assigned)
 goal, an analysis_id from the analysis table representing the analysis to be
 run when the rule is executed
 
+EXAMPLE: 
+
+  mysql -u xxx -h xxx -D xxx -e "select * from rule_goal"
++---------+------+
+| rule_id | goal |
++---------+------+
+|       1 |    2 | est_exonerate
+|       2 |    4 | small_est_exonerate
++---------+------+
+
+Analysis est_exonerate is assigned rule_id =1 and small_est_exonerate is assigned rule_id =2.
 
 rule_condition
 --------------
@@ -152,11 +383,26 @@ rule_id, the numeric id for each rule
 condition, the logic name for the analysis on which the rule 
            depends
 
-A rule may have more than one condition.  An important note is that a rule must
+A rule may have more than one condition. There is one entry in the rule_condition
+table for every condition. A rule having 3 conditions would have 3 entries in the
+rule_condition table.
+
+An important note is that a rule must
 always have at least one dependancy which is an analysis with the same input id
 type as the analysis that is the rule's goal - this provides the input id.  Any
 dependancies which aren't of the same input id type must be of type ACCUMULATOR.
+
+EXAMPLE:
  
+  mysql -u xxx -h xxx -D xxx -e "select * from rule_conditions"  
++---------+----------------------+
+| rule_id | rule_condition       |
++---------+----------------------+
+|       1 | SubmitESTChunks      |
+|       2 | SubmitSmallESTChunks |
++---------+----------------------+
+
+Analysis est_exonerate depends on SubmitESTChunks and small_est_exonerate depends on SubmitSmallESTChunks.
 
 job
 ---
@@ -177,6 +423,22 @@ stderr_file, the location of the stderr file
 retry_count, the number of times the job has been tried  
 temp_dir, the temporary directory to which the output is being written   
 exec_host, the host on which the job is being run
+
+EXAMPLE:
+
+  mysql -u xxx -h xxx -D xxx -e "select * from job limit 4"
++--------+--------------------------------+-------------+---------------+-----------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------+-------------+------------------------+------------+
+| job_id | input_id                       | analysis_id | submission_id | stdout_file                                            | stderr_file               | retry_count | temp_dir               | exec_host  |
++--------+--------------------------------+-------------+---------------+-----------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------+-------------+------------------------+------------+
+|      4 | small_human_ests_chunk_0000001 |           4 |        583193 | /path/to/7/small_human_ests_chunk_0000001.small_est_exonerate.656.out | /path/to/7/small_human_ests_chunk_0000001.small_est_exonerate.656.err |           2 | /tmp/1223895491.575074 |            |
+|      5 | small_human_ests_chunk_0000002 |           4 |        583210 | /path/to/2/small_human_ests_chunk_0000002.small_est_exonerate.133.out | /path/to/2/small_human_ests_chunk_0000002.small_est_exonerate.133.err |           2 | /tmp/1223895491.575074 |            |
+|      6 | small_human_ests_chunk_0000003 |           4 |        583836 | /path/to/5/small_human_ests_chunk_0000003.small_est_exonerate.944.out | /path/to/5/small_human_ests_chunk_0000003.small_est_exonerate.944.err |           2 | /tmp/1223895491.575074 |           |
+
++--------+--------------------------------+-------------+---------------+-----------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------+-------------+------------------------+------------+
+
+Only jobs from small_est_exonerate appear in the job table. Jobs for 
+est_exonerate have all finished and so have been removed from the job
+table and written to the input_id_analysis table.
 
 
 job_status
@@ -207,10 +469,40 @@ WRITING, the job is writing its results back to the database
 FAILED,  the job failed but was caught by the system
 AWOL,    the job has disappeared from the system
 
+EXAMPLE:
 
+  mysql -u xxx -h xxx -D xxx -e "select * from job_status"
++--------+-----------+---------------------+------------+
+| job_id | status    | time                | is_current |
++--------+-----------+---------------------+------------+
+|      4 | READING   | 2008-10-14 14:46:28 | n          |
+|      4 | RUNNING   | 2008-10-14 14:46:28 | y          |
+|      4 | WAITING   | 2008-10-14 14:46:28 | n          |
+|      4 | CREATED   | 2008-10-13 12:08:38 | n          |
+|      4 | SUBMITTED | 2008-10-13 12:08:38 | n          |
+|      5 | SUBMITTED | 2008-10-13 12:10:50 | y          |
+|      5 | CREATED   | 2008-10-13 12:10:50 | n          |
+|      6 | CREATED   | 2008-10-13 12:10:50 | n          |
+|      6 | SUBMITTED | 2008-10-13 12:10:50 | y          |
++--------+-----------+---------------------+------------+
+Job 4 (input_id small_human_ests_chunk_0000001) has started to run but the other 
+two jobs are not yet running.
+ 
 
-Rules
-=====
+=====================
+4. Rules
+=====================
+
+To run any analysis, we need:
+- MySQL database with the 7 tables described above
+- Pipeline code
+- An algorithm eg. RepeatMasker
+- Runnable and RunnableDB specific to the algorithm 
+  eg. ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/RepeatMasker.pm and 
+  ensembl-analysis/modules/Bio/EnsEMBL/Analysis/RunnableDB/RepeatMasker.pm
+- Configuration files in ensembl-config
+- Rules and conditions defined in our database
+- Some input for the algorithm in the form of input_ids
 
 The rules define the pipeline work flow and how separate analyses depend
 on each other. The system can handle 4 types of dependencies.
@@ -300,9 +592,9 @@ conditions with an input_id_type of Accumulator, the conditions must be of the
 same input_id_type as the goal.
 
 
-
-Setup
-=====
+=====================
+5. Setup
+=====================
 
 There are 5 main stages to setting up a pipeline database in Ensembl.
 
@@ -391,11 +683,11 @@ input_id_type=ACCUMULATOR
 input_id_type=SLICE
 
 [TargettedGenewise]
-module=FPC_TargettedGenewise
+module=TargettedGenewise
 input_id_type=SLICE
 
 [SimilarityGenewise]
-module=FPC_BlastMiniGenewise
+module=BlastMiniGenewise
 input_id_type=SLICE
 
 
@@ -605,9 +897,10 @@ sub_args, other command line arguments to give to the batch submission
           system
 
 
-
+=====================
+6. Scripts
+=====================
 Running the pipeline
-====================
 
 Once the pipeline has been setup there are several scripts to help you
 run it.  All are located in ensembl-pipeline/scripts
