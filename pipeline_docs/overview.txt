@@ -12,6 +12,8 @@ allow analyses that are dependent on one another to be sent
 simultaneously to a compute resource. It has the capability to catch
 and register errors and to retry failed analyses.
 
+The analysis and pipeline code are stand-alone.
+
 Details of the pipeline system (how it is set up, our standard usages
 patterns and how to customise it) are described in another document.
 *[insert ref to pipeline document]
@@ -27,32 +29,43 @@ guarantee they will work).
 
 Perl 5.8, including the DBI and DBD::Mysql modules
 MySQL (version 4.1)
-Bioperl (version 1.2.3)
+Bioperl (version 0.7.2, 1.2.3 or 1.4)
 
 Bioperl can be obtainned using CVS like this:
 cvs -d :pserver:cvs@cvs.open-bio.org:/home/repository/bioperl login
 (when prompted, the password is 'cvs') then: cvs -d :pserver:cvs@cvs.open-bio.org:/home/repository/bioperl checkout
 -r bioperl-release-1-2-3 bioperl-live
 
+Note that some parts of the code require older bioperl versions (0.7.2)
+whilst other modules require newer bioperl versions (1.4).
 
 You also need some Ensembl-specific Perl code:
 
 ensembl
 ensembl-pipeline
 ensembl-analysis
+ensembl-killlist
 
 These are all available using CVS like this:
 cvs -d :pserver:cvsuser@cvsro.sanger.ac.uk:/cvsroot/CVSmaster login
 (when prompted the password is CVSUSER) then checkout the three
 modules:
 cvs -d :pserver:cvsuser@cvsro.sanger.ac.uk:/cvsroot/CVSmaster checkout
--r branch-ensembl-32 ensembl ensembl-pipeline ensembl-analysis
+-r branch-ensembl-52 ensembl 
 
-This will checkout the three required modules on a cvs branch called
-branch-ensembl-32. This is currently the most stable branch of the
-pipeline and analysis code. It may work with more recent versions of
-the core (ensembl) code but we can only guarantee that it will work if
-you use the same branch for the core code.
+This will checkout the core ensembl modules on a cvs branch called
+branch-ensembl-52 (the code base use for Ensembl release 52). The
+stable branch number will increment for every release.
+
+The analysis and pipeline code are not branched. We use the HEAD code:
+cvs -d :pserver:cvsuser@cvsro.sanger.ac.uk:/cvsroot/CVSmaster checkout
+-r HEAD ensembl-analysis  
+
+cvs -d :pserver:cvsuser@cvsro.sanger.ac.uk:/cvsroot/CVSmaster checkout
+-r HEAD ensembl-pipleine
+
+It is recommended that all cvs code be downloaded at the same time, to 
+minimise conflicts between older and newer version of different modules.
 
 
 The Ensembl build process
@@ -77,7 +90,6 @@ Sequence and assembly loading
    b Similarity Build
    c UTR Addition
    d GeneBuilder
-   e GeneCombiner
 3. ncRNA analysis
 4. Pseudogene analysis
 5. Protein annotation
@@ -105,7 +117,7 @@ e. Placing markers on the genome
 ================
 
 Next the Gene building steps are run. The overall aim is to produce the
-best possible genome-wide set of transcript and gene structures. The
+best possible genome-wide set of coding transcript and gene structures. The
 Genebuild involves several distinct stages.
 
 a. Targetted Genebuild
@@ -157,6 +169,9 @@ genes). These genes are treated more carefully and, while they may
 have UTR added, the process ensures that the CDS structure remains
 unchanged.
 
+Ditag information may be used in the UTR addition process, when
+available.
+
 d. The Genebuilder
 ------------------
 
@@ -169,18 +184,6 @@ and tries to combine or merge identical transcripts. When transcripts
 are combined the supporting evidence for each prediction is transfered
 to the new transcript. Overlapping transcripts are clustered into
 genes.
-
-e. The GeneCombiner
--------------------
-
-If your species has a lot of cDNAs you may want to considered running
-the GeneCombiner stage. First you need to collapse down your cDNA
-alignments (made during the UTR addition stage) into a non redundant
-set of transcripts with open reading frames. These transcripts are
-then used by the GeneCombiner module to fill gaps in the gene set.
-The module can also be used to add alternative transcripts to existing
-genes.
-
 
 Once a 'final' gene set has been obtained, a number of post-processing
 procedures are applied to filter and annotate the predicted genes.
@@ -197,7 +200,7 @@ Further details about how to run all 3 stages are availiable in ncRNA.txt
 4. Pseudogene Analysis
 ======================
 
-Pseudogene analysis can have upto 3 stages:
+Pseudogene analysis can have up to 3 stages:
 Identification of genes with no 'real' exons,
 Identification of retrotransposed genes,
 Identification of pseudogenes using PSILC,
@@ -240,7 +243,7 @@ separate set of EST genes. The process is very similar to the cDNA
 analysis. First the EST sequences are aligned to the genome using
 exonerate. These alignments are then collapsed down into a non
 redundant set of transcripts with open reading frames based on
-clusters of overlapping ESTs.
+clusters of overlapping ESTs, using TranscriptCoalescer module.
 
 
 
