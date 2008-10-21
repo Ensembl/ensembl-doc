@@ -38,6 +38,17 @@ PRE stage - Identification of problematic gene models  :
   
 
 
+       Submission analysis            |      goal analysis : 
+    -------------------------------------------------------------
+    Submit_pre_FindSplitGenes         |   pre_FindSplitGenes 
+    Submit_pre_FindMissingOrthologues |   pre_FindMissingOrthologues
+    Submit_pre_FindPartialGenes       |   pre_FindPartialgenes 
+
+
+
+
+
+
 POST stage - Fix problematic gene models which were identified in the PRE stage :
 ====================================================================================== 
   
@@ -54,6 +65,17 @@ POST stage - Fix problematic gene models which were identified in the PRE stage 
   Remember : The RunnableDB OrthologueEvaluator.pm is just a collection of methods 
   which are used in FindFalseIntrons, FindMissingOrthologues etc. - it is not an 
   analysis itself. 
+
+
+       Submission analysis        |      goal analysis : 
+    -------------------------------------------------------------
+    Submit_FindSplitGenes         |   FindSplitGenes 
+    Submit_FindMissingOrthologues |   FindMissingOrthologues
+    Submit_FindPartialGenes       |   FindPartialgenes 
+
+
+    The input ids for post-analysis FindSplitGenes, FindMissingOrthologues, FindPartialgenes
+    are created by their pre-analysis and uploaded as  Submit_FindSplitGenes etc. 
 
 
 
@@ -242,6 +264,70 @@ Automatic configuration of the setup of the Orthologue-evaluation analyses
 
     You can skip the next section because the setup script will fill out the Exonerate2Genes 
     configuration for you and back-up your existing Exonerte2Genes config. 
+
+
+
+      Some useful sql to get the correct input-ids for running maybe some test runnables is here : 
+
+
+         select input_id , a.logic_name , goal , ta.logic_name as analysis_goal         
+         from input_id_analysis ia , analysis a , analysis ta , rule_conditions rc, rule_goal rg           
+         where ia.analysis_id = a.analysis_id 
+         and a.logic_name = rc.rule_condition         
+         and rc.rule_id = rg.rule_id   
+         and ta.analysis_id = goal   
+         group by ia.analysis_id ;
+
+
+
+        +----------------------------------------------------+-----------------------------------+------+----------------------------+
+        | input_id                                           | logic_name                        | goal | analysis_goal              |
+        +----------------------------------------------------+-----------------------------------+------+----------------------------+
+        | hum_mus_split                                      | Submit_pre_FindSplitGenes         | 98   | pre_FindSplitGenes         |
+        | hum_mus_one2one:chromosome:NCBI36:10:1:135374737:1 | Submit_pre_FindMissingOrthologues | 102  | pre_FindMissingOrthologues |
+        | find_partials:chromosome:Btau_4.0:10:1:106383598:1 | Submit_pre_FindPartialGenes       | 106  | pre_FindPartialGenes       |
+        +----------------------------------------------------+-----------------------------------+------+----------------------------+
+
+
+
+      Some test_RunnableDB commandlines  
+
+
+       perl $AS/test_RunnableDB $dbcon $db \
+         -analysis pre_FindMissingOrthologues -input_id hum_mus_one2one:chromosome:NCBI36:10:1:135374737:1 
+
+       perl $AS/test_RunnableDB $dbcon $db \
+         -analysis pre_FindSplitGenes         -input_id hum_mus_split 
+
+       perl $AS/test_RunnableDB $dbcon $db \
+          -analysis pre_FindPartialGenes       -input_id find_partials:chromosome:Btau_4.0:10:1:106383598:1 
+
+
+      Analysis table with uploaded input_ids : 
+
+
+        select input_id , a.logic_name , goal , ta.logic_name as analysis_goal  from
+        input_id_analysis ia , analysis a , analysis ta , rule_conditions rc, rule_goal rg  where
+        ia.analysis_id = a.analysis_id and
+        a.logic_name = rc.rule_condition and
+        rc.rule_id = rg.rule_id and
+        ta.analysis_id = goal   
+        group by ia.analysis_id order by logic_name ;  
+
+         +----------------------------------------------------+-----------------------------------+------+----------------------------+
+         | input_id                                           | logic_name                        | goal | analysis_goal              |
+         +----------------------------------------------------+-----------------------------------+------+----------------------------+
+         | chromosome:Btau_4.0:10:1:106383598:1_1.fa          | Submit_find_partials              | 108  | find_partials              |
+         | chromosome:NCBI36:10:1:135374737:1_1.fa            | Submit_hum_mus_one2one            | 104  | hum_mus_one2one            |
+         | hum_mus_split_1.fa                                 | Submit_hum_mus_split              | 100  | hum_mus_split              |
+         | hum_mus_one2one:chromosome:NCBI36:10:1:135374737:1 | Submit_pre_FindMissingOrthologues | 102  | pre_FindMissingOrthologues |
+         | find_partials:chromosome:Btau_4.0:10:1:106383598:1 | Submit_pre_FindPartialGenes       | 106  | pre_FindPartialGenes       |
+         | hum_mus_split                                      | Submit_pre_FindSplitGenes         | 98   | pre_FindSplitGenes         |
+         +----------------------------------------------------+-----------------------------------+------+----------------------------+
+         
+
+
+
 
 
 Manual configuration of Bio::EnsEMBL::Analysis::Config::Exonerate2Genes: 
