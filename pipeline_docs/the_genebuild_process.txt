@@ -540,7 +540,19 @@ generally advised to checkout the main trunk of the respository. To do
 this rather than using the checkout command as show above you need to
 use
 
-  cvs -d pserver:cvsuser@cvsro.sanger.ac.uk:/cvsroot/ensembl checkout ensembl-analysis ensembl-pipeline
+For the core (ensembl) code:
+# password is CVSUSER is prompted
+cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r branch-ensembl-52 ensembl
+
+This will checkout the core ensembl modules on a cvs branch called
+branch-ensembl-52 (the code base use for Ensembl release 52). The
+stable branch number will increment for every release.
+
+The analysis, pipeline and kill-list code are not branched. We use the HEAD code:
+cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r HEAD ensembl-pipeline
+cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r HEAD ensembl-analysis
+cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r HEAD ensembl-killlist
+
 
 First a few pieces of code/tips which are useful for the process.
 

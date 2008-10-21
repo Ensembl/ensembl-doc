@@ -22,6 +22,8 @@ patterns and how to customise it) are described in another document.
 Code requirements
 -----------------
 
+See: http://www.ensembl.org/info/using/api/api_installation.html
+
 To run any piece of the Ensembl software you need the following.
 Versions are current at the time of writing and will work with the
 Ensembl code (you can try using more recent versions but we can't
@@ -32,8 +34,10 @@ MySQL (version 4.1)
 Bioperl (version 0.7.2, 1.2.3 or 1.4)
 
 Bioperl can be obtainned using CVS like this:
-cvs -d :pserver:cvs@cvs.open-bio.org:/home/repository/bioperl login
-(when prompted, the password is 'cvs') then: cvs -d :pserver:cvs@cvs.open-bio.org:/home/repository/bioperl checkout
+cvs -d :pserver:cvs@code.open-bio.org:/home/repository/bioperl login
+(when prompted, the password is 'cvs')
+then:
+cvs -d :pserver:cvs@cvs.open-bio.org:/home/repository/bioperl checkout
 -r bioperl-release-1-2-3 bioperl-live
 
 Note that some parts of the code require older bioperl versions (0.7.2)
@@ -47,22 +51,19 @@ ensembl-analysis
 ensembl-killlist
 
 These are all available using CVS like this:
-cvs -d :pserver:cvsuser@cvsro.sanger.ac.uk:/cvsroot/CVSmaster login
-(when prompted the password is CVSUSER) then checkout the three
-modules:
-cvs -d :pserver:cvsuser@cvsro.sanger.ac.uk:/cvsroot/CVSmaster checkout
--r branch-ensembl-52 ensembl 
+# password is CVSUSER is prompted
+cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r branch-ensembl-52 ensembl
 
 This will checkout the core ensembl modules on a cvs branch called
 branch-ensembl-52 (the code base use for Ensembl release 52). The
 stable branch number will increment for every release.
 
-The analysis and pipeline code are not branched. We use the HEAD code:
-cvs -d :pserver:cvsuser@cvsro.sanger.ac.uk:/cvsroot/CVSmaster checkout
--r HEAD ensembl-analysis  
+The analysis, pipeline and kill-list code are not branched. We use the HEAD code:
+cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r HEAD ensembl-pipeline
 
-cvs -d :pserver:cvsuser@cvsro.sanger.ac.uk:/cvsroot/CVSmaster checkout
--r HEAD ensembl-pipleine
+cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r HEAD ensembl-analysis
+
+cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r HEAD ensembl-killlist
 
 It is recommended that all cvs code be downloaded at the same time, to 
 minimise conflicts between older and newer version of different modules.
