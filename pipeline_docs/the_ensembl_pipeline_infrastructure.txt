@@ -46,31 +46,72 @@ The pipeline code is independent of the analysis code and it is therefore very
 flexible in its use. Most algorithms, with the appropriate modules in ensembl-
 analysis, can be run in the ensembl-pipeline system.
 
-
-                                 SubmitContig
+                               Rulemanager script
+                               - loops through input_ids 
+                                 until all jobs are finished
 
                                       ||
                                       \/
-   Algorithm                    Contig sequence
-   (analysis executable)             
-   +                     ---------->  || 
-   parameters                         \/
 
-                                Input_id (job) <-----------
+                                 SubmitContig 
+                         - 'Dummy' or 'Submission' analysis
+                         - input_ids have been written to input_id_analysis 
+                           table for this input_id_type by make_input_ids script
+                         - input_ids are like a 'To Do List'
+                                    
+
+                                      ||
+                                      \/
+   Algorithm                 Contig sequence for analysis
+   (analysis executable)     - has same input_id_type as Dummy analysis    
+   +
+   parameters    ------------------>  || 
+   (read in                           \/
+   BatchQueue.pm 
+   config file)                 Input_id (job) <-----------
+                                 is created               |
+                                                          |
+                                      ||                  |
+                                      \/                  | R
+                                                          | E
+                              Submit job to LSF queue     | T
+                                                          | R
+                                      ||                  | Y
+                                      \/                  |
+                                                          | I
+                          Job starts to run on farm       | F
+                                                          |
+                                      ||                  | F
+                                      \/                  | A
+                                                          | I
+                            Read in config specific to    | L
+                              this job and analysis       | E
+                                      ||                  | D
+                                      \/                  |
+                                                          |
+                          RunnableDB fetches sequence     |
+                          required for analysis and       |
+                          writes to /tmp                  |
+                                                          |
+                                      ||                  |
+                                      \/                  |
+                          Runnable reads contig sequence  | 
+                          from /tmp and executes analysis |
                                                           |
                                       ||                  |
                                       \/                  |
                                                           |
-                                 Run on farm              | retry if failed
-                                      ||                  |
-                                      \/                  |
-                                                          |
-                                Results parsed            |
+                          Analysis output parsed by       |
+                          Runnable and given to           | 
+                          RunnableDB                      |
                                                           |
                                       ||                  |
                                       \/  -----------------
 
-                              Results stored in db
+                          RunnableDB stores results 
+                          in db, inserts input_ids for 
+                          analysis into input_ids_analysis,
+                          removes job from job tables
 
 
 
