@@ -107,6 +107,7 @@ indexed, which can be peformed thus:
 
  ~searle/progs/production_code/ensembl-trunk_1106/ensc-core/src/Programs/indicate --data_dir $WORK/ig/IMGT/october2006/database -f imgt.dat -i $WORK/ig/IMGT/october2006/database/indicate_idx -l ID -r ID -p emblParser
 
+If working with fasta files - check that the fasta header format has not changed.
 
 ======================================================
 STEP 2: Extraction of relevant segments from flat-file
