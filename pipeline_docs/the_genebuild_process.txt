@@ -115,6 +115,20 @@ CpG           # CG-rich islands
 Unigene, Uniprot and Vertrna alignments (see below) are usually run at the same 
 time as the ab initio predictions as part of the raw compute process. 
 
+
+Just a quick note - remember that Databases.pm in Bio::EnsEMBL::Analysis::Config
+specifies the reference database and also where the output of an analysis will
+be written to. Some analyses, eg. raw computes, will have thier results written
+directly into the reference database. Most other analyses in the genebuild,
+eg. genewise, should write their results to a clean database as specified in
+ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Config/Databases.pm. The only
+database in the genebuild process having pipeline tables is the reference
+database as it controls all analyses throughout the genebuild. It is therefore
+very important to make sure that the analysis table from your reference database
+is copied into the analysis table of all other databases that you intend to write
+into.
+
+
 ===============================
 3. Evidence alignment
 ===============================
