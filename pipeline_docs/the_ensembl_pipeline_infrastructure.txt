@@ -53,8 +53,9 @@ analysis, can be run in the ensembl-pipeline system.
                                       ||
                                       \/
 
-                                 SubmitContig 
-                         - 'Dummy' or 'Submission' analysis
+                          Submit_Input_ID_Type analysis is run
+                         - eg. SubmitSlice, SubmitFile
+                         - Submit_Input_ID_Type is a 'Dummy' (or 'Submission') analysis
                          - input_ids have been written to input_id_analysis 
                            table for this input_id_type by make_input_ids script
                          - input_ids are like a 'To Do List'
@@ -62,7 +63,10 @@ analysis, can be run in the ensembl-pipeline system.
 
                                       ||
                                       \/
-   Algorithm                 Contig sequence for analysis
+
+                              Input_ID sequence is fetched for analysis
+                             - Can be a length of sequence fetched from the reference
+   Algorithm                   database, or a fasta file of sequence
    (analysis executable)     - has same input_id_type as Dummy analysis    
    +
    parameters    ------------------>  || 
@@ -144,7 +148,10 @@ bioperl-live (bioperl-release-1-2-3)
 
 The stable branch of the ensembl core code is branch-ensembl-50 at the 
 time of writing. This corresponds to Ensembl release 50. The branch number 
-is incremented with each release.
+is incremented with each release and also will match the release number such 
+that Ensembl release 51 will have a stable branch of the core code
+labelled as branch-ensembl-51. The current release number, and thus also 
+code branch number, can be determined from our website at www.ensembl.org.
 
 Ensembl-analysis and ensembl-pipeline code are not branched. Instead we run
 directly from the HEAD code. We recommend that the ensembl-analysis and 
@@ -853,8 +860,22 @@ perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
 
 Many analyses that the pipeline runs have specific config files which need to
 exist and be filled out appropriately. These are discussed in the documentation
-for the different analyses.  But the pipeline also has two config files which
-must exist for the pipeline code to run. These files are:
+for the different analyses.
+
+Just a quick note - remember that Databases.pm in Bio::EnsEMBL::Analysis::Config
+specifies the reference database and also where the output of an analysis will
+be written to. Some analyses, eg. raw computes, will have thier results written
+directly into the reference database. Most other analyses in the genebuild,
+eg. genewise, should write their results to a clean database as specified in
+ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Config/Databases.pm. The only 
+database in the genebuild process having pipeline tables is the reference 
+database as it controls all analyses throughout the genebuild. It is therefore
+very important to make sure that the analysis table from your reference database
+is copied into the analysis table of all other databases that you intend to write
+into.
+
+The pipeline also has two config files which must exist for the pipeline code #
+to run. These files are:
 
 Bio::EnsEMBL::Pipeline::Config::General
 Bio::EnsEMBL::Pipeline::Config::BatchQueue
