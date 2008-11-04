@@ -391,7 +391,7 @@ EXAMPLE:
 Dummy analyses SubmitESTChunks (ESTCHUNK) and SubmitSmallESTChunks 
 (ESTSMALLCHUNK) have both submitted 3 input_ids to the input_id_analysis
 table. 
-Analysis est_exonerate has run all 3 jobs, buth small_est_exonerate has yet to
+Analysis est_exonerate has run all 3 jobs, but small_est_exonerate has yet to
 run its jobs. 
 
 
@@ -756,7 +756,7 @@ perl ensembl-pipeline/scripts/analysis_setup.pl -dbhost yourhost
 
 This will write the given file to the database.
 
-If you want to dump out a config file from a database, the command line is
+If you want to dump out a config file from a database, the command line will
 be identical except you would replace the -read option with -write.
 
 The script also has a -help option which will print out the perldocs of 
@@ -874,7 +874,7 @@ very important to make sure that the analysis table from your reference database
 is copied into the analysis table of all other databases that you intend to write
 into.
 
-The pipeline also has two config files which must exist for the pipeline code #
+The pipeline also has two config files which must exist for the pipeline code
 to run. These files are:
 
 Bio::EnsEMBL::Pipeline::Config::General
@@ -1005,9 +1005,9 @@ test_RunnableDB
 You can also test if individual analyses are working outside the pipeline 
 system using this script. There is a version of these script found in both
 ensembl-pipeline/scripts and ensembl-analysis/scripts and you should use
-the version that matched your RunnableDB
+the version that matched your RunnableDB.
 
-the interface to both is the same. They take the standard database arguments
+The interface to both is the same. They take the standard database arguments
 and a logic_name and input id. They can also be give input_id_types, modules
 runnabledb_paths they also have a -help option which will print out their 
 perldocs for you
@@ -1022,7 +1022,7 @@ This would test the RepeatMask analysis and make sure it runs on the input
 id contig::AC114498.2.1.121664:1:121664:1. 
 
 If you want to test the write_output you will need to specifiy the
--write flag on the commandline 
+-write flag on the commandline. 
 
 
 perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
@@ -1030,11 +1030,11 @@ perl test_RunnableDB -dbhost yourhost -dbuser yourusername
 -input_id contig::AC114498.2.1.121664:1:121664:1 -write
 
 This commandline will test that the Uniprot analysis will run on this
-input and write output to the database
+input and write output to the database.
 
 In both script the assumption is made that the runnabledb can be found in
 RunnableDB directory of that cvs module. If it doesn't you will need to
-use the -runnabledb_path argument to point to where it can be found
+use the -runnabledb_path argument to point to where it can be found.
 
 perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
 -dbpass yourpass -dbname yourdatabase -dbport 3306 -logic_name Uniprot
@@ -1043,8 +1043,8 @@ perl test_RunnableDB -dbhost yourhost -dbuser yourusername
 This would try and find the module Test::Blast in your PERL5LIB
 
 You can also run test_RunnableDB on analyses which don't already exist in
-the database. If you this you also need to pass in a module using -module
-and a input_id_type
+the database. If you do this you also need to pass in a module using -module
+and an input_id_type:
 
 perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
 -dbpass yourpass -dbname yourdatabase -dbport 3306 -logic_name CPG
@@ -1181,7 +1181,7 @@ These are the most useful commandline options:
         flag the script will submit jobs whose conditions haven't been met
         and it will also submit jobs which may either already been running or
         already finished sucessfully. It also won't recognise and resubmit
-        failed jobs
+        failed jobs.
 
 
 
