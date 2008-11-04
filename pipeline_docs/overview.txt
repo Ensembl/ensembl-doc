@@ -15,8 +15,8 @@ and register errors and to retry failed analyses.
 The analysis and pipeline code are stand-alone.
 
 Details of the pipeline system (how it is set up, our standard usages
-patterns and how to customise it) are described in another document.
-*[insert ref to pipeline document]
+patterns and how to customise it) are described in another document:
+ensembl-doc/pipeline_docs/the_ensembl_pipeline_infrastructure.txt.
 
 
 Code requirements
@@ -77,7 +77,7 @@ same basic structure.
 
 First the sequence and assembly details are loaded into an Ensembl
 MySQL database.
-*[insert ref to loading document]
+(See ensembl-doc/loading_sequence_into_ensembl.txt for details.)
 
 Once loaded the actual analysis can begin. It usually consists of the
 following stages.
@@ -111,7 +111,7 @@ c. Blast hits using standard databases such as Uniprot and Unigene
 d. Programs to find features like CpG islands and tRNAs in the genome
 e. Placing markers on the genome
 
-*[insert ref to raw compute document(s)]
+For details, please refer to ensembl-doc/pipeline_docs/the_raw_computes.txt.
 
 
 2. The Genebuild
@@ -206,7 +206,7 @@ Identification of genes with no 'real' exons,
 Identification of retrotransposed genes,
 Identification of pseudogenes using PSILC,
 Generally only the first stage is run as the latter stages are prone to 
-missanotate real genes as pseudogenes. 
+misannotate real genes as pseudogenes. 
 Further details about how to run all 3 stages are availiable in Pseudogene.txt
 
 5. Protein Annotation
