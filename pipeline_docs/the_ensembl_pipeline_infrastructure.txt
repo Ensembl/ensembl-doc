@@ -1002,56 +1002,59 @@ starting the pipeline.
 test_RunnableDB
 ---------------
 
-You can also test if individual analyses are working outside the pipeline 
-system using this script. There is a version of these script found in both
-ensembl-pipeline/scripts and ensembl-analysis/scripts and you should use
-the version that matched your RunnableDB.
+You can also test if individual analyses are working outside the pipeline
+system using this script. The test_RunnableDB script is found in
+ensembl-analysis/scripts.
 
-The interface to both is the same. They take the standard database arguments
-and a logic_name and input id. They can also be give input_id_types, modules
-runnabledb_paths they also have a -help option which will print out their 
-perldocs for you
+This script is a great test as it often catches any configuration
+errors. It does not try to write results to your database (unless you
+specify the -write option) so will not catch errors that happen in the
+storing of results.
+
+The script takes the standard database arguments and a logic_name and
+input id as commandline input. It can also be given input_id_types and modules.
+There is a -help option which will print out perldocs for you.
 
 example commandlines would be
 
-perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
+perl test_RunnableDB -dbhost yourhost -dbuser yourusername
 -dbpass yourpass -dbname yourdatabase -dbport 3306 -logic_name RepeatMask
--input_id contig::AC114498.2.1.121664:1:121664:1 
+-input_id contig::AC114498.2.1.121664:1:121664:1
 
 This would test the RepeatMask analysis and make sure it runs on the input
-id contig::AC114498.2.1.121664:1:121664:1. 
+id contig::AC114498.2.1.121664:1:121664:1.
 
 If you want to test the write_output you will need to specifiy the
--write flag on the commandline. 
+-write flag on the commandline
 
-
-perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
+perl test_RunnableDB -dbhost yourhost -dbuser yourusername
 -dbpass yourpass -dbname yourdatabase -dbport 3306 -logic_name Uniprot
 -input_id contig::AC114498.2.1.121664:1:121664:1 -write
 
 This commandline will test that the Uniprot analysis will run on this
-input and write output to the database.
+input and write output to the database
 
-In both script the assumption is made that the runnabledb can be found in
-RunnableDB directory of that cvs module. If it doesn't you will need to
-use the -runnabledb_path argument to point to where it can be found.
+The script makes the assumption that the runnabledb required can be found in
+the RunnableDB directory of ensembl-analysis cvs module. If it doesn't you
+will need to use the -runnabledb_path argument to point to where it can be found
 
-perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
+perl test_RunnableDB -dbhost yourhost -dbuser yourusername
 -dbpass yourpass -dbname yourdatabase -dbport 3306 -logic_name Uniprot
 -input_id contig::AC114498.2.1.121664:1:121664:1 -runnabledb_path Test
 
 This would try and find the module Test::Blast in your PERL5LIB
 
 You can also run test_RunnableDB on analyses which don't already exist in
-the database. If you do this you also need to pass in a module using -module
-and an input_id_type:
+the database. If you this you also need to pass in a module using -module
+and a input_id_type
 
-perl test_RunnableDB -dbhost yourhost -dbuser yourusername 
+perl test_RunnableDB -dbhost yourhost -dbuser yourusername
 -dbpass yourpass -dbname yourdatabase -dbport 3306 -logic_name CPG
--input_id contig::AC114498.2.1.121664:1:121664:1 -module CPG 
+-input_id contig::AC114498.2.1.121664:1:121664:1 -module CPG
 -input_id_type CONTIG
 
 This would run the runnabledb CPG on the contig specified
+
 
 rulemanager.pl
 --------------
