@@ -20,25 +20,26 @@ Overview
 
 The main genebuild process can be divided into 8 main stages.
 
-   1. Finding evidence sources
-   2. Ab initio predictions
-   3. Evidence alignment
-   4. Prediction of CDS structures and alternative gene prediction methods
-   5. Filtering predicted CDS structures
-   6. Addition of UTRs to CDS structures
-   7. Finding missing models/Improving existing models
-   8. Merging prediction sets of varying qualities
-   9. Creating a non-redundant set of models
-   10. Identifying pseudogenes and other problematic CDS structures
-   11. Post-genebuild processing
-   12. Code
+  1. Finding evidence sources
+  2. Ab initio predictions
+  3. Evidence alignment
+  4. Prediction of CDS structures and alternative gene prediction methods
+  5. Filtering predicted CDS structures
+  6. Addition of UTRs to CDS structures
+  7. Finding missing models and improving existing models
+  8. Merging prediction sets of varying qualities
+  9. Creating a set of non-redundant models
+  10. Identifying pseudogenes and other problematic CDS structures
+  11. Post-genebuild processing
+  12. Code
 
 ===============================
 1. Finding evidence sources
 ===============================
 
-There are a number of sources for biologial/experimental evidence
-and each data source has a specific use within the genebuild process:
+There are a number of sources for biological/experimental evidence and
+each data source has a specific use within the genebuild process:
+
  * Proteins are used to predicted coding transcript models
  * cDNAs (mRNAs) are used to add UTR to our coding models
  * ESTs are generally not used in the genebuild process
@@ -46,15 +47,15 @@ and each data source has a specific use within the genebuild process:
    of transcripts
 
 Species-specific data is usually given the highest priority when
-predicting transcript models. 
+predicting transcript models.
 
 Uniprot:
 ==
  * http://www.uniprot.org/
 
 The Uniprot data can be found on the Uniprot website. The data are
-subdivided by us into different taxonomic groups, eg. in the Human 
-analysis we may divide the Uniprot data into mammals, non-mammalian 
+subdivided by us into different taxonomic groups, eg. in the Human
+analysis we may divide the Uniprot data into mammals, non-mammalian
 vertebrates and invertebrates.
 
 
@@ -64,27 +65,29 @@ Species-specific data:
  * http://www.uniprot.org/
  * http://srs.ebi.ac.uk/
 
-We also try to source species-specific data such as proteins, cDNAs, 
-ESTS, and if possible, data like ditags and CAGE. This can be sourced 
-through Uniprot, SRS at the EBI (http://srs.ebi.ac.uk/) or Entrez at 
-the NCBI (http://www.ncbi.nlm.nih.gov/). For some species both the 
-Uniprot and NCBI ftp sites provide pre-made sets of data. For example 
-the REFSEQ proteome for mouse can be found here at the NCBI 
-ftp://ftp.ncbi.nlm.nih.gov/genomes/M_musculus/protein/.  
+We also try to source species-specific data such as proteins, cDNAs,
+ESTS, and if possible, data like ditags and CAGE. This can be sourced
+through Uniprot, SRS at the EBI (http://srs.ebi.ac.uk/) or Entrez
+at the NCBI (http://www.ncbi.nlm.nih.gov/). For some species both
+the Uniprot and NCBI ftp sites provide pre-made sets of data. For
+example the REFSEQ proteome for mouse can be found here at the NCBI
+ftp://ftp.ncbi.nlm.nih.gov/genomes/M_musculus/protein/.
 
 After the data have been downloaded, there may be some pre-analysis
 processing of the data:
 
-We create a protein index file of the species' proteome, for faster access to
-the sequences.  We use a program written in C called 'indicate' to 
-create our protein index file. You'll need to check out our ensc-core 
-code to access it.  Once you have indicate, you can do the following:
-indicate -d $PWD -f your_proteome.fa -i your_proteome_index -p SingleWordParser 
+We create a protein index file of the species' proteome, for faster
+access to the sequences. We use a program written in C called
+'indicate' to create our protein index file. You'll need to check out
+our ensc-core code to access it. Once you have indicate, you can do
+the following:
+
+  indicate -d $PWD -f your_proteome.fa -i your_proteome_index -p SingleWordParser
 
 cDNAs are clipped to remove polyA tails.
 
-ESTs are clipped to remove polyA tails and in some cases may also be 
-trimmed to only the sequence that has been annotated as being of high 
+ESTs are clipped to remove polyA tails and in some cases may also be
+trimmed to only the sequence that has been annotated as being of high
 quality.
 
 
@@ -92,28 +95,32 @@ quality.
 2. Ab initio predictions
 ===============================
 
-After creating an Ensembl-schema database and loading the DNA sequence and 
-assembly into the database (called the 'core' or 'reference' database), we are 
-ready for our first set of analyses. 
+After creating an Ensembl-schema database and loading the DNA sequence
+and assembly into the database (called the 'core' or 'reference'
+database), we are ready for our first set of analyses.
 
-This first set of analyses to be run is referred to as the 'raw computes. The
-raw computes involve running various ab initio algorithms across the genome. 
-The results of most these analyses are not used directly in the genebuild 
-process, but they are used for display purposes on our website. 
+This first set of analyses to be run is referred to as the 'raw
+computes'. The raw computes involve running various ab initio
+algorithms across the genome. The results of most these analyses are
+not used directly in the genebuild process, but they are used for
+display purposes on our website.
 
-The results from all raw computes are written to the reference (core) database.
+The results from all raw computes are written to the reference (core)
+database.
 
 The algorithms used in the raw compute stage include:
-RepeatMask    # repeats
-Dust          # repeats
-Genscan       # gene models
-TRF           # transcription factors
-tRNAscan      # tRNAs
-Eponine       # transcription start sites
-CpG           # CG-rich islands
 
-Unigene, Uniprot and Vertrna alignments (see below) are usually run at the same 
-time as the ab initio predictions as part of the raw compute process. 
+  RepeatMask    # repeats
+  Dust          # repeats
+  Genscan       # gene models
+  TRF           # transcription factors
+  tRNAscan      # tRNAs
+  Eponine       # transcription start sites
+  CpG           # CG-rich islands
+
+Unigene, Uniprot and Vertrna alignments (see below) are usually run at
+the same time as the ab initio predictions as part of the raw compute
+process.
 
 
 Just a quick note - remember that Databases.pm in Bio::EnsEMBL::Analysis::Config
@@ -132,7 +139,7 @@ into.
 ===============================
 3. Evidence alignment
 ===============================
- 
+
 Evidence alignment occurs at a number of stages withing the genebuild:
 
 (i) Raw compute step
@@ -1575,25 +1582,25 @@ DEBUG => '1',
 There is also config for a process called PSLIC but this can be
 ignored.
 
-Before you run the process you must add these tables to your pipeline
-database. ensembl-pipeline/sql/flag.sql. These tables are used by the
-PseudoGene_DB process to identify genes which are later needed for the
-Spliced_Elsewhere stage.
+Before you run the process you must add a table
+(ensembl-pipeline/sql/flag.sql) to your pipeline database. This table
+is used by the PseudoGene_DB process to identify genes which are later
+needed for the Spliced_Elsewhere stage.
 
 The first runnabledb which must be run is
 Bio::EnsEMBL::Analysis::PseudoGene_DB. This is generally run on
 chromosomes or other top level pieces.
 
 Once this has been run you can run a setup script for
-SplicedElsewhere. This creates the input ids for Spliced elsewhere
+SplicedElsewhere. This creates the input ids for Spliced_elsewhere
 which should be a type of their own and also setups the blast
 database used by SplicedElsewhere. This script is found in
-ensembl-pipeline/scripts/Pseudogenes
+ensembl-analysis/scripts/Pseudogenes.
 
-  prepare_SplicedElsewhere.pl -logic_name SubmitSpliced
+  prepare_SplicedElsewhere.pl -pseudogene_logic_name Pseudogene -SE_logic_name SubmitSpliced [-ref_db reference_db]
 
-This script assumed your databases are pointed to by the Databases.pm
-file using the names PSEUDO_DB, GENEBUILD_DB and REFERENCE_DB.
+By default the script uses the REFERENCE_DB entry in the Databases.pm
+file, otherwise it uses the database given on the commandline.
 
 We generally run the pseudogene annotation twice. First before the
 orthology pipeline is run to ensure pseudogene predictions don't
