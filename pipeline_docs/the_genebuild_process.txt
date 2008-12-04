@@ -5,14 +5,13 @@ system or have another system in place for running this code.
 You can find out more about how the pipeline works from
 ensembl-doc/pipeline_docs/the_ensembl_pipeline_infrastructure.txt
 
-This document contains overview of the genebuild process. First
-it will cover the basics of what we attempt to do. Then it will
-give specific details of individual pieces of code and how to
-run them. There will also be a discussion on how to find/fetch
-the required evidence. This document is only concerned with the
-prediction of protein coding models and not ncRNAs, that is a process
-described in ensembl-doc/pipeline_docs/ncRNAs.txt. All program
-names in this document refer to the names of RunnableDBs found in
+This document contains overview of the genebuild process. First it will cover
+the basics of what we attempt to do. Then it will give specific details
+of individual pieces of code and how to run them. There will also be a
+discussion on how to find/fetch the required evidence. This document is
+only concerned with the prediction of protein coding models and not ncRNAs,
+that is a process described in ensembl-doc/pipeline_docs/ncRNAs.txt. All
+program names in this document refer to the names of RunnableDBs found in
 Bio::EnsEMBL::Analysis::RunnableDB unless otherwise specified.
 
 Overview
@@ -37,8 +36,8 @@ The main genebuild process can be divided into 8 main stages.
 1. Finding evidence sources
 ===============================
 
-There are a number of sources for biological/experimental evidence and
-each data source has a specific use within the genebuild process:
+There are a number of sources for biological/experimental evidence and each data
+source has a specific use within the genebuild process:
 
  * Proteins are used to predicted coding transcript models
  * cDNAs (mRNAs) are used to add UTR to our coding models
@@ -46,17 +45,16 @@ each data source has a specific use within the genebuild process:
  * Ditags, when available, are used to define the 5' and 3' ends
    of transcripts
 
-Species-specific data is usually given the highest priority when
-predicting transcript models.
+Species-specific data is usually given the highest priority when predicting
+transcript models.
 
 Uniprot:
 ==
  * http://www.uniprot.org/
 
-The Uniprot data can be found on the Uniprot website. The data are
-subdivided by us into different taxonomic groups, eg. in the Human
-analysis we may divide the Uniprot data into mammals, non-mammalian
-vertebrates and invertebrates.
+The Uniprot data can be found on the Uniprot website. The data are subdivided by
+us into different taxonomic groups, eg. in the Human analysis we may divide the
+Uniprot data into mammals, non-mammalian vertebrates and invertebrates.
 
 
 Species-specific data:
@@ -73,40 +71,34 @@ the Uniprot and NCBI ftp sites provide pre-made sets of data. For
 example the REFSEQ proteome for mouse can be found here at the NCBI
 ftp://ftp.ncbi.nlm.nih.gov/genomes/M_musculus/protein/.
 
-After the data have been downloaded, there may be some pre-analysis
-processing of the data:
+After the data have been downloaded, there may be some pre-analysis processing
+of the data:
 
-We create a protein index file of the species' proteome, for faster
-access to the sequences. We use a program written in C called
-'indicate' to create our protein index file. You'll need to check out
-our ensc-core code to access it. Once you have indicate, you can do
-the following:
+We create a protein index file of the species' proteome, for faster access to
+the sequences. We use a program written in C called 'indicate' to create our
+protein index file. You'll need to check out our ensc-core code to access it.
+Once you have indicate, you can do the following:
 
   indicate -d $PWD -f your_proteome.fa -i your_proteome_index -p SingleWordParser
 
-cDNAs are clipped to remove polyA tails.
-
-ESTs are clipped to remove polyA tails and in some cases may also be
-trimmed to only the sequence that has been annotated as being of high
-quality.
+cDNAs and ESTs are clipped to remove polyA tails. In some cases ESTs may also be
+trimmed to only the sequence that has been annotated as being of high quality.
 
 
 ===============================
 2. Ab initio predictions
 ===============================
 
-After creating an Ensembl-schema database and loading the DNA sequence
-and assembly into the database (called the 'core' or 'reference'
-database), we are ready for our first set of analyses.
+After creating an Ensembl-schema database and loading the DNA sequence and
+assembly into the database (called the 'core' or 'reference' database), we are
+ready for our first set of analyses.
 
-This first set of analyses to be run is referred to as the 'raw
-computes'. The raw computes involve running various ab initio
-algorithms across the genome. The results of most these analyses are
-not used directly in the genebuild process, but they are used for
-display purposes on our website.
+This first set of analyses to be run is referred to as the 'raw computes'. The
+raw computes involve running various ab initio algorithms across the genome. The
+results of most these analyses are not used directly in the genebuild process,
+but they are used for display purposes on our website.
 
-The results from all raw computes are written to the reference (core)
-database.
+The results from all raw computes are written to the reference (core) database.
 
 The algorithms used in the raw compute stage include:
 
@@ -118,10 +110,8 @@ The algorithms used in the raw compute stage include:
   Eponine       # transcription start sites
   CpG           # CG-rich islands
 
-Unigene, Uniprot and Vertrna alignments (see below) are usually run at
-the same time as the ab initio predictions as part of the raw compute
-process.
-
+Unigene, Uniprot and Vertrna alignments (see below) are usually run at the same
+time as the ab initio predictions as part of the raw compute process.
 
 Just a quick note - remember that Databases.pm in Bio::EnsEMBL::Analysis::Config
 specifies the reference database and also where the output of an analysis will
@@ -132,8 +122,13 @@ ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Config/Databases.pm. The only
 database in the genebuild process having pipeline tables is the reference
 database as it controls all analyses throughout the genebuild. It is therefore
 very important to make sure that the analysis table from your reference database
-is copied into the analysis table of all other databases that you intend to write
-into.
+is copied into the analysis table of all other databases that you intend to
+write into. This can be done by dumping the analysis table and then importing it
+in the other databases.
+
+  mysql -hhost -uuser -ppass -D reference_db -e "flush tables"
+  mysqldump --opt -hhost -uuser reference_db analysis > reference_db_analysis.sql
+  mysql -hhost -uuser -ppass -D other_db < reference_db_analysis.sql
 
 
 ===============================
@@ -144,12 +139,13 @@ Evidence alignment occurs at a number of stages withing the genebuild:
 
 (i) Raw compute step
 
-Before any CDS prediction can happen we need to align the source
-evidence (DNA or protein) to the genome. You should have at least
-the complete Uniprot protein collection available for this step.
+Before any CDS prediction can happen we need to align the source evidence (DNA
+or protein) to the genome. You should have at least the complete Uniprot protein
+collection available for this step.
 
-Three sources of evidence are usually aligned to the genome, usually during the 
+Three sources of evidence are usually aligned to the genome, usually during the
 raw compute stage:
+
   Unigene
   Uniprot
   Vertrna
@@ -157,13 +153,13 @@ raw compute stage:
 Results are written to the reference database.
 
 Uniprot:
-We align ab initio predictions to the Uniprot database using the 
-BlastGenscanPep module. This module uses BLASTP for comparing ab initio 
-predictions (generally from Genscan but you can use any source) against the 
-Uniprot database. This is done for time-saving reasons as blasting the raw 
-genome against the database would take too long. Once the initial BLAST 
-comparisons have been run, the results are divided into species- or family-
-specific groups to allow better assessments of which predictions to trust most.
+We align ab initio predictions to the Uniprot database using the BlastGenscanPep
+module. This module uses BLASTP for comparing ab initio predictions (generally
+from Genscan but you can use any source) against the Uniprot database. This is
+done for time-saving reasons as blasting the raw genome against the database
+would take too long. Once the initial BLAST comparisons have been run, the
+results are divided into species- or family- specific groups to allow better
+assessments of which predictions to trust most.
 
 Unigene and Vertrna:
 Use the BlastGenscanDna module.
@@ -173,34 +169,35 @@ Use the BlastGenscanDna module.
 The Targetted Step is the stage in the genebuild process where coding transcript
 models are predicted using species-specific proteins.
 
-Species-specific proteins are downloaded and aligned to the genome using Pmatch [1]
-and Exonerate2Genes. Pmatch is based on a fast exact match algorithm.  
-Exonerate2Genes runs Exonerate [2]. We use both programs as they can produce 
-different results and the overlapping set gives us a better set of results than 
-each individual set on its own. 
+Species-specific proteins are downloaded and aligned to the genome using Pmatch
+[1] and Exonerate2Genes. Pmatch is based on a fast exact match algorithm.
+Exonerate2Genes runs Exonerate [2]. We use both programs as they can produce
+different results and the overlapping set gives us a better set of results than
+each individual set on its own.
 
 Results are written to the reference database.
 
 (iii) Alignment of cDNAs and ESTs
 
-Species-specific cDNAs and ESTs are aligned to the genome using the 
-Exonerate2Genes module (Exonerate). The results are written to the otherfeatures 
-database. For species that have very little species-specific data available, 
-human cDNAs and ESTs may also be aligned to the genome. cDNA evidence is used 
-to complete gene predictions and to add UTR information to protein-based CDS 
+Species-specific cDNAs and ESTs are aligned to the genome using the
+Exonerate2Genes module (Exonerate). The results are written to the otherfeatures
+database. For species that have very little species-specific data available,
+human cDNAs and ESTs may also be aligned to the genome. cDNA evidence is used
+to complete gene predictions and to add UTR information to protein-based CDS
 models. EST evidence is most often not used in the genebuild process.
 
-When aligning cDNAs and ESTs to the genome, we use a default of coverage >= 90 
-and percent_id >= 97. Sometimes these parameters align too few sequences and the
-analysis is rerun using no coverage or percent_id cutoff. The result of this 
-second run is plotted (x=percent_id, y=number of sequences) and a cutoff slightly
-lower than percent_id=97 is chosen.
+When aligning cDNAs and ESTs to the genome, we use a default of coverage >= 90
+and percent_id >= 97. Sometimes these parameters align too few sequences and
+the analysis is rerun using no coverage or percent_id cutoff. The result of
+this second run is plotted (x=percent_id, y=number of sequences) and a cutoff
+slightly lower than percent_id=97 is chosen.
 
-'EST genes' are produced from the original alignments by running TranscriptCoalescer.
+'EST genes' are produced from the original alignments by running
+TranscriptCoalescer.
 
 (iv) Other
-Ditags may be used when adding UTR (see below).
 
+Ditags may be used when adding UTR (see below).
 
 The program documentation to look at further down includes:
 
@@ -219,49 +216,47 @@ written to a clean database (usually referred to as the Genewise Database):
 (i) Targetted stage
 
 The Targetted stage predicts transcript models from species-specific proteins.
-These models are usually labelled as KNOWN (red colour) on our website. For 
-species where there is a lot of species-specific protein evidence, the 
+For species where there is a lot of species-specific protein evidence, the
 targetted stage is the more important of the two stages because it will produce
-the most transcript models. The Targetted stage is always run before the 
-Similarity stage.
+the most reliable transcript models. The Targetted stage is always run before
+the Similarity stage.
 
 (ii) Similarity stage
 
-The Similarity stage predicts transcript models from proteins that are not 
+The Similarity stage predicts transcript models from proteins that are not
 species-specific but rather from other closely related species. The similarity
 stage is designed to 'fill in the gaps' where there was not enough species-
 specific evidence to predict enough transcript models during the Targetted
 stage.
 
-The Similarity stage is usually run in several layers, of increasing evolutionary
-distance: The first layer to be run will use proteins from species that are most
-closely related to our genome of interest. The final layer will use proteins 
-from species that are more distantly related to our genome of interest. The #
-different layers are created by dividing the Uniprot into 
-The human genome is well annotated and is often able to contribute evidence 
-towards this stage.
+The Similarity stage is usually run in several layers, of increasing
+evolutionary distance: The first layer to be run will use proteins from species
+that are most closely related to our genome of interest. The final layer will
+use proteins from species that are more distantly related to our genome of
+interest. The # different layers are created by dividing the Uniprot into
+subgroups. The human genome is well annotated and is often able to contribute
+evidence towards this stage.
 
 How are the coding structures predicted?
 
 The majority of the CDS structures are predicted using the RunnableDB
-BlastMiniGenewise module which utilises Genewise [3]. The module uses
-protein alignments from Pmatch, produced as described above, to seed a re-blast
-of the protein sequence against the genome. This is to ensure the ab
-initio predictor which was used to find the alignment has not missed
-anything. The results of the re blast are then assessed and, again,
-used to seed one or more Genewise runs. The CDS structures are then
-filtered to ensure they pass various criteria and then written back to
-the database. This process can also be run using Exonerate as the gene
-prediction algorithm. In this case the RunnableDB ExonerateForGenewise
-module is used. 
+BlastMiniGenewise module which utilises Genewise [3]. The module uses protein
+alignments from Pmatch, produced as described above, to seed a re-blast of
+the protein sequence against the genome. This is to ensure the ab initio
+predictor which was used to find the alignment has not missed anything. The
+results of the re-blast are then assessed and, again, used to seed one or more
+Genewise runs. The CDS structures are then filtered to ensure they pass various
+criteria and then written back to the database. This process can also be run
+using Exonerate as the gene prediction algorithm. In this case the RunnableDB
+ExonerateForGenewise module is used.
 
-For some species while there is little protein evidence there can be a lot of 
-cDNA or EST sequence available. These can be effectively aligned using 
-Exonerate2Genes but this does not give non-redundant clusters of the gene 
-structures which have complete ORFS. TranscriptCoalescer is a module which can 
-cluster the EST and cDNA alignments and resolve the clusters into the most 
-likely transcript structures. It is also capable of taking 'similarity evidence' 
-to aid in this joining.
+For some species while there is little protein evidence there can be a lot
+of cDNA or EST sequence available. These can be effectively aligned using
+Exonerate2Genes but this does not give non-redundant clusters of the gene
+structures which have complete ORFS. TranscriptCoalescer is a module which
+can cluster the EST and cDNA alignments and resolve the clusters into the
+most likely transcript structures. It is also capable of taking 'similarity
+evidence' to aid in this joining.
 
 The program documentation to look at includes
 
