@@ -2,9 +2,38 @@ This document gives an overview of the Ensembl pipeline, analysis
 system and points the reader to documents with more detail about
 setting up and using specific aspects of the system.
 
+Sections covered in this document are:
+1. Introduction
+2. Code requirements
+3. Types of builds 
+4. Projection build
+	(1) Calculation of candidate gene scaffolds and gene structures
+	(2) Consolidation of gene scaffolds and extension of components.
+	(3) Loading of new assembly and gene structures
+	(4) Re-run scaffold-level raw computes on new top-level pieces
+	(5) Run some "standard" gene-build components
+	(6) Extra things
+5. Full genebuild
+        (0) Sequence assembly and loading
+        (1) Raw computes
+        (2) Genebuild
+            a. Targetted Genebuild
+            b. Similarity Genebuild
+            c. UTR Addition
+            d. GeneBuilder
+            e. TranscriptCoalescer
+        (3) ncRNA Annotation
+        (4) Pseudogene Analysis
+        (5) Protein Annotation
+        (6) ID mapping, Xrefs 
+        (7) EST Genebuild
+6. Other useful documents in the ensembl-doc cvs module 
 
-Introduction
-------------
+
+
+================
+1. Introduction
+================
 
 The Ensembl pipeline and analysis system exist to allow easy
 automated annotation of genome sequences. The system is designed to
@@ -19,8 +48,9 @@ patterns and how to customise it) are described in another document:
 ensembl-doc/pipeline_docs/the_ensembl_pipeline_infrastructure.txt.
 
 
-Code requirements
------------------
+================
+2. Code requirements
+================
 
 See: http://www.ensembl.org/info/using/api/api_installation.html
 
@@ -69,187 +99,251 @@ It is recommended that all cvs code be downloaded at the same time, to
 minimise conflicts between older and newer version of different modules.
 
 
-The Ensembl build process
--------------------------
+================
+3. Types of builds 
+===============
 
 The Ensembl analysis of most genomes is very similar and follows the
 same basic structure.
 
-First the sequence and assembly details are loaded into an Ensembl
-MySQL database.
-(See ensembl-doc/loading_sequence_into_ensembl.txt for details.)
-
-Once loaded the actual analysis can begin. It usually consists of the
-following stages.
-
-Overview of stages
------------------- 
-Sequence and assembly loading
-1. Raw compute 
-2. Genebuild
-   a Targetted Build
-   b Similarity Build
-   c UTR Addition
-   d GeneBuilder
-3. ncRNA analysis
-4. Pseudogene analysis
-5. Protein annotation
-6. ID cross mapping (Xrefs)
-7. EST Genebuild
+The Genebuilders currently do two types of genebuild: the full genebuild 
+(for species that have been sequenced to a high enough depth of coverage - 
+usually around 10x), and the projection build (for species that are low-coverage 
+- usually around 2x).
 
 
-1. The Raw Compute
-==================
-
-We call the first stage of analysis the 'raw compute' stage. This
-stage involves running several different analyses to find different
-features in the genome. These include:
-
-a. Repeat finding analyses
-b. Ab initio genefinders, like Genscan
-c. Blast hits using standard databases such as Uniprot and Unigene
-d. Programs to find features like CpG islands and tRNAs in the genome
-e. Placing markers on the genome
-
-For details, please refer to ensembl-doc/pipeline_docs/the_raw_computes.txt.
-
-
-2. The Genebuild
 ================
+4. Projection build 
+=============== 
+The projection build aligns the low-coverage (target) genome with a
+high-coverage (query) genome, and then projects genes down from the
+high-loverage genome to the low-coverage genome. Thus, the quality of the query
+genome's geneset will affect the quality of the resulting target genome's
+geneset. Also, the more closely related the target and query species are, the
+better the genomes will align and thus the better gene projections we will get.
+The method is useful for low-coverage genomes because they do not have enough
+proteins sequenced to predict a full geneset. 
 
-Next the Gene building steps are run. The overall aim is to produce the
-best possible genome-wide set of coding transcript and gene structures. The
-Genebuild involves several distinct stages.
+Documentation for a projection build can be found here:
+/ensembl-doc/pipeline_docs/low_coverage_gene_build.txt
 
-a. Targetted Genebuild
-----------------------
+Main steps are as follows: 
 
-The Targetted Genebuild involves two main stages:
-i.  Species-specific proteins are aligned to the genome using pmatch
-    and subsequently filtered to get the best-in-genome hit(s) for each
-    protein.
-ii. Filtered pmatch hits from (i) are used to seed BLASTs in a
-    specific region of the genome, and then the program Genewise is run to
-    build a transcript structure for the protein on the genome.
+    (1) Calculation of candidate gene scaffolds and gene structures
+    ==
+    This step is performed by the ensembl-analysis RunnableDB WGA2Genes,
+    the input_id is a slice id for the reference genome. This step works
+    best if the slice ids are "intelligently" constructed, and there is a
+    script to do this.
 
-b. Similarity Genebuild
------------------------
+    (2) Consolidation of gene scaffolds and extension of components.
+    ==
+    This step is performed by the ensembl-analysis script
+    wga2genes/merge_and_extend_gene_scaffolds.pl. It joins gene scaffold
+    components together into larger assemblies where appropriate, and
+    also extends their components such that for every scaffold that
+    contributes to a gene scaffold, every base pair is used somewhere
+    (either in one large piece or a number of smaller pieces).
 
-The Targetted Genebuild is followed by the Similarity Genebuild. In
-this step the protein-based blast results obtained from the Raw
-Compute stage are used.  The process is very similar process to the
-Targetted Genebuild, but the protein alignments being used to seed the
-Genewise runs can come from different species.
+    (3) Loading of new assembly and gene structures
+    ==
+    There are two products of the above initial steps: an AGP describing
+    the assembly of the gene scaffolds from their constituent scaffolds, and
+    GFF-like file describing the gene structures on these gene scaffolds. These
+    can be loaded into your core target database with the ensembl-analysis
+    scripts wga2genes/load_gene_scaffolds.pl and wga2genes/load_transcripts.pl
 
-For those species which have a lot of experimentally generated protein
-sequence data, the Targetted Genebuild stage tends to provide the bulk
-of genes in the build, as the Similarity Genebuild generated genes are
-only used where a Targetted Genebuild gene is absent. However, in less
-studied organisms less species-specific protein sequences will be
-available and hence the similarity build plays a much more important
-role in predicting genes.
+    (4) Re-run scaffold-level raw computes on new top-level pieces
+    ==
+    Because many of the original scaffolds will be fragmented in the
+    gene scaffolds, it is necessary to re-run scaffold-level analyses
+    on the new top-level co-ordinate system (on-the-fly projection will
+    not always be possible, particularly for features that straddle a
+    break-point). This step is not needed if the results of all raw
+    computes were stored at the sequence level (usually contigs).
 
-c. UTR Addition
----------------
+    (5) Run some "standard" gene-build components
+    ==
+    It is often sensible to run some Genewises/Exonerates
+    at this point, in the style of the classical gene-build, targetting
+    regions not covered by projected genes. Whether you do this or not
+    depends on how much species-specific data is available.
 
-After these protein-based transcript predictions have been made, an
-attempt is made to add UTR (untranslated region) sequences to the
-ends. If cDNA sequences for the species in question are available,
-these sequences are mapped to the genome using a program called
-exonerate and the resultant genome-cDNA alignments are filtered to
-only include the the 'best in genome' match. Where cDNAs mapped in
-this manner overlap transcripts predicted in the preceding stages,
-any non-translated region from the cDNA is spliced onto the prediction
-as UTR.
+    Note: protein annotation and xrefs are still required as the last
+    steps of the build process.
 
-At this stage a set of so called Blessed Genes can be added. Blessed
-genes are genes whose structure is already known, for example from
-manually curated gene sets, or special cases where we know that the
-standard pipeline can't predict correctly (e.g. selenocysteine
-genes). These genes are treated more carefully and, while they may
-have UTR added, the process ensures that the CDS structure remains
-unchanged.
-
-Ditag information may be used in the UTR addition process, when
-available.
-
-d. The Genebuilder
-------------------
-
-Each of the prior stages of the genebuild process creates a set of
-transcripts which may be partially redundant to one another. These
-sets need to be merged to create a single non-redundant set of
-transcripts. This reconciliation is performed by the Genebuilder
-module. The Genebuilder compares transcripts from the different sets
-and tries to combine or merge identical transcripts. When transcripts
-are combined the supporting evidence for each prediction is transfered
-to the new transcript. Overlapping transcripts are clustered into
-genes.
-
-Once a 'final' gene set has been obtained, a number of post-processing
-procedures are applied to filter and annotate the predicted genes.
-
-3. ncRNA Annotation
-==================
-
-ncRNA annotation is split into 2 stages which can run simultaneously:
-miRNA detection.
-ncRNA detection using Infernal
-(tRNAs are already identified as part of the raw computes)
-Further details about how to run all 3 stages are availiable in ncRNA.txt
-
-4. Pseudogene Analysis
-======================
-
-Pseudogene analysis can have up to 3 stages:
-Identification of genes with no 'real' exons,
-Identification of retrotransposed genes,
-Identification of pseudogenes using PSILC,
-Generally only the first stage is run as the latter stages are prone to 
-misannotate real genes as pseudogenes. 
-Further details about how to run all 3 stages are availiable in Pseudogene.txt
-
-5. Protein Annotation
-=====================
-
-Next the translations are dumped out of the database and a protein
-annotation stage is performed. This serves to identify protein domains
-from databases like Pfam or Prosite and features such as signal
-peptides (with the program SignalP) and transmembrane domains (with
-the program tmhmm).
+    (6) Extra things
+    ==
+    There are one or two things to do before hand-over that are specific
+    to low-coverage builds. eg. Pseudogene analysis, protein annotation and xrefs.
 
 
-6. ID mapping, Xrefs
-====================
+===============
+5. Full genebuild
+===============
 
-Ensembl stable identifiers (ENSGxxx, ENSTxxx, ENSPxxx, ENSExxx) are
-assigned by mapping these IDs across from the previous Ensembl gene
-set. New identifiers are assigned for any entities where we fail to
-map an existing identifier.
+The full genebuild is done for high coverage genomes.
 
-We also run a cross-reference ('Xref') analysis, which maps each
-protein from our own genes to entries in other databases such as
-UniProt (SwissProt/TrEMBL), Refseq and species-specific gene name
-databases (e.g. HGNC for human). This mapping provides links between
-an Ensembl gene and these other databases, providing access to extra
-information about the potential functionality of the gene.
+Documentation can be found here:
+/ensembl-doc/pipeline_docs/overview.txt
+/ensembl-doc/pipeline_docs/the_genebuild_process.txt
+
+Main steps are as follows: 
+
+    (0) Sequence and assembly loading 
+    ==
+    The sequence and assembly are loaded into a standard Ensembl MySQL database.  (See
+    ensembl-doc/loading_sequence_into_ensembl.txt for details.) Once loaded the
+    actual analysis can begin. It usually consists of the following stages.
+
+    (1) Raw computes
+    ==
+    We call the first stage of analysis the 'raw compute' stage. This
+    stage involves running several different analyses to find different
+    features in the genome. These include:
+      a. Repeat finding analyses
+      b. Ab initio genefinders, like Genscan
+      c. Blast hits using standard databases such as Uniprot and Unigene
+      d. Programs to find features like CpG islands and tRNAs in the genome
+      e. Placing markers on the genome
+    For details, please refer to ensembl-doc/pipeline_docs/the_raw_computes.txt.
+
+    (2) Genebuild
+    ==
+    Next the Gene building steps are run. The overall aim is to produce the
+    best possible genome-wide set of coding transcript and gene structures.
+    The genebuild consists of five steps, each of which can be repeated several
+    times. This is the most time-consuming section of a genebuild. 
+      a. Targetted Genebuild
+      b. Similarity Genebuild
+      c. UTR Addition
+      d. GeneBuilder
+      e. TranscriptCoalescer
+
+    a. Targetted Genebuild
+    ----------------------
+    
+    The Targetted Genebuild involves two main stages:
+    i.  Species-specific proteins are aligned to the genome using pmatch
+        and subsequently filtered to get the best-in-genome hit(s) for each
+        protein.
+    ii. Filtered pmatch hits from (i) are used to seed BLASTs in a
+        specific region of the genome, and then the program Genewise is run to
+        build a transcript structure for the protein on the genome.
+    
+    b. Similarity Genebuild
+    -----------------------
+    
+    The Targetted Genebuild is followed by the Similarity Genebuild. In
+    this step the protein-based blast results obtained from the Raw
+    Compute stage are used.  The process is very similar process to the
+    Targetted Genebuild, but the protein alignments being used to seed the
+    Genewise runs can come from different species.
+    
+    For those species which have a lot of experimentally generated protein
+    sequence data, the Targetted Genebuild stage tends to provide the bulk
+    of genes in the build, as the Similarity Genebuild generated genes are
+    only used where a Targetted Genebuild gene is absent. However, in less
+    studied organisms less species-specific protein sequences will be
+    available and hence the similarity build plays a much more important
+    role in predicting genes.
+    
+    c. UTR Addition
+    ---------------
+    
+    After these protein-based transcript predictions have been made, an
+    attempt is made to add UTR (untranslated region) sequences to the
+    ends. If cDNA sequences for the species in question are available,
+    these sequences are mapped to the genome using a program called
+    exonerate and the resultant genome-cDNA alignments are filtered to
+    only include the the 'best in genome' match. Where cDNAs mapped in
+    this manner overlap transcripts predicted in the preceding stages,
+    any non-translated region from the cDNA is spliced onto the prediction
+    as UTR.
+    
+    At this stage a set of so called Blessed Genes can be added. Blessed
+    genes are genes whose structure is already known, for example from
+    manually curated gene sets, or special cases where we know that the
+    standard pipeline can't predict correctly (e.g. selenocysteine
+    genes). These genes are treated more carefully and, while they may
+    have UTR added, the process ensures that the CDS structure remains
+    unchanged.
+    
+    Ditag information may be used in the UTR addition process, when
+    available.
+    
+    d. The Genebuilder
+    ------------------
+    
+    Each of the prior stages of the genebuild process creates a set of
+    transcripts which may be partially redundant to one another. These
+    sets need to be merged to create a single non-redundant set of
+    transcripts. This reconciliation is performed by the Genebuilder
+    module. The Genebuilder compares transcripts from the different sets
+    and tries to combine or merge identical transcripts. When transcripts
+    are combined the supporting evidence for each prediction is transfered
+    to the new transcript. Overlapping transcripts are clustered into
+    genes.
+    
+    Once a 'final' gene set has been obtained, a number of post-processing
+    procedures are applied to filter and annotate the predicted genes.
+    
+    (3) ncRNA Annotation
+    ==
+    ncRNA annotation is split into 2 stages which can run simultaneously:
+    miRNA detection.
+    ncRNA detection using Infernal
+    (tRNAs are already identified as part of the raw computes)
+    Further details about how to run all 3 stages are availiable in ncRNA.txt
+    
+    (4) Pseudogene Analysis
+    ==
+    Pseudogene analysis can have up to 3 stages:
+    Identification of genes with no 'real' exons,
+    Identification of retrotransposed genes,
+    Identification of pseudogenes using PSILC,
+    Generally only the first stage is run as the latter stages are prone to 
+    misannotate real genes as pseudogenes. 
+    Further details about how to run all 3 stages are availiable in Pseudogene.txt
+    
+    (5) Protein Annotation
+    ==
+    Next the translations are dumped out of the database and a protein
+    annotation stage is performed. This serves to identify protein domains
+    from databases like Pfam or Prosite and features such as signal
+    peptides (with the program SignalP) and transmembrane domains (with
+    the program tmhmm).
+    
+    
+    (6) ID mapping, Xrefs
+    ==
+    Ensembl stable identifiers (ENSGxxx, ENSTxxx, ENSPxxx, ENSExxx) are
+    assigned by mapping these IDs across from the previous Ensembl gene
+    set. New identifiers are assigned for any entities where we fail to
+    map an existing identifier.
+    
+    We also run a cross-reference ('Xref') analysis, which maps each
+    protein from our own genes to entries in other databases such as
+    UniProt (SwissProt/TrEMBL), Refseq and species-specific gene name
+    databases (e.g. HGNC for human). This mapping provides links between
+    an Ensembl gene and these other databases, providing access to extra
+    information about the potential functionality of the gene.
+    
+    
+    (7) EST Genebuild
+    ==
+    For most species, EST-based gene predictions don't contribute to the
+    main Ensembl gene set. Instead we use this process to produce a
+    separate set of EST genes. The process is very similar to the cDNA
+    analysis. First the EST sequences are aligned to the genome using
+    exonerate. These alignments are then collapsed down into a non
+    redundant set of transcripts with open reading frames based on
+    clusters of overlapping ESTs, using TranscriptCoalescer module.
 
 
-7. EST Genebuild
-================
 
-For most species, EST-based gene predictions don't contribute to the
-main Ensembl gene set. Instead we use this process to produce a
-separate set of EST genes. The process is very similar to the cDNA
-analysis. First the EST sequences are aligned to the genome using
-exonerate. These alignments are then collapsed down into a non
-redundant set of transcripts with open reading frames based on
-clusters of overlapping ESTs, using TranscriptCoalescer module.
-
-
-
-Other useful documents in the ensembl-doc cvs module
-----------------------------------------------------
+6. Other useful documents in the ensembl-doc cvs module
+===============
 
 * loading_sequence_into_ensembl.txt
 This describes how to load sequences from fasta files and assemblies
