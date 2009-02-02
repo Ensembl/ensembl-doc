@@ -254,22 +254,27 @@ What you need:
                              # eg. ['Short'] will return a kill list of cDNAs or proteins that were
                              # killed because they were too short
 
-      -for_analyses          # Opposite logic. For each of these analyses entered in the config, delete accessions from 
-                             # the kill_list that have an entry in kill_object_analysis for this analysis 
+      -for_analyses          # Opposite logic to the above options. For each of these analyses entered 
+                             # in the config, delete accessions from the kill_list that have an entry in 
+                             # kill_object_analysis for this analysis. 
+                             # (The kill_object_analysis table stores accessions which should not be killed
+                             # for particular analyses).
                              # eg. ['cDNA_update'] will return a kill list that does not contain cDNAs
                              # or proteins that have an entry in the kill_object_analysis table. Entries 
-                             # cDNA_upadte will not be killed. 
+                             # eligible for cDNA_update analysis will not be killed. 
                              # (these entries that do not appear on the returned kill list would have been
-                             # entereed with the '-for_genebuild_analyses cDNA_update' option when running
+                             # entered with the '-for_genebuild_analyses cDNA_update' option when running
                              # enter_kill_objects_from_file.pl)
 
       -for_species           # As above. For each of these species, delete accessions from
-                             # the kill_list that have an entry in species allowed for this species
+                             # the kill_list that have an entry in species_allowed table for this species
+                             # (The species_allowed table stores accessions which should not be killed for 
+                             # particular species.)
                              # eg. ['9606'] will return a kill list that does not contain cDNAs
                              # or proteins that have an entry in the species_allowed table. Mouse entries
                              # will not be killed. 
                              # (these entries that do not appear on the returned kill list would have been
-                             # entereed with the '-for_genebuild_species 9606' option when running
+                             # entered with the '-for_genebuild_species 9606' option when running
                              # enter_kill_objects_from_file.pl)
 
 
