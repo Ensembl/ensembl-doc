@@ -54,7 +54,8 @@ analysis, can be run in the ensembl-pipeline system.
                                       \/
 
                           Submit_Input_ID_Type analysis is run
-                         - eg. SubmitSlice, SubmitFile
+                         - input_id_type can be e.g. "Slice", "File", "Protein", etc, and their
+                           associated analyses will be SubmitSlice, SubmitFile, SubmitProtein.
                          - Submit_Input_ID_Type is a 'Dummy' (or 'Submission') analysis
                          - input_ids have been written to input_id_analysis 
                            table for this input_id_type by make_input_ids script
@@ -254,7 +255,7 @@ RunnableDB module the pipeline needs when running a particular job).
 Parameters are read out of the analysis table for some analyses.
 
 In cases where the same Bio::EnsEMBL::Analysis module is used for more than one analysis,
-each analysis has it's own entry in the analysis table and its own logic_name. In the example 
+each analysis has its own entry in the analysis table and its own logic_name. In the example 
 below, analysis_ids 2 and 4 hold essentially the same information. The only 
 difference is that the analyses will be run on different sets of data as specified in the 
 db_file column.
@@ -318,7 +319,7 @@ Analysis small_est_exonerate has input_id_type = ESTSMALLCHUNK
 input_id_analysis
 -----------------
 
-This table records which analyses have been run sucessfully on which input ids.
+This table records which analyses have been run successfully on which input ids.
 
 This table is also where the pipeline initially gets its input ids.  Before the
 pipeline is run, input ids are created and stored in this table, linked to
@@ -331,8 +332,8 @@ What is an input_id?
 For each analysis to be run (eg. RepeatMasker), the analysis is divided into 
 many smaller jobs that can be run in parallel. The analysis can be divided by
 genomic region (the genome is divided into slices, contigs or chromosomes) or
-by data files (one large fasta file is divided into a number of smaller files
-called chunks).
+by data files (e.g. one large fasta file containing thousands of cDNAs is divided 
+into a number of smaller files called chunks).
 
 For example:
 
@@ -349,10 +350,9 @@ successfully.
 Action process:
 
 - RepeatMasker is to be run on contigs
-- Add Repeatmasker and SubmitContig to the analysis table, both analyses
-  need an entry in input_id_type analysis og CONTIG
-- make_input_ids scripts submits all contigs to input_id_analysis table under
-  analysis_id for SubmitContig
+- Add RepeatMasker and SubmitContig analyses to the analysis table.
+- The make_input_ids script submits all contigs to input_id_analysis table under
+  the analysis_id for SubmitContig (but not yet for RepeatMasker).
 - Pipeline submits contigs to the farm, RepeatMasker is run on each contig, and 
   the results are written to the database
 - An entry is added to input_id_analysis table under analysis_id for Repeatmasker
@@ -361,7 +361,7 @@ These are its columns:
 
 input_id, the input id string
 input_id_type, the input id type
-analysis_id, the dbID from the analysis table
+analysis_id, the analysis_id from the analysis table
 created, when the analysis was run
 runhost, the host the analysis was run on that input id
 db_version, the version of database searched (this isn't always used)
@@ -390,7 +390,8 @@ EXAMPLE:
 
 Dummy analyses SubmitESTChunks (ESTCHUNK) and SubmitSmallESTChunks 
 (ESTSMALLCHUNK) have both submitted 3 input_ids to the input_id_analysis
-table. 
+table. As dummy analyses are not run on the farm, they will not be 
+assigned to any runhosts.
 Analysis est_exonerate has run all 3 jobs, but small_est_exonerate has yet to
 run its jobs. 
 
@@ -428,17 +429,15 @@ been completed before a rule can be run.
 These are ids columns:
 
 rule_id, the numeric id for each rule
-condition, the logic name for the analysis on which the rule 
-           depends
+condition, the logic name for the analysis on which the rule depends
 
 A rule may have more than one condition. There is one entry in the rule_condition
 table for every condition. A rule having 3 conditions would have 3 entries in the
 rule_condition table.
 
-An important note is that a rule must
-always have at least one dependancy which is an analysis with the same input id
-type as the analysis that is the rule's goal - this provides the input id.  Any
-dependancies which aren't of the same input id type must be of type ACCUMULATOR.
+An important note is that a rule must always have at least one dependancy, which is 
+an analysis with the same input id type as the rule's goal - this provides the input id.  
+Any dependancies which aren't of the same input id type must be of type ACCUMULATOR.
 
 EXAMPLE:
  
@@ -582,9 +581,13 @@ B. Dependencies which use the same input_id: these are analyses which
 
 C. Accumulator dependencies: These mark a wait for a previous stage to be
    completed. They are used to indicate that a previous analysis has been run
-   on all possible input ids.  They allow transitions between different input
-   ids and also mark an analysis as complete, for example to allow best in set
-   filtering as is required during the pmatch analysis
+   on all possible input ids.  
+
+   For example, Pmatch_Wait analysis will only run if all the CHROMOSOME input_ids 
+   have entries in the input_id_analysis table for Pmatch analysis, so Pmatch_Wait
+   (with input id type ACCUMULATOR) depends on Pmatch. Accumulators like Pmatch_Wait 
+   allow transitions between different input ids and also mark a preceding analysis 
+   as complete, so best-in-set filtering can proceed (see D below).
    
 
 D. Dependencies which do not use the same input id type: This can only be 
@@ -596,7 +599,7 @@ D. Dependencies which do not use the same input id type: This can only be
    an input_id_type of GENOME, because of this there is an accumulator between
    the two stages called Pmatch_Wait. Pmatch_Wait will run once all the 
    CHROMOSOME input_ids have entries in the input_id_analysis table for Pmatch.
-   Then the BestPmatch analysis can run.
+   Then the BestPmatch analysis can run with GENOME as its input_id_type.
   
 
 
@@ -837,7 +840,7 @@ input_id_analysis table. These entries generally point to the dummy analysis
 which represent the start of the rule flows.  There is a script to make input
 ids: ensembl-pipeline/scripts/make_input_ids
 
-In the above example above, 3 different types of input ids are needed.  All are
+In the above example, 3 different types of input ids are needed.  All are
 sequence based so will use the same -slice option in the script. Here are the
 commandlines you would need.  Note that you can choose a slice size or by
 default use the whole of each seq_region for the specified coordinate system.
@@ -864,7 +867,7 @@ for the different analyses.
 
 Just a quick note - remember that Databases.pm in Bio::EnsEMBL::Analysis::Config
 specifies the reference database and also where the output of an analysis will
-be written to. Some analyses, eg. raw computes, will have thier results written
+be written to. Some analyses, eg. raw computes, will have their results written
 directly into the reference database. Most other analyses in the genebuild,
 eg. genewise, should write their results to a clean database as specified in
 ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Config/Databases.pm. The only 
@@ -905,7 +908,7 @@ PIPELINE_REPEAT_MASKING, these are the logic_names of repeats to be masked
 RENAME_ON_RETRY, this indicates whether the pipeline should rename the 
                  stderr and stdout of a file before it retries a failed job.
                  This is helpful because some batch submission systems just
-                 append output to the end of existing files, and this way you
+                 append output to the end of existing files, but with renaming you
                  get to see the individual output from each run
 
 The other settings in this file are no longer required for the running of the 
@@ -1116,7 +1119,7 @@ check if the rule with the goal RepeatMask can be run.
 perl rulemanager.pl -dbhost yourhost -dbuser yourusername -dbpass yourpass
 -dbname yourdatabase -dbport 3306 -skip_analysis TargettedGenewise
 
-Here the rulemanager won't consider an rule with the goal 
+Here the rulemanager won't consider any rule with the goal 
 TargettedGenewise (but will run any other analyses whose conditions can be met).
 
 perl rulemanager.pl -dbhost yourhost -dbuser yourusername -dbpass yourpass
