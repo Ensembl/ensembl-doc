@@ -1630,6 +1630,12 @@ don't need to run any addition scripts for this.
 
 The Genebuilder is the algorithm which collapses the transcript set
 into a non redundant set of genes with alternative splice forms.
+Transcripts are clustered such that all transcripts in a Gene
+("cluster") have at least one coding exon that overlaps a coding
+exon from at least one other transcript in the cluster.
+(Species built before approximately mid-2007 would have clustered 
+on all exons and not just coding exons.)
+
 As with most of our code there is a Config file, Runnable and
 RunnableDB file for this process all called GeneBuilder found in
 Config/GeneBuild, Runnable and RunnableDB respectively.
