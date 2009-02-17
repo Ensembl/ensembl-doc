@@ -434,7 +434,7 @@ and group them into gene objects. Our algorithm for doing this is
 the GeneBuilder[4]. The comparative analysis used to find missing
 models require this to be run first and then it needs to be run again
 as the final set of transcripts is defined. The GeneBuilder itself
-clusters genes on exon overlap and then compares exon pairs collapsing
+clusters genes on coding exon overlap and then compares exon pairs collapsing
 identical pairs into non redundant groups. If there are more than 10
 alt-splice forms in a particular cluster the 10 best are taken and
 this is based on length, presence of UTR and other similar factors.
@@ -446,6 +446,10 @@ transcript gene models than expected. In this case, it is possible to add models
 into the set - perhaps using LayerAnnotation or Compara. The GeneBuilder can 
 be re-run after LayerAnnotation and the number of genes counted. The process 
 loops until we have enough good models.
+
+Note that before approx. mid-2007, the GeneBuilder clustered on all
+exons and not only coding exons. Species that have not be rebuilt since
+this time will have their genes clustered according to the older rule.
 
 The program documentation to look at includes:
 
