@@ -1,0 +1,1014 @@
+Overview
+=========
+5. Run cdna2genome
+        5.1 Set-up
+        5.2 Annotation file
+        5.3 Chunks
+        5.4 More set-up
+        5.5 Test and run
+        5.6 Investigate missing cDNAs
+        5.7 Rerun missing cDNAs with low coverage and percent_id
+        5.8 Investigate 174 cDNAs
+        5.9 Back up db
+
+
+
+---------------------------------------
+5. Run cdna2genome
+---------------------------------------
+Do we have enough cdnas to make it worth our while?
+
+  mysql -uensro -hgenebuild1 -Dsw4_cow4_exonerate -e "select count(*),daf.analysis_id, logic_name from dna_align_feature daf, analysis a where a.analysis_id = daf.analysis_id group by daf.analysis_id"
++----------+-------------+----------------+
+| count(*) | analysis_id | logic_name     |
++----------+-------------+----------------+
+|  4656247 |          19 | est_exonerate  |
+|   212200 |          21 | cdna_exonerate |
++----------+-------------+----------------+
+Yes, it should be worthwhile.
+
+5.1 Set-up
+==
+Copy Simons' db so that I can use it:
+-------------------------------------
+  ssh genebuild6
+  df -h /mysql
+  ssh genebuild1
+  su - mysqlens
+  scp -r /mysql/data_3306/databases/sw4_cow4_exonerate genebuild5:/mysql/data_3306/databases/ba1_cow4_exonerate
+
+Add a new analysis Xrate_cdna2genome
+-------------------------------------
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e \
+    "insert into analysis values (\N, now(), 'Xrate_cdna2genome', \N, \N, \N, \N, \N, \N, \N, 'Exonerate2Genes', \N, \N, \N);"
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -N -B -e "select analysis_id from analysis where logic_name = 'Xrate_cdna2genome'"
+36
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e \
+    "insert into input_id_type_analysis (analysis_id, input_id_type) values (36,'CDNACHUNK')"
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e \
+    "insert into rule_goal (goal) values (36);"
+   mysql -N -B -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e "select rule_id from rule_goal where goal = 36"
+25
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e \
+    "insert into rule_conditions (rule_id, rule_condition) values (25, 'SubmitChunks');"
+
+Add new analysis SubmitChunks
+------------------------------
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e "insert into analysis (created,logic_name) values (now(),'SubmitChunks')"
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -N -B -e "select analysis_id from analysis where logic_name = 'SubmitChunks'"
+37
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e "insert into input_id_type_analysis (analysis_id,input_id_type) values (37, 'CDNACHUNK')"
+
+Make directories
+-----------------
+  mkdir /lustre/scratch1/ensembl/ba1/cow4/cdna2genome
+  mkdir /lustre/work1/ensembl/ba1/cow4/cdna2genome
+
+5.2 Annotation file
+==
+The annotation file contains one line for every cdna. Each line has the following format:
+<cdna_accession><start><length_of_coding_region><strand>
+
+Find which Mole dbs we can use;
+  mysql -ugenero -hcbi3 -Dmm_ini -e "select database_name from ini where available='yes'"
++-----------------+
+| database_name   |
++-----------------+
+| embl_89         |
+| uniprot_9_3     |
+| embl_92         |
+| uniprot_12_5    |
+| refseq_26       |
+| mushroom_200712 |
+| uniprot_12_6    |
+| mushroom_200801 |
+| embl_93         |
+| emnew_20080109  |
+| emnew_20080113  |
++-----------------+
+  source ~/PerlCode/ensembl-personal/ba1/cow/scripts/cow4_perl5lib
+  setenv PERL5LIB ${PERL5LIB}':~/PerlCode/ensembl-personal/ba1/kill_list_db/modules/'
+  echo $PERL5LIB
+/nfs/acari/ba1/PerlCode//ensembl-config/cow/Btau_4.0/:/nfs/acari/ba1/PerlCode//ensembl/modules:/nfs/acari/ba1/PerlCode//ensembl-analysis/modules:/nfs/acari/ba1/PerlCode//ensembl-pipeline/modules:/nfs/acari/ba1/PerlCode///bioperl-0.7.2/bioperl-steve/bioperl-live:/nfs/acari/ba1/PerlCode//bioperl-1.4/:/nfs/acari/ba1/PerlCode//ensembl-killlist/modules:/nfs/acari/ba1/PerlCode//ensembl-analysis/scripts:/nfs/acari/ba1/PerlCode//ensembl-analysis/scripts/buildchecks/:~/PerlCode/ensembl-personal/ba1/kill_list_db/modules/
+
+Note
+----
+The script reads in each cDNA and clips it using Bio::EnsEMBL::Analysis::Tools::PolyAClipping. It then looks for the cDNA in Mole and finds its coordinates. If the coordinates are not found or can't be parsed, a message is sent to STDERR and the cDNA is not written to the outfile. If the cDNA is found, we check that it has not been clipped into the CDS and then write the cDNA's fasta to outfile and its annotation to annotation_file. This annotation file contains additional information for the
+use to know what has happened during clipping. In order for this annotation file to be used by exonerate's cdna2genome model, the annotation file with have to be edited to contain only the first 4 columns of each line
+eg. less /lustre/scratch1/ensembl/ba1/targetted/cdna2genome/cdna.annot | awk '{print $1"\t"$2"\t"$3"\t"$4}' > /lustre/scratch1/ensembl/ba1/targetted/cdna2genome/annotation.txt
+
+Run
+----
+  bsub -qyesterday -o /lustre/work1/ensembl/ba1/cow4/cdna2genome/prepare_cdnas.out -e /lustre/work1/ensembl/ba1/cow4/cdna2genome/prepare_cdnas.err perl ~/PerlCode/ensembl-personal/ba1/projects/targetted/scripts/prepare_cdnas.pl -infile /lustre/work1/ensembl/sw4/Cow/pre/Seq/cDNA/cDNA.fa -outfile /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.clipped -annotation /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation -dbnames embl_93,embl_92,embl_89,refseq_26,uniprot_12_6,uniprot_9_3,uniprot_12_5
+   grep \> /lustre/work1/ensembl/sw4/Cow/pre/Seq/cDNA/cDNA.fa | wc -l
+26687
+  grep \> /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.clipped | wc -l
+21780
+  less /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation | wc -l
+21780
+
+Clean annotation file
+----------------------
+  mv /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation.bk
+  less /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation.bk | awk '{print $1"\t"$2"\t"$3"\t"$4}' > /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation
+
+Check on missing ones
+---------------------
+26687-21780=4907 missing
+  less ~/PerlCode/ensembl-personal/ba1/projects/targetted/scripts/prepare_cdnas.pl
+# Lots of these:
+# print STDERR "Parse_problem $id ($strand\t$start\t$end\t$coords) db ".$in_db->dbc->dbname." \n";
+# Parse_problem BC154393.1 (                      <1..1146) db embl_93
+
+  less /lustre/work1/ensembl/ba1/cow4/cdna2genome/prepare_cdnas.err | grep Not_in_mole | wc -l
+84
+less /lustre/work1/ensembl/ba1/cow4/cdna2genome/prepare_cdnas.err | grep "Clipped off too many bases" | wc -l
+18
+  less /lustre/work1/ensembl/ba1/cow4/cdna2genome/prepare_cdnas.err | grep Parse_problem | wc -l
+4823
+
+  less /lustre/work1/ensembl/ba1/cow4/cdna2genome/prepare_cdnas.err | grep Parse_problem | grep -e  \> -e \< | wc -l
+2085
+  less /lustre/work1/ensembl/ba1/cow4/cdna2genome/prepare_cdnas.err | grep Parse_problem | grep -v \> | grep -v \< | wc -l
+2738
+  less /lustre/work1/ensembl/ba1/cow4/cdna2genome/prepare_cdnas.err | grep '\(\s\)' | wc -l 4883
+Yeah, everything looks OK.
+
+5.3 Chunks 
+==
+  mkdir /lustre/work1/ensembl/ba1/cow4/cdna2genome/chunks
+  cd /lustre/work1/ensembl/ba1/cow4/cdna2genome/ 
+
+We want 1 cDNA per file:
+  ~searle/progs/fastasplit/fastasplit.linux /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.clipped 21780 chunks 
+
+5.4 More set-up
+==
+  ls -lt /lustre/blastdb/Ensembl/Cow/v4.1/genome/Bos_taurus.Btau_4.1.softmasked.fa
+-rw-r--r--  1 sw4 uucp 2967689613 Dec  3 11:19 /lustre/blastdb/Ensembl/Cow/v4.1/genome/Bos_taurus.Btau_4.1.softmasked.fa
+
+  vi /nfs/acari/ba1/PerlCode/ensembl-config/cow/Btau_4.0/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm
+#              XRATE_CDNA2GENOME => {
+#                QUERYTYPE => 'dna',
+#                QUERYSEQS  => '/lustre/work1/ensembl/ba1/cow4/cdna2genome/chunks/', # cdna chunks
+#                OUTDB => { -dbname => 'ba1_cow4_ref',
+#                           -host => 'genebuild6',
+#                           -port => '3306',
+#                           -user => '***REMOVED***',
+#                           -pass => ***REMOVED***,
+#                         },
+#                COVERAGE_BY_ALIGNED => 1,
+#                FILTER => { OBJECT     => 'Bio::EnsEMBL::Analysis::Tools::ExonerateTranscriptFilter',
+#                            PARAMETERS => {
+#                              -coverage => 90,
+#                              -percent_id => 97,
+#                              -best_in_genome => 1,
+#                              -reject_processed_pseudos => 1,
+#                            },
+#                          },
+#                OPTIONS => "--model cdna2genome --forwardcoordinates FALSE ". # "--model est2genome --forwardcoordinates FALSE ".                            "--softmasktarget TRUE --exhaustive FALSE  --score 500 ".
+
+  vi /nfs/acari/ba1/PerlCode/ensembl-config/cow/Btau_4.0/Bio/EnsEMBL/Pipeline/Config/BatchQueue.pm
+#    {
+#       logic_name => 'Xrate_cdna2genome',
+#       batch_size => 1,
+#       resource => 'select[type==X86_64 && mem>3700]  rusage[mem=3700]',
+#       #resource => 'select[type==LINUX64 && mem>3700]  rusage[mem=3700]',
+#       retries    => 3,
+#       runner     => '',
+#       sub_args   => '-M3700000',
+#       queue      => 'long',
+#       cleanup    => 'no',
+#       output_dir => '/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/',
+#       runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
+#     },
+
+Input_ids
+----------
+ cd /lustre/work1/ensembl/ba1/cow4/cdna2genome/chunks/
+ foreach file (*)
+   mysql -hgenebuild6 -P3306 -u ***REMOVED*** -***REMOVED*** -Dba1_cow4_ref \
+         -e "insert into input_id_analysis(input_id,input_id_type,analysis_id,created) \
+         values('"$file"','CDNACHUNK',37,now())"
+   end
+  mysql -hgenebuild6 -P3306 -u ensro -Dba1_cow4_ref -e "select count(*) from input_id_analysis where analysis_id = 37"
++----------+
+| count(*) |
++----------+
+|    21780 |
++----------+
+
+Exonerate version
+--------------
+Change the exonerate version:
+  vi ~/PerlCode/ensembl-analysis//modules/Bio/EnsEMBL/Analysis/Runnable/BaseExonerate.pm
+
+ if (not $self->program) {
+    $self->program('/usr/local/ensembl/bin/exonerate-0.8.3';
+  }
+ print STDERR "\n\n* * * Running program ".$self->program." * * *\n\n";
+
+Changed ~/PerlCode/ensembl-analysis/modules/Bio/EnsEMBL/Analysis/RunnableDB/Exonerate2Genes.pm
+(Added PRGRAM)
+And finally update db so that exonerate can be read from here:
+  mysql -hgenebuild6 -P3306 -u ***REMOVED*** -***REMOVED*** -Dba1_cow4_ref -e "update analysis set program_file = '/nfs/acari/ba1/cvs_co/exonerate/src/program/exonerate.hacked' where logic_name = 'Xrate_cdna2genome'"
+
+This seems to work.
+
+# vi /ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Tools/ExonerateTranscriptFilter.pm
+
+5.5 Test and run
+==
+  source ~/PerlCode/ensembl-personal/ba1/cow/scripts/cow4_perl5lib
+
+  cd ~/PerlCode/ensembl-pipeline/scripts/
+  perl test_RunnableDB -dbhost genebuild6 -dbport 3306 -dbname ba1_cow4_ref \
+  -dbuser ***REMOVED*** -dbpass ensembl -runnabledb_path Bio/EnsEMBL/Analysis/RunnableDB \
+  -logic Xrate_cdna2genome -input_id cdnas_chunk_0000001 -no_write
+# output:
+# Fetching Xrate_cdna2genome from ba1_cow4_ref
+# Exonerate command : /nfs/acari/ba1/cvs_co/exonerate/src/program/exonerate.hacked --showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\n" --model cdna2genome --forwardcoordinates FALSE --softmasktarget TRUE --exhaustive FALSE  --score 500 --saturatethreshold 100 --dnahspthreshold 60 --dnawordlen 15 --bestn 10  --querytype dna --targettype dna --query /lustre/work1/ensembl/ba1/cow4/cdna2genome/chunks//cdnas_chunk_0000001 --target
+/lustre/blastdb/Ensembl/Cow/v4.1/genome/Bos_taurus.Btau_4.1.softmasked.fa
+
+------------------- EXCEPTION --------------------
+MSG: Vulgar string does not start with a match.  Was not expecting this.
+STACK Bio::EnsEMBL::Analysis::Runnable::ExonerateTranscript::_parse_vulgar_block /nfs/acari/ba1/PerlCode//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/ExonerateTranscript.pm:320
+STACK Bio::EnsEMBL::Analysis::Runnable::ExonerateTranscript::parse_results /nfs/acari/ba1/PerlCode//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/ExonerateTranscript.pm:122
+STACK Bio::EnsEMBL::Analysis::Runnable::BaseExonerate::run /nfs/acari/ba1/PerlCode//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/BaseExonerate.pm:260
+STACK Bio::EnsEMBL::Analysis::RunnableDB::Exonerate2Genes::run /nfs/acari/ba1/PerlCode//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/RunnableDB/Exonerate2Genes.pm:246
+STACK toplevel test_RunnableDB:132
+---------------------------------------------------
+
+24/01/2008
+----------
+Put a print Statement in. The type is not M or S. I want to find out what it is, and why.
+I hacked /nfs/acari/ba1/PerlCode//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/ExonerateTranscript.pm to allow through types of M, S and C to find out whether this fixes things. I don't know what S and C stand for.Oh, we have man pages. M=match, S=split codon, C=codon.
+
+  man -M ~/cvs_co/exonerate/doc/man exonerate
+
+test with a shorter seq, and in Analysis:
+  cd ~/PerlCode/ensembl-analysis/scripts/
+  perl test_RunnableDB  -dbhost genebuild6 -dbport 3306 -dbname ba1_cow4_ref -dbuser ***REMOVED*** -dbpass ensembl -runnabledb_path Bio/EnsEMBL/Analysis/RunnableDB -logic Xrate_cdna2genome -input_id cdnas_chunk_0000020
+
+Check this against last run:
+# Exonerate command : /nfs/acari/ba1/cvs_co/exonerate/src/program/exonerate.hacked --showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\n" --model cdna2genome --forwardcoordinates FALSE --softmasktarget TRUE --exhaustive FALSE  --score 500 --saturatethreshold 100 --dnahspthreshold 60 --dnawordlen 15 --bestn 10  --querytype dna --targettype dna --query /lustre/work1/ensembl/ba1/cow4/cdna2genome/chunks//cdnas_chunk_0000020 --target
+# /lustre/blastdb/Ensembl/Cow/v4.1/genome/Bos_taurus.Btau_4.1.softmasked.fa
+
+Oh, we are missing an annotation file
+  vi ~/PerlCode/ensembl-config/cow/Btau_4.0/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm
+  #QUERYANNOTATION     => '/lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation',
+
+We now have:
+#  Exonerate command : /nfs/acari/ba1/cvs_co/exonerate/src/program/exonerate.hacked --showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\n" --model cdna2genome --forwardcoordinates FALSE --softmasktarget TRUE --exhaustive FALSE  --score 500 --saturatethreshold 100 --dnahspthreshold 60 --dnawordlen 15 --bestn 10  --querytype dna --targettype dna --query /lustre/work1/ensembl/ba1/cow4/cdna2genome/chunks//cdnas_chunk_0000020 --target
+/lustre/blastdb/Ensembl/Cow/v4.1/genome/Bos_taurus.Btau_4.1.softmasked.fa --annotation /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation
+
+And now I should unhack /nfs/acari/ba1/PerlCode//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/ExonerateTranscript.pm
+reran it and it works now. :-)
+
+  cd ~/PerlCode/ensembl-pipeline/scripts
+  bsub -qyesterday -o /lustre/scratch1/ensembl/ba1/cow4/cdna2genome//ruleman.out -e /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ruleman.err perl ./rulemanager.pl -dbhost genebuild6 -dbport 3306 -dbname ba1_cow4_ref -dbuser ***REMOVED*** -dbpass ensembl -shuffle -analysis Xrate_cdna2genome -input_id_type CDNACHUNK -once -submission_limit -submission_number 10
+   
+Oh but I'm running pika stuff too so these jobs are waaay down the bottom of the list. 
+  bswitch yesterday 668080
+
+Maybe check whether we can enter the exonerate to use in a config file instead of hacking
+ ./monitor -dbname ba1_cow4_ref -dbhost genebuild6 -dbport 3306 -dbuser ***REMOVED*** -dbpass ensembl -finished -current
+
+The jobs aren't runnign and I think it's the resource requirements in batchqueue. 
+Kill the jobs and change resource requirements to '<-M3700000 -R "select[type==LINUX64 && mem>3700]  rusage[mem=3700]"'.
+We need linux because it's the hacked version of exonerate, only compiled for LINUX64.
+
+  bjobs | grep genome | awk '{print $1}' |xargs -n 1 bkill
+  mysql -hgenebuild6 -P3306 -u ensro -Dba1_cow4_ref -e "truncate job; truncate job_status" 
+
+  bsub -qyesterday -o /lustre/scratch1/ensembl/ba1/cow4/cdna2genome//ruleman.out -e /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ruleman.err perl ./rulemanager.pl -dbhost genebuild6 -dbport 3306 -dbname ba1_cow4_ref -dbuser ***REMOVED*** -dbpass ensembl -shuffle -analysis Xrate_cdna2genome -input_id_type CDNACHUNK -once -submission_limit -submission_number 10
+
+The jobs are still not running - maybe farm sructure has changed?
+  bkill 0
+  rm -f /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/*
+
+Emailed Tim and he says that -M3700000 is a BSUB command so can't go in with resource requirements. Also reading Farm FAQ I realise that LINUX64 not longer exists - they are renamed to X86_64.
+
+  vi BatchQueue.pm 
+       resource => 'select[type==X86_64 && mem>3700]  rusage[mem=3700]',
+       sub_args   => '-M3700000',
+
+  ssh bc-dev-32
+  source ~/PerlCode/ensembl-personal/ba1/cow/scripts/cow4_perl5lib
+  bsub -qyesterday -o /lustre/scratch1/ensembl/ba1/cow4/cdna2genome//ruleman.out -e /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ruleman.err perl ./rulemanager.pl -dbhost genebuild6 -dbport 3306 -dbname ba1_cow4_ref -dbuser ***REMOVED*** -dbpass ensembl -shuffle -analysis Xrate_cdna2genome -input_id_type CDNACHUNK -once -submission_limit -submission_number 10
+
+Great, this works. Let's try to bsub from a normal farm-login node.:
+
+  ssh farm-login
+  cd ~/PerlCode/ensembl-pipeline/scripts/
+  source ~/PerlCode/ensembl-personal/ba1/cow/scripts/cow4_perl5lib
+  bsub -qyesterday -o /lustre/scratch1/ensembl/ba1/cow4/cdna2genome//ruleman.out -e /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ruleman.err perl ./rulemanager.pl -dbhost genebuild6 -dbport 3306 -dbname ba1_cow4_ref -dbuser ***REMOVED*** -dbpass ensembl -shuffle -analysis Xrate_cdna2genome -input_id_type CDNACHUNK -once -submission_limit -submission_number 10
+
+Some jobs fail because of type C.
+  less /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/9/cdnas_chunk_0019996.Xrate_cdna2genome.359.err 
+
+
+ # -------------------- EXCEPTION --------------------
+ # MSG: Vulgar string does not start with a match.  Was not expecting this. (Have type C)
+ # STACK Bio::EnsEMBL::Analysis::Runnable::ExonerateTranscript::_parse_vulgar_block /nfs/acari/ba1/PerlCode//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/ExonerateTranscript.pm:320
+ # STACK Bio::EnsEMBL::Analysis::Runnable::ExonerateTranscript::parse_results /nfs/acari/ba1/PerlCode//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/ExonerateTranscript.pm:122
+ # STACK Bio::EnsEMBL::Analysis::Runnable::BaseExonerate::run /nfs/acari/ba1/PerlCode//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/BaseExonerate.pm:260
+ # STACK Bio::EnsEMBL::Analysis::RunnableDB::Exonerate2Genes::run /nfs/acari/ba1/PerlCode//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/RunnableDB/Exonerate2Genes.pm:246
+ # STACK (eval) /nfs/acari/ba1/PerlCode//ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/Job.pm:572
+ # STACK Bio::EnsEMBL::Pipeline::Job::run_module /nfs/acari/ba1/PerlCode//ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/Job.pm:569
+ # STACK (eval) /nfs/acari/ba1/PerlCode//ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/runner.pl:218
+ # STACK main::run_jobs_with_lsfcopy /nfs/acari/ba1/PerlCode//ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/runner.pl:217
+ # STACK toplevel /nfs/acari/ba1/PerlCode//ensembl-pipeline/modules/Bio/EnsEMBL/Pipeline/runner.pl:127
+ # ---------------------------------------------------
+
+  ./monitor -dbname ba1_cow4_ref -dbhost genebuild6 -dbport 3306 -dbuser ***REMOVED*** -dbpass ensembl -finished -current
+Pipeline current status [genebuild6:3306 ba1_cow4_ref]
+
+Name               Status     Count   Analysis-id
+----               ------     -----   -----------
+Xrate_cdna2genome  AWOL       50      36
+Xrate_cdna2genome  FAILED     16      36
+Xrate_cdna2genome  RUNNING    7       36
+Xrate_cdna2genome  SUBMITTED  1       36
+
+
+Finished job summary [genebuild6:3306 ba1_cow4_ref]
+
+Count   Name                       Id
+-----   ----                       --
+131728  SubmitContig               1
+131728  RepeatMask                 2
+131728  CpG                        3
+131728  Dust                       4
+131728  Eponine                    5
+131728  TRF                        6
+131728  tRNAscan                   7
+14642   Genscan                    8
+14642   Unigene                    9
+14642   Uniprot                    10
+14642   Vertrna                    11
+14642   SubmitSlice                12
+12007   SubmitChromosome           13
+12007   Pmatch                     14
+1       Best_Pmatch                15
+14642   TargettedGenewise          16
+1       SubmitGenome               17
+3000    SubmitESTChunk             18
+3000    est_exonerate              19
+50      SubmitCDNAChunk            20
+50      cdna_exonerate             21
+14642   Marker                     22
+300     human_one2one_mouse_orth   23
+300     Submit_human_one2one_orth  24
+300     mouse_one2one_human_orth   25
+300     Submit_mouse_one2one_orth  26
+11000   human_cdna_exonerate       27
+11000   SubmitHumancDNAChunks      28
+11500   mouse_cdna_exonerate       29
+11500   SubmitMousecDNAChunks      30
+1       TGE_Wait                   31
+24698   SimilarityGenewise         32
+24698   SubmitSimSlice             33
+14642   SubmitTargettedXrate       34
+14642   TargettedExonerate         35
+6       Xrate_cdna2genome          36
+21780   SubmitChunks               37
+
+31/01/2008
+  vi vi /nfs/acari/ba1/PerlCode//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/ExonerateTranscript.pm
+Allow type C.
+
+Delete genes and jobs:
+  mysql -N -B -uensro -hgenebuild6 -Dba1_cow4_ref -e 'select gene_id from gene where  analysis_id =36' > /lustre/scratch1/ensembl/ba1/cow4/deleted_genes.ls
+  cd ~/PerlCode/ensembl-pipeline/scripts/GeneBuild/ 
+  perl delete_genes.pl -dbpass ensembl -dbuser ***REMOVED*** -dbhost genebuild6 -dbport 3306 -dbname ba1_cow4_ref < /lustre/scratch1/ensembl/ba1/cow4/deleted_genes.ls
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e "delete from job; delete from job_status"
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e "delete from input_id_analysis where analysis_id = 36"
+
+Get genes to write to GW db:
+  vi /nfs/acari/ba1/PerlCode/ensembl-config/cow/Btau_4.0/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm
+  OUTDB => "GENEWISE_DB",
+
+  ssh farm-login
+  cd ~/PerlCode/ensembl-pipeline/scripts/
+  source ~/PerlCode/ensembl-personal/ba1/cow/scripts/cow4_perl5lib
+  bsub -qyesterday -o /lustre/scratch1/ensembl/ba1/cow4/cdna2genome//ruleman.out -e /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ruleman.err perl ./rulemanager.pl -dbhost genebuild6 -dbport 3306 -dbname ba1_cow4_ref -dbuser ***REMOVED*** -dbpass ensembl -shuffle -analysis Xrate_cdna2genome -input_id_type CDNACHUNK -once -submission_limit -submission_number 100
+
+I submit another 500 after 99 of the above jobs are done.
+Submit all...
+
+  grep -ri xcept /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/*
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/0/cdnas_chunk_0018899.Xrate_cdna2genome.277.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/0/cdnas_chunk_0014319.Xrate_cdna2genome.447.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/0/cdnas_chunk_0012202.Xrate_cdna2genome.757.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/0/cdnas_chunk_0014990.Xrate_cdna2genome.678.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/0/cdnas_chunk_0021088.Xrate_cdna2genome.732.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/1/cdnas_chunk_0017120.Xrate_cdna2genome.241.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/1/cdnas_chunk_0020775.Xrate_cdna2genome.930.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/1/cdnas_chunk_0008502.Xrate_cdna2genome.32.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/1/cdnas_chunk_0009080.Xrate_cdna2genome.532.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/2/cdnas_chunk_0007532.Xrate_cdna2genome.556.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/2/cdnas_chunk_0006072.Xrate_cdna2genome.916.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/2/cdnas_chunk_0007463.Xrate_cdna2genome.502.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/3/cdnas_chunk_0005772.Xrate_cdna2genome.878.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/3/cdnas_chunk_0009701.Xrate_cdna2genome.962.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/3/cdnas_chunk_0001812.Xrate_cdna2genome.867.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/5/cdnas_chunk_0009244.Xrate_cdna2genome.414.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/6/cdnas_chunk_0003718.Xrate_cdna2genome.673.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/7/cdnas_chunk_0004801.Xrate_cdna2genome.199.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/7/cdnas_chunk_0020383.Xrate_cdna2genome.895.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/8/cdnas_chunk_0013756.Xrate_cdna2genome.97.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/8/cdnas_chunk_0003553.Xrate_cdna2genome.606.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/8/cdnas_chunk_0003435.Xrate_cdna2genome.723.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/8/cdnas_chunk_0001311.Xrate_cdna2genome.797.err
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/9/cdnas_chunk_0019996.Xrate_cdna2genome.359.err
+# thes files have the exception
+# MSG: Vulgar string does not start with a match.  Was not expecting this. (Have type C)
+# i think they are from a run where i had not yet allowed Type C in ExonerateTRanscript
+# and where i deleted the genes out of the db but forgot to clear the scratch dir.
+Go through scratch for each of the above and check that the job is found elsewhere and passed:
+
+eg. grep -r cdnas_chunk_0018899 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 277
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/3/cdnas_chunk_0018899.Xrate_cdna2genome.226.out
+
+  grep -r cdnas_chunk_0014319 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/*
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/6/cdnas_chunk_0014319.Xrate_cdna2genome.275.err
+
+  grep -r cdnas_chunk_0012202 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 757
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/9/cdnas_chunk_0012202.Xrate_cdna2genome.997.err
+
+  grep -r cdnas_chunk_0014990 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 678
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome/4/cdnas_chunk_0014990.Xrate_cdna2genome.825.err
+
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0021088" {} \; -print
+./0/cdnas_chunk_0021088.Xrate_cdna2genome.732.err # failed
+./5/cdnas_chunk_0021088.Xrate_cdna2genome.120.err # passed
+
+  grep -r cdnas_chunk_0017120 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 241
+/lustre/scratch1/ensembl/ba1/cow4/cdna2genome//4/cdnas_chunk_0017120.Xrate_cdna2genome.413.er
+
+  grep -r cdnas_chunk_0020775 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 930
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0020775" {} \; -print
+./6/cdnas_chunk_0020775.Xrate_cdna2genome.464.err
+./1/cdnas_chunk_0020775.Xrate_cdna2genome.930.err
+
+  grep -r cdnas_chunk_0008502 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 32
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0008502" {} \; -print
+./1/cdnas_chunk_0008502.Xrate_cdna2genome.32.err
+./8/cdnas_chunk_0008502.Xrate_cdna2genome.458.err
+
+  grep -r cdnas_chunk_0009080 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 532
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0009080" {} \; -print
+./1/cdnas_chunk_0009080.Xrate_cdna2genome.532.err
+./8/cdnas_chunk_0009080.Xrate_cdna2genome.765.err
+
+  grep -r cdnas_chunk_0007532 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 556
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0007532" {} \; -print
+./4/cdnas_chunk_0007532.Xrate_cdna2genome.710.err
+./2/cdnas_chunk_0007532.Xrate_cdna2genome.556.err
+
+  grep -r cdnas_chunk_0006072 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 916
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0006072" {} \; -print
+./1/cdnas_chunk_0006072.Xrate_cdna2genome.527.err
+./2/cdnas_chunk_0006072.Xrate_cdna2genome.916.err
+
+  grep -r cdnas_chunk_0007463 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 502
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0007463" {} \; -print
+./3/cdnas_chunk_0007463.Xrate_cdna2genome.782.err
+./2/cdnas_chunk_0007463.Xrate_cdna2genome.502.err
+
+  grep -r cdnas_chunk_0005772 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 878
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0005772" {} \; -print
+./8/cdnas_chunk_0005772.Xrate_cdna2genome.422.err
+./3/cdnas_chunk_0005772.Xrate_cdna2genome.878.err
+
+  grep -r cdnas_chunk_0009701 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 962
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0009701" {} \; -print
+./3/cdnas_chunk_0009701.Xrate_cdna2genome.962.err
+./2/cdnas_chunk_0009701.Xrate_cdna2genome.12.err
+
+  grep -r cdnas_chunk_0001812 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 867
+  ind ./ -name "*.err" -exec grep -q "cdnas_chunk_0001812" {} \; -print
+./7/cdnas_chunk_0001812.Xrate_cdna2genome.614.err
+./3/cdnas_chunk_0001812.Xrate_cdna2genome.867.err
+
+  grep -r cdnas_chunk_0009244 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 414
+   find ./ -name "*.err" -exec grep -q "cdnas_chunk_0009244" {} \; -print
+./5/cdnas_chunk_0009244.Xrate_cdna2genome.414.err
+./2/cdnas_chunk_0009244.Xrate_cdna2genome.993.err
+
+  grep -r cdnas_chunk_0003718 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 673
+   find ./ -name "*.err" -exec grep -q "cdnas_chunk_0003718" {} \; -print
+./6/cdnas_chunk_0003718.Xrate_cdna2genome.673.err
+./8/cdnas_chunk_0003718.Xrate_cdna2genome.845.err
+
+  grep -r cdnas_chunk_0004801 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 199
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0004801" {} \; -print
+./7/cdnas_chunk_0004801.Xrate_cdna2genome.199.err
+./1/cdnas_chunk_0004801.Xrate_cdna2genome.836.err
+
+  grep -r cdnas_chunk_0020383 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 895
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0020383" {} \; -print
+./7/cdnas_chunk_0020383.Xrate_cdna2genome.895.err
+./0/cdnas_chunk_0020383.Xrate_cdna2genome.89.err
+
+  grep -r cdnas_chunk_0013756 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 97
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0013756" {} \; -print
+./4/cdnas_chunk_0013756.Xrate_cdna2genome.639.err
+./8/cdnas_chunk_0013756.Xrate_cdna2genome.97.err
+
+  grep -r cdnas_chunk_0003553 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 606
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0003553" {} \; -print
+./1/cdnas_chunk_0003553.Xrate_cdna2genome.634.err
+./8/cdnas_chunk_0003553.Xrate_cdna2genome.606.err
+
+  grep -r cdnas_chunk_0003435 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 723
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0003435" {} \; -print
+./8/cdnas_chunk_0003435.Xrate_cdna2genome.243.err
+./8/cdnas_chunk_0003435.Xrate_cdna2genome.723.err
+
+:q
+  grep -r cdnas_chunk_0001311 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 797
+   find ./ -name "*.err" -exec grep -q "cdnas_chunk_0001311" {} \; -print
+./1/cdnas_chunk_0001311.Xrate_cdna2genome.156.err
+./8/cdnas_chunk_0001311.Xrate_cdna2genome.797.err
+
+  grep -r cdnas_chunk_0019996 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/* | grep -v 359
+  find ./ -name "*.err" -exec grep -q "cdnas_chunk_0019996" {} \; -print
+./8/cdnas_chunk_0019996.Xrate_cdna2genome.736.err
+./9/cdnas_chunk_0019996.Xrate_cdna2genome.359.err
+
+I still see some jobs on the farm:
+#923750  ba1     RUN   long       bc-12-4-04  bc-11-1-11  *na2genome Jan 31 17:52
+#924386  ba1     RUN   long       bc-12-4-04  bc-9-2-13   *na2genome Jan 31 17:53
+#924511  ba1     RUN   long       bc-12-4-04  bc-10-5-03  *na2genome Jan 31 17:53
+#924664  ba1     RUN   long       bc-12-4-04  bc-9-3-03   *na2genome Jan 31 17:54
+#924700  ba1     RUN   long       bc-12-4-04  bc-9-5-14   *na2genome Jan 31 17:54
+#924800  ba1     RUN   long       bc-12-4-04  bc-9-3-05   *na2genome Jan 31 17:54
+
+But when I do a monitor, all jobs are done. An awol_check doesn't change anything:
+  ./monitor -dbname ba1_cow4_ref -dbhost genebuild6 -dbport 3306 -dbuser ***REMOVED*** -dbpass ensembl -finished -current
+Count   Name                       Id
+-----   ----                       --
+131728  SubmitContig               1
+131728  RepeatMask                 2
+131728  CpG                        3
+131728  Dust                       4
+131728  Eponine                    5
+131728  TRF                        6
+131728  tRNAscan                   7
+14642   Genscan                    8
+14642   Unigene                    9
+14642   Uniprot                    10
+14642   Vertrna                    11
+14642   SubmitSlice                12
+12007   SubmitChromosome           13
+12007   Pmatch                     14
+1       Best_Pmatch                15
+14642   TargettedGenewise          16
+1       SubmitGenome               17
+3000    SubmitESTChunk             18
+3000    est_exonerate              19
+50      SubmitCDNAChunk            20
+50      cdna_exonerate             21
+14642   Marker                     22
+300     human_one2one_mouse_orth   23
+300     Submit_human_one2one_orth  24
+300     mouse_one2one_human_orth   25
+300     Submit_mouse_one2one_orth  26
+11000   human_cdna_exonerate       27
+11000   SubmitHumancDNAChunks      28
+11500   mouse_cdna_exonerate       29
+11500   SubmitMousecDNAChunks      30
+1       TGE_Wait                   31
+24698   SimilarityGenewise         32
+24698   SubmitSimSlice             33
+14642   SubmitTargettedXrate       34
+14642   TargettedExonerate         35
+21780   Xrate_cdna2genome          36
+21780   SubmitChunks               37
+
+  mysql -uensro -hgenebuild7 -Dba1_cow4_GW -N -B -e 'show table status' | sort -k5,5n | awk '{ if ($5 > 0) { print $1"\t"$5 } }'
+attrib_type     1
+coord_system    2
+meta_coord      16
+meta    27
+analysis        36
+external_db     258
+seq_region_attrib       12007
+assembly        131620
+seq_region      143627
+dna_align_feature       178809
+gene    352947
+transcript      352947
+transcript_supporting_feature   352947
+translation     352947
+supporting_feature      2848781
+exon    2854742
+exon_transcript 2854742
+protein_align_feature   3025523
+
+  mysql -uensro -hgenebuild7 -Dba1_cow4_GW -e "select count(*), biotype from gene group by biotype"
++----------+---------------------+
+| count(*) | biotype             |
++----------+---------------------+
+|    25262 |  targetted          |
+|   290464 | similarity          |
+|    17987 | targetted_exonerate |
+|    19234 | Xrate_cdna2genome   | # of 21780
++----------+---------------------+
+21780-19234=2546
+
+Almost finished on Fri 1 Feb, so took about 2-3 days to run.
+
+  grep -ri xcept /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/*
+Same as above so we're ok.
+
+bkill 923750
+bkill 924386
+bkill 924511
+bkill 924664
+bkill 924700
+bkill 924800
+
+5.6 Investigate missing cDNAs
+==
+Why are we missing 2546 transcripts?
+
+  mysql -N -B -hgenebuild7 -P3306 -u ensro -Dba1_cow4_GW -e "select  hit_name from transcript t, transcript_supporting_feature tsf, dna_align_feature daf where t.transcript_id = tsf.transcript_id and daf.dna_align_feature_id = tsf.feature_id and t.analysis_id = 36" | sort -u > /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ba1_cow4_GW.aligned
+  less /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation | awk '{print $1}' | sort -u > /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ba1_cow4_GW.all
+ 
+  comm -12  /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ba1_cow4_GW.all /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ba1_cow4_GW.aligned | wc -l
+18858
+  comm -13 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ba1_cow4_GW.all /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ba1_cow4_GW.aligned | wc -l
+0
+  comm -23 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ba1_cow4_GW.all /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ba1_cow4_GW.aligned | wc -l
+2922
+It's weird because they seems to come in groups of consecutive accessions.
+
+Actually, we're missing 2922 transcripts. Maybe they have all been killed?
+------------------------------------------
+First find which chunk the cdna is in:
+  cd /lustre/work1/ensembl/ba1/cow4/cdna2genome/chunks
+  find ./ -name "*" -exec grep -q "NM_207166" {} \; -print
+./cdnas_chunk_0014564
+
+Now find the err file for that chunk:
+  cd /lustre/scratch1/ensembl/ba1/cow4/cdna2genome
+  find ./ -name "*" -exec grep -q "cdnas_chunk_0014564" {} \; -print
+./8/cdnas_chunk_0014564.Xrate_cdna2genome.617.err
+./8/cdnas_chunk_0014564.Xrate_cdna2genome.617.out
+ 
+Have a look at these files:
+  less ./8/cdnas_chunk_0014564.Xrate_cdna2genome.617.err
+There are no errors. There is nothing obviously wrong with the sequence or the annotation.
+
+Do commandline cdna2genome
+--------------------------
+  /nfs/acari/ba1/cvs_co/exonerate/src/program/exonerate.hacked --showsugar false --showvulgar false --showalignment false --ryo "RESULT: %S %pi %ql %tl %g %V\n" --model cdna2genome --forwardcoordinates FALSE --softmasktarget TRUE --exhaustive FALSE --score 500 --saturatethreshold 100 --dnahspthreshold 60 --dnawordlen 15 --bestn 10 --querytype dna --targettype dna --query /lustre/work1/ensembl/ba1/cow4/cdna2genome/chunks/cdnas_chunk_0014564 --target /lustre/blastdb/Ensembl/Cow/v4.1/genome/Bos_taurus.Btau_4.1.softmasked.fa --annotation /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation
+ # RESULT: NM_207166.1 248 824 + chromosome:Btau_4.0:Chr26:1:51750746:1 29624214 29624800 - 3564 98.58 824 51750746 . C 78 78 F 0 4 C 6 6 F 0 1 C 93 93 F 0 2 C 3 3 G 3 0 C 51 51 G 3 0 C 3 3 F 0 2 C 48 48 F 0 2 C 45 45 M 2 2 G 1 0 M 72 72 G 0 1 M 82 82 G 0 1 M 18 18 G 0 2 M 13 13 G 0 1 M 14 14 G 0 1 M 41 41
+ # RESULT: NM_207166.1 0 257 + chromosome:Btau_4.0:Chr26:1:51750746:1 29623758 29624235 - 588 67.68 824 51750746 + M 18 18 G 0 1 M 60 60 G 1 0 M 4 4 G 1 0 M 7 7 G 1 0 M 4 4 G 3 0 M 19 19 G 2 0 M 5 5 G 1 0 M 11 11 G 3 0 C 9 9 S 2 2 5 0 2 I 0 226 3 0 2 S 1 1 C 69 69 G 6 0 C 15 15 G 0 3 C 3 3 F 0 4 C 12 12
+ # -- completed exonerate analysis
+
+So, we have2 results. But maybe they were post-filtered if the score was too low.
+I see that we have a type C here. Maybe all type C's are not getting through?
+
+   man -M ~/cvs_co/exonerate/doc/man exonerate
+   M      Match
+   C      Codon
+   G      Gap
+   N      Non-equivalenced region
+   5      5' splice site
+   3      3' splice site
+   I      Intron
+   S      Split codon
+   F      Frameshift
+
+Do a test_Runnable
+-------------------
+At coverage of 90% and percent_id of 97%, the genes are not let through. But I lower them both to 50 to see what I get...
+  vi ~/PerlCode/ensembl-config/cow/Btau_4.0/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm
+  cd ~/PerlCode/ensembl-analysis/scripts/
+  perl test_RunnableDB  -dbhost genebuild6 -dbport 3306 -dbname ba1_cow4_ref -dbuser ***REMOVED*** -dbpass ensembl -runnabledb_path Bio/EnsEMBL/Analysis/RunnableDB -logic Xrate_cdna2genome -input_id cdnas_chunk_0014564
+transcript has coverage 69.05 and percent_id 98.58
+transcript has coverage 29.00 and percent_id 67.68
+There were 1 features found
+
+So, this is good news because it's easy to fix. Steve says to run all of the remaining cDNAs at low coverage and percent_ids just to get them in, and then to filter after ward if we find transcripts that we don't like.
+
+WARNING: this may indicate an assembly problem for cow(!)
+
+
+5.7 Rerun missing cDNAs with low coverage and percent_id
+==
+Let's make a new annotation file, chunks dir and analysis so that we can keep everything separate:
+
+Add a new analysis xtra_cdna2genome
+-------------------------------------
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e \
+    "insert into analysis values (\N, now(), 'xtra_cdna2genome', \N, \N, \N, \N, \N, \N, \N, 'Exonerate2Genes', \N, \N, \N);"
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -N -B -e "select analysis_id from analysis where logic_name = 'xtra_cdna2genome'"
+38
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e \
+    "insert into input_id_type_analysis (analysis_id, input_id_type) values (38,'XTRACDNA')"
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e \
+    "insert into rule_goal (goal) values (38);"
+   mysql -N -B -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e "select rule_id from rule_goal where goal = 38"
+26
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e \
+    "insert into rule_conditions (rule_id, rule_condition) values (26, 'SubmitXtraChunks');"
+Nearly forgot:
+    mysql -hgenebuild6 -P3306 -u ***REMOVED*** -***REMOVED*** -Dba1_cow4_ref -e "update analysis set program_file = '/nfs/acari/ba1/cvs_co/exonerate/src/program/exonerate.hacked' where logic_name = 'xtra_cdna2genome'"
+
+Add new analysis SubmitXtraChunks
+------------------------------
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e "insert into analysis (created,logic_name) values (now(),'SubmitXtraChunks')"
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -N -B -e "select analysis_id from analysis where logic_name = 'SubmitXtraChunks'"
+39
+  mysql -u***REMOVED*** -***REMOVED*** -hgenebuild6 -Dba1_cow4_ref -e "insert into input_id_type_analysis (analysis_id,input_id_type) values (39, 'XTRACDNA')"
+
+Make directories
+-----------------
+  mkdir /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome
+  mkdir /lustre/work1/ensembl/ba1/cow4/xtra_cdna2genome
+
+Annotation file and cDNA fasta file
+-----------------------------------
+We already have an annotation file. We want to only use a subset of these cDNAs.
+Make a list of the cDNAs we want:
+  comm -23 /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ba1_cow4_GW.all /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/ba1_cow4_GW.aligned > /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/xtra_cdnas_to_align.ls
+ # 2922 entries in this file
+Write a script.
+
+  perl get_cdna2genome_subset.pl -annotation /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation -wanted /lustre/scratch1/ensembl/ba1/cow4/cdna2genome/xtra_cdnas_to_align.ls -out  /lustre/work1/ensembl/ba1/cow4/cdna2genome/xtra_cdnas.annotation
+
+  wc -l /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation_subset
+2922 /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation_subset
+  grep \> /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.clipped_subset | wc -l
+2922
+
+Chunks
+------
+  mkdir /lustre/work1/ensembl/ba1/cow4/cdna2genome/xtra_chunks
+  cd /lustre/work1/ensembl/ba1/cow4/cdna2genome/
+
+We want 1 cDNA per file:
+  ~searle/progs/fastasplit/fastasplit.linux /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.clipped_subset 2922 xtra_chunks
+
+Config
+------
+  vi /nfs/acari/ba1/PerlCode/ensembl-config/cow/Btau_4.0/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm
+  vi /nfs/acari/ba1/PerlCode/ensembl-config/cow/Btau_4.0/Bio/EnsEMBL/Pipeline/Config/BatchQueue.pm
+
+Input_ids
+----------
+ cd /lustre/work1/ensembl/ba1/cow4/cdna2genome/xtra_chunks/
+ foreach file (*)
+   mysql -hgenebuild6 -P3306 -u ***REMOVED*** -***REMOVED*** -Dba1_cow4_ref \
+         -e "insert into input_id_analysis(input_id,input_id_type,analysis_id,created) \
+         values('"$file"','XTRACDNA',39,now())"
+   end
+
+  mysql -uensro -hgenebuild6 -Dba1_cow4_ref -e "select count(*) from input_id_analysis where analysis_id =39"
++----------+
+| count(*) |
++----------+
+|     2922 |
++----------+
+Good.
+
+Test
+-----
+  source ~/PerlCode/ensembl-personal/ba1/cow/scripts/cow4_perl5lib
+
+  cd ~/PerlCode/ensembl-pipeline/scripts/
+  perl test_RunnableDB -dbhost genebuild6 -dbport 3306 -dbname ba1_cow4_ref \
+  -dbuser ***REMOVED*** -dbpass ensembl -runnabledb_path Bio/EnsEMBL/Analysis/RunnableDB \
+  -logic xtra_cdna2genome -input_id cdnas_chunk_0000001 -no_write
+
+Make sure ref and gw db are in sync.
+   mysqldump -hgenebuild6 -u***REMOVED*** -***REMOVED*** -P3306 ba1_cow4_ref analysis | mysql -uenadmin -***REMOVED*** -hgenebuild7 -P3306 -Dba1_cow4_GW
+
+  mysql -uensro -hgenebuild7 -Dba1_cow4_GW -N -B -e 'show table status' | sort -k5,5n | awk '{ if ($5 > 0) { print $1"\t"$5 } }'
+attrib_type     1
+coord_system    2
+meta_coord      16
+meta    27
+analysis        39
+external_db     258
+seq_region_attrib       12007
+assembly        131620
+seq_region      143627
+dna_align_feature       178809
+gene    352947
+transcript      352947
+transcript_supporting_feature   352947
+translation     352947
+supporting_feature      2848781
+exon    2854742
+exon_transcript 2854742
+protein_align_feature   3025523
+
+Run
+----
+  bsub -qyesterday -o /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome//ruleman.out -e /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/ruleman.err perl ./rulemanager.pl -dbhost genebuild6 -dbport 3306 -dbname ba1_cow4_ref -dbuser ***REMOVED*** -dbpass ensembl -shuffle -analysis xtra_cdna2genome -input_id_type XTRACDNA -once -shuffle
+
+   ./monitor -dbname ba1_cow4_ref -dbhost genebuild6 -dbport 3306 -dbuser ***REMOVED*** -dbpass ensembl -finished -current
+
+Pipeline current status [genebuild6:3306 ba1_cow4_ref]
+
+Name Status Count   Analysis-id
+---- ------ -----   -----------
+
+
+Finished job summary [genebuild6:3306 ba1_cow4_ref]
+
+Count   Name                       Id
+-----   ----                       --
+131728  SubmitContig               1
+131728  RepeatMask                 2
+131728  CpG                        3
+131728  Dust                       4
+131728  Eponine                    5
+131728  TRF                        6
+131728  tRNAscan                   7
+14642   Genscan                    8
+14642   Unigene                    9
+14642   Uniprot                    10
+14642   Vertrna                    11
+14642   SubmitSlice                12
+12007   SubmitChromosome           13
+12007   Pmatch                     14
+1       Best_Pmatch                15
+14642   TargettedGenewise          16
+1       SubmitGenome               17
+3000    SubmitESTChunk             18
+3000    est_exonerate              19
+50      SubmitCDNAChunk            20
+50      cdna_exonerate             21
+14642   Marker                     22
+300     human_one2one_mouse_orth   23
+300     Submit_human_one2one_orth  24
+300     mouse_one2one_human_orth   25
+300     Submit_mouse_one2one_orth  26
+11000   human_cdna_exonerate       27
+11000   SubmitHumancDNAChunks      28
+11500   mouse_cdna_exonerate       29
+11500   SubmitMousecDNAChunks      30
+1       TGE_Wait                   31
+24698   SimilarityGenewise         32
+24698   SubmitSimSlice             33
+14642   SubmitTargettedXrate       34
+14642   TargettedExonerate         35
+21780   Xrate_cdna2genome          36
+21780   SubmitChunks               37
+2922    xtra_cdna2genome           38
+2922    SubmitXtraChunks           39
+
+  grep -ri xcept /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/*
+/lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/4/cdnas_chunk_0001213.xtra_cdna2genome.172.err.retry1
+/lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/5/cdnas_chunk_0000073.xtra_cdna2genome.47.err.retry1
+/lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/6/cdnas_chunk_0000119.xtra_cdna2genome.157.err.retry1
+These are just retries, from before I changed to using the hacked version of exonerate. Never mind, all is fine.
+
+  mysql -uensro -hgenebuild7 -Dba1_cow4_GW -e "select count(*), biotype from gene group by biotype"
++----------+---------------------+
+| count(*) | biotype             |
++----------+---------------------+
+|    25262 |  targetted          |
+|   290464 | similarity          |
+|    17987 | targetted_exonerate |
+|    19234 | Xrate_cdna2genome   |
+|     2836 | xtra_cdna2genome    |
++----------+---------------------+
+
+   mysql -N -B -hgenebuild7 -P3306 -u ensro -Dba1_cow4_GW -e "select  hit_name from transcript t, transcript_supporting_feature tsf, dna_align_feature daf where t.transcript_id = tsf.transcript_id and daf.dna_align_feature_id = tsf.feature_id and t.analysis_id = 38" | sort -u | wc -l
+2748
+
+So, there are still 174 cDNAs that have not aligned.
+(2922-2748=174)
+
+Which cDNAs didn't align?
+--------------------------
+  mysql -N -B -hgenebuild7 -P3306 -u ensro -Dba1_cow4_GW -e "select  hit_name from transcript t, transcript_supporting_feature tsf, dna_align_feature daf where t.transcript_id = tsf.transcript_id and daf.dna_align_feature_id = tsf.feature_id and t.analysis_id = 38" | sort -u > /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/ba1_cow4_GW.aligned
+  less /lustre/work1/ensembl/ba1/cow4/cdna2genome/cdnas.annotation_subset | awk '{print $1}' | sort -u >/lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/ba1_cow4_GW.all
+  comm -23 /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/ba1_cow4_GW.all /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/ba1_cow4_GW.aligned 
+
+I looked at 5 of these 174 missing cDNAs and they are not in the kill list, so this is not the reason for their being missing.
+The numbers still see fairly consecutive. Quite a few submitted by Robert Kirkpatrick in Vancouver. Also some say this:
+"PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence was derived from xxx"
+
+5.8 Investigate 174 cDNAs
+==
+Have a closer look
+--------------------
+Steve says to look in human to see if we have that piece of the genome assembly. (Can do this by looking at the two genes that lie on either side of the human orthologue of the missing cDNAs)
+
+ - NM_001105504.1 did not align
+ - Go to www.ncbi.nlm.nih.gov/ and search for  NM_001105504.1
+ - We get http://www.ncbi.nlm.nih.gov/sites/entrez?db=gene&cmd=search&term=NM_001105504.1 and see that the gene is named  CLRN3 clarin 3 in cow.
+ - Search for humam  CLRN3 clarin 3 in ensembl.
+ - We find it http://www.ensembl.org/Homo_sapiens/geneview?gene=ENSG00000180745
+ - Go to contig view http://www.ensembl.org/Homo_sapiens/contigview?l=10:129566104-129581201
+ - I see CLRN3 on the (-) strand. PTPRE is upstream on the (+) strand quite close. FOXI2 is upstream on the (+) strand.
+ - Look for PTPRE (ENSG00000132334) and FOXI2 (ENSG00000186766) in cow
+ - Go to Synteny View: http://www.ensembl.org/Homo_sapiens/syntenyview?otherspecies=Bos_taurus;chr=10;loc=128067055 
+   (+)Hsap DOCK1  = (-)Btau LOC537203 (26: 43.28 Mb)
+   (-)Hsap NP_001034851.1 = (+)Btau LOC784700 (26: 43.60 Mb)
+   (+)Hsap NPS_HUMAN  = (-)Btau NPS_BOVIN (26: 43.19 Mb)
+   (+)Hsap FOXI2 = (-)Btau LOC613373 (26: 43.04 Mb)
+   (-)Hsap CLRN3  = no Btau homologues 
+   (+)Hsap PTPRE = (+)Btau Q148I7_BOVIN (26: 44.13 Mb)
+   (-)Hsap MKI67 = (-)Btau LOC788889 (26: 44.18 Mb)
+   So, current e! does not have CLRN3
+ - Looking Apollo, there are some N islands in this area. 
+
+ - AF188710.1 did not align
+ - Go to www.ncbi.nlm.nih.gov/ and search for AF188710.1
+ - We get http://www.ncbi.nlm.nih.gov/entrez/viewer.fcgi?db=nuccore&id=6651449 and see that it's os taurus stearoyl CoA desaturase (SCD) mRNA, complete cds.
+ - Search for SCD in human using e!: http://www.ensembl.org/Homo_sapiens/geneview?gene=ENSG00000099194 
+ - Got to graphical view, then view syntenic region with cow.
+ - no SCD homologues in current e!, but most of surrounding homologues are present
+ - Apollo chr 26:20370000-20640000 yields nothing, don't eve see Ns at a glance
+
+ - BC103337.1 did not align
+ - Go to www.ncbi.nlm.nih.gov/ and search for BC103337.1 
+ - It's Bos taurus actin related protein 2/3 complex, subunit 5
+ - Find this gene in Hsap in e!: http://www.ensembl.org/Homo_sapiens/geneview?gene=ENSG00000162704
+ - Got to graphical view, then view syntenic region with cow.
+ - http://www.ensembl.org/Homo_sapiens/syntenyview?otherspecies=Bos_taurus;chr=1;loc=181865316
+ - Eeek, it's a bit messy. Corresponds to chr 16 near 60M, but no cow homologues
+ - Can't easily match syntenic genes in apollo and e!
+
+ - NM_174518.1 did not align
+ - Go to www.ncbi.nlm.nih.gov/ and search for NM_174518.1  
+ - It's Bos taurus Cbp/p300-interacting transactivator, with Glu/Asp-rich carboxy-terminal domain, 1 (CITED1)
+ - Look at Hsap in e! http://www.ensembl.org/Homo_sapiens/geneview?gene=ENSG00000125931
+ - Got to graphical view, then view syntenic region with cow.
+ - http://www.ensembl.org/Homo_sapiens/syntenyview?otherspecies=Bos_taurus;chr=X;loc=71440992
+ - Corresponds to chr X near 55M, no homologues
+ - Almost the whole of cow chr X is syntenic with Hsap chr X except for a handful of genes. Quite a few human genes have homolgues missing in cow.
+ 
+ - M58170.1 did not align
+ - Go to www.ncbi.nlm.nih.gov/ and search for M58170.1 
+ - It's Bovine phosducin. Find it in human.
+ - Go to graphical view, then view syntenic region with cow.
+ - http://www.ensembl.org/Homo_sapiens/syntenyview?otherspecies=Bos_taurus;chr=1;loc=184688107.5
+ - Ooh! It's there on chr 16 near 60.70 Mb: PHOS_BOVIN
+
+Histograms
+----------
+Also, would be a good idea to plot the distribution of the xtra_cdna2genome coverage and percent_id, so that we can see how many of them are poor matches. 
+Get the hcoverage and percent_id:
+   mysql -N -B -uensro -hgenebuild7 -Dba1_cow4_GW -e "select hit_name, max(hcoverage) from dna_align_feature daf, transcript_supporting_feature tsf where daf.dna_align_feature_id = tsf.feature_id and tsf.feature_type = 'dna_align_feature' and daf.analysis_id = 38 group by hit_name" > ~/Projects/cow_xtra_cdna2genome_max_hcoverage.ls
+  mysql -N -B -uensro -hgenebuild7 -Dba1_cow4_GW -e "select hit_name, max(perc_ident) from dna_align_feature daf, transcript_supporting_feature tsf where daf.dna_align_feature_id = tsf.feature_id and tsf.feature_type = 'dna_align_feature' and daf.analysis_id = 38 group by hit_name" > ~/Projects/cow_xtra_cdna2genome_max_perc_ident.ls
+
+  cp ~/Projects/cow_xtra_cdna2genome_max_hcoverage.ls /lustre/work1/ensembl/ba1/cow4/xtra_cdna2genome/max_hcoverage.ls 
+  cp ~/Projects/cow_xtra_cdna2genome_max_perc_ident.ls /lustre/work1/ensembl/ba1/cow4/xtra_cdna2genome/max_perc_ident.ls
+
+Coverage histogram
+  cd ~/PerlCode/ensembl-personal/ba1/cow/scripts
+  perl ./bins_for_histogram.pl 1 /lustre/work1/ensembl/ba1/cow4/xtra_cdna2genome/max_hcoverage.ls  > /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/coverage.hist 
+
+Percent_id histogram
+  perl ./bins_for_histogram.pl 1 /lustre/work1/ensembl/ba1/cow4/xtra_cdna2genome/max_perc_ident.ls > /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/percent_id.hist
+
+  cp /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/coverage.hist ~/Projects/cow_xtra_cdna2genome_coverage.hist
+  cp /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/percent_id.hist ~/Projects/cow_xtra_cdna2genome_percent_id.hist
+
+View coverage in R
+--------------------
+# Deskpro terminal:
+R
+> histogram = read.table(file = '~/Projects/cow_xtra_cdna2genome_coverage.hist');
+> colnames(histogram) = c('coverage','count');
+> pdf(file='~/Projects/cow_coverage.pdf');
+> plot(histogram$coverage,histogram$count, type = "p", xlim = c(1,100), ylim = NULL, main = "COW: coverage vs count", xlab="coverage", ylab="no. of transcripts with this coverage");
+>  dev.off()
+> histogram2 = read.table(file = '~/Projects/cow_xtra_cdna2genome_percent_id.hist');
+> colnames(histogram2) = c('percent_id','count');
+> dev.off()
+> pdf(file='~/Projects/cow_percent_id.pdf');
+> plot(histogram2$percent_id,histogram2$count, type = "p", xlim = c(1,100), ylim = NULL, main = "COW: percent_id vs count", xlab="percent_id", ylab="no. of transcripts with this percent_id");
+> dev.off()
+> quit()
+
+  cp ~/Projects/cow_coverage.pdf /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/cow_xtra_cdna2genome_coverage.pdf
+  cp ~/Projects/cow_percent_id.pdf /lustre/scratch1/ensembl/ba1/cow4/xtra_cdna2genome/cow_xtra_cdna2genome_percent_id.pdf
+
+The coverage is all over the show but the percent_id is neat: almost flat, with it sharply increasing at about 95%.
+
+We decide to only take those with perc_ident > 93 (past the little bump at 92)
+
+5.9 Back up db
+==
+We may want to come back and look at the xtra_cdna2genome cDNAs that did and did not align, as they may give us useful information on assembly errors.
+
+  ssh genebuild5
+  df -h /mysql
+500G  442G   58G  89% /mysql
+  ssh genebuild7
+  su - mysqlens
+  scp -r /mysql/data_3306/databases/ba1_cow4_GW genebuild5:/mysql/data_3306/databases/ba1_cow4_GW_bk
+
