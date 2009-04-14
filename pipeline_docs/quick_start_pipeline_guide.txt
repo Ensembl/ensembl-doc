@@ -36,6 +36,7 @@ This must point to a module appropriate for the batch submission system that you
 DEFAULT_OUTPUT_DIR
 This should point to a directory for the output. You also need to create this directory.
 
+  * Note that Dummy analyses (see the_ensembl_pipeline_infrastructure.txt) do not have an entry in the BatchQueue.pm QUEUE_CONFIG hash.
 
 The next step is to set up some environment variables.
 

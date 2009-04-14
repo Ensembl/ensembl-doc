@@ -945,7 +945,7 @@ DEFAULT_RUNNABLEDB_PATH, this is the place the pipeline will look for the
 DEFAULT_RUNNER, this is the script the pipeline uses to run the jobs when 
                 they are submitted to the compute resource
 
-Then there is an array of hashes which can each contain these values:
+QUEUE_CONFIG: an array of hashes which can each contain these values:
 
 logic_name, the logic_name of the analysis to be run. This is an obligatory
             value as it is how the pipeline determines which hash to use
@@ -961,6 +961,9 @@ queue, which queue in the batch submission system to submit the job to
 sub_args, other command line arguments to give to the batch submission 
           system
 
+Note that only 'real' analyses will have an entry in the QUEUE_CONFIG hash. 
+Dummy analyses DO NOT have any entry here - they are found only in the analysis
+table.
 
 =====================
 6. Scripts
