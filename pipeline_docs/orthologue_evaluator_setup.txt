@@ -327,6 +327,26 @@ Automatic configuration of the setup of the Orthologue-evaluation analyses
          
 
 
+         Example commandlines for the post-analysis modules for test_RunnableDB's : 
+
+         perl $AS/test_RunnableDB  $dbcon $db -analysis find_partials \ 
+          -input_id chromosome:Btau_4.0:10:1:106383598:1_1.fa
+
+         perl $AS/test_RunnableDB $dbcon $db -analysis hum_mus_one2one\
+           -input_id chromosome:NCBI36:10:1:135374737:1_1.fa
+
+         perl $AS/test_RunnableDB $dbcon $db -analysis  hum_mus_split\
+           -input_id hum_mus_split_1.fa
+
+
+     Start the pipeline : 
+
+         perl $PS/rulemanager.pl  $dbcon $db \
+          -analysis pre_FindMissingOrthologues,pre_FindPartialGenes,pre_FindSplitGenes
+
+
+
+
 
 
 
