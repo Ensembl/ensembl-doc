@@ -1,0 +1,54 @@
+                       ### SQL databases ###
+
+
+## Generic command to connect to a database
+
+mysql -dbhost host -dbuser user -dbpass pass -dbport port -dbname dbname
+
+
+
+## Genebuilder databases
+host :
+- genebuild1
+- genebuild2
+- genebuild3
+- genebuild4
+- genebuild5
+- genebuild6
+- genebuild7
+
+user :
+- ensro
+- ***REMOVED***
+
+port : 3306
+
+
+
+## Ensembl databases
+For the staging databases
+host : ens-staging
+user :
+- ensro
+- ***REMOVED***
+port : 3306
+
+For the database in the current release
+host : ens-livemirror
+user : ensro
+port : 3306
+
+For the latest databases on ensembl
+host : ensembldb.ensembl.org
+user : anonymous
+port : 5306
+
+For the pre-databases
+host : ensdb-1-11
+user : ensro
+port : 5319
+
+For the archives
+host : ensembldb.ensembl.org
+user : anonymous
+port : 3306
