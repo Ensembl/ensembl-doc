@@ -227,7 +227,7 @@ Look here for the ensembl_common_name:
     name_class = 'genbank common name' and taxon_id = xxx"
 
 Look here for the ensembl_alias_name: 
-  http://cvs.sanger.ac.uk/cgi-bin/viewcvs.cgi/public-plugins/ensembl/conf/SiteDefs.pm?rev=1.10&view=markup
+  http://cvs.sanger.ac.uk/cgi-bin/viewvc.cgi/public-plugins/ensembl/conf/SiteDefs.pm?view=markup&root=ensembl
   public-plugins/ensembl/conf/SiteDefs.pm
 
 
