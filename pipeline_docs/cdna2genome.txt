@@ -1,22 +1,26 @@
 Overview
 =========
 1. Run cdna2genome
-        1.1 Set-up
-        1.2 Annotation file
+        1.1 Analysis and rules set-up in Ref DB
+        1.2 PolyA clipping and Annotation file
         1.3 Chunks
-        1.4 More set-up
+        1.4 Analysis and Pipeline config set-up 
         1.1 Test and run
         1.6 Investigate missing cDNAs
         1.7 Rerun missing cDNAs with low coverage and percent_id
         1.8 Investigate 174 cDNAs
         1.9 Back up db
-        1.10 BestTargetted
+        1.10 Notes on BestTargetted
 
 
 ---------------------------------------
 1. Run cdna2genome
 ---------------------------------------
 Do we have enough cdnas to make it worth our while?
+
+Check the number of cDNAs downloaded and/or check how many cDNAs have aligned to the genome using the est2genome model of Exonerate. The latter is more
+informative because not all downloaded cDNAs can be aligned, and by checking the Exonerate results we'll have an idea about how many cDNAs approx. we can
+actually use for cdna2genome analysis.
 
   mysql -u xxx -h xxx -Dexonerate_db -e "select count(*),daf.analysis_id, logic_name from dna_align_feature daf, analysis a where a.analysis_id = daf.analysis_id group by daf.analysis_id"
 +----------+-------------+----------------+
@@ -27,10 +31,9 @@ Do we have enough cdnas to make it worth our while?
 +----------+-------------+----------------+
 Yes, it should be worthwhile.
 
-1.1 Set-up
+1.1 Analysis and rules set-up in Ref DB
 ==
-NOTE : WE USE IN INTERNALLY HACKED VERSION OF EXONERATE TO RUN CDNA2GENOME
-It's /usr/local/ensembl/bin/exonerate.hacked but more on that later...
+NOTE : WE USE AN INTERNALLY HACKED VERSION OF EXONERATE TO RUN CDNA2GENOME
 
 http://www.ebi.ac.uk/~guy/exonerate/exonerate.man.html
 "[exonerate's cdna2genome model] combines properties of the est2genome and coding2genome models, to allow modeling of an whole cDNA where a central coding region can be flanked by non-coding UTRs. When the CDS start and end is known it may be specified using the --annotation option (see below) to permit only the correct coding region to appear in the alignemnt. [snip]  The annotation file contains four fields per line: 
@@ -43,7 +46,7 @@ Note: We haven't tested only the first 2 fields. We have always used all four.
 Add a new analysis Xrate_cdna2genome
 -------------------------------------
   mysql -u xxx -p xxx -h xxx -Dreference_db -e \
-    "insert into analysis values (\N, now(), 'Xrate_cdna2genome', \N, \N, \N, \N, \N, \N, \N, 'Exonerate2Genes', \N, \N, \N);"
+    "insert into analysis values (\N, now(), 'Xrate_cdna2genome', \N, \N, \N, \N, '\location\of\hacked\exonerate\program', \N, \N, 'Exonerate2Genes', \N, \N, \N);"
   mysql -u xxx -p xxx -h xxx -Dreference_db -N -B -e "select analysis_id from analysis where logic_name = 'Xrate_cdna2genome'"
 36
   mysql -u xxx -p xxx -h xxx -Dreference_db -e \
@@ -55,6 +58,7 @@ Add a new analysis Xrate_cdna2genome
   mysql -u xxx -p xxx -h xxx -Dreference_db -e \
     "insert into rule_conditions (rule_id, rule_condition) values (25, 'SubmitChunks');"
 
+
 Add new analysis SubmitChunks
 ------------------------------
   mysql -u xxx -p xxx -h xxx -Dreference_db -e "insert into analysis (created,logic_name) values (now(),'SubmitChunks')"
@@ -62,15 +66,53 @@ Add new analysis SubmitChunks
 37
   mysql -u xxx -p xxx -h xxx -Dreference_db -e "insert into input_id_type_analysis (analysis_id,input_id_type) values (37, 'CDNACHUNK')"
 
+
+
+Alternative way to add new analysis to the refernce DB
+-------------------------------------------------------
+First create an analysis_setup config text file with the following content:
+
+         [SubmitChunks]
+        input_id_type=CDNACHUNK
+
+        [Xrate_cdna2genome]
+        module=Exonerate2Genes
+        input_id_type=CDNACHUNK
+        program_file=/location/of/exonerate.hacked.cdna2genome
+
+
+Then run the analysis_setup.pl script:
+
+perl /path/to/ensembl-pipeline/scripts/analysis_setup.pl -dbhost xxxx -dbuser xxxx -dbport xxxx -dbname reference_db -dbpass xxxx -read -file /location/to/the/analysis_setup/config/file
+
+
 Make directories
 -----------------
   mkdir /path/to/scratch/cdna2genome
   mkdir /path/to/work/cdna2genome
 
-1.2 Annotation file
+
+
+1.2 Header cleaning, polyA-clipiping and annotation file
 ==
+
+PolyA-clipping of cDNAs and creation of an "annotation file" are both done by the prepare_cdnas.pl script at ensembl-anslysis/scripts/genebuild/.  
+
+  
+Note
+----
+The script reads in each cDNA, parases the header and clips it using Bio::EnsEMBL::Analysis::Tools::PolyAClipping. It then looks for the cDNA in Mole DB and finds its coordinates. If the coordinates are not found or can't be parsed, a message is sent to STDERR and the cDNA is not written to the outfile. If the cDNA is found, we check that it has not been clipped into the CDS and then write the cDNA's fasta to outfile and its annotation to annotation_file. This annotation file contains additional information for the use to know what has happened during clipping. In order for this annotation file to be used by exonerate's cdna2genome model, the annotation file will have to be edited to contain only the first 4 columns of each line
+eg. less /path/to/work/cdna2genome/cdna.annotation | awk '{print $1"\t"$2"\t"$3"\t"$4}' > /path/to/work/cdna2genome/annotation.txt
+
 The annotation file contains one line for every cdna. Each line has the following format:
-<cdna_accession><cds_start><length_of_coding_region><strand>
+<cdna_accession><cds_start><length_of_coding_region><strand>, e.g.
+
+        NM_176940.4     +       299     4308
+        EF988666.1      +       36      897
+        NM_008586.2     +       31      2115
+        NM_009289.2     +       176     3702
+
+Note: Edit the regex in the prepare_seq subroutine of Bio::EnsEMBL::Analysis::Tools::PolyAClipping.pm if header formats have changed.
 
 Find which Mole dbs we can use;
   mysql -u xxx -h xxx -Dmole -e "select database_name from ini where available='yes'"
@@ -98,27 +140,45 @@ Set you PERL5LIB. You will need eg.:
   bioperl-0.7.2
   ensembl-killlist/modules
   ensembl-analysis/scripts
+  ensembl-external/modules
 
 
-Note
-----
-The script reads in each cDNA and clips it using Bio::EnsEMBL::Analysis::Tools::PolyAClipping. It then looks for the cDNA in Mole and finds its coordinates. If the coordinates are not found or can't be parsed, a message is sent to STDERR and the cDNA is not written to the outfile. If the cDNA is found, we check that it has not been clipped into the CDS and then write the cDNA's fasta to outfile and its annotation to annotation_file. This annotation file contains additional information for the use to know what has happened during clipping. In order for this annotation file to be used by exonerate's cdna2genome model, the annotation file with have to be edited to contain only the first 4 columns of each line
-eg. less /lustre/scratch1/ensembl/user/targetted/cdna2genome/cdna.annot | awk '{print $1"\t"$2"\t"$3"\t"$4}' > /lustre/scratch1/ensembl/user/targetted/cdna2genome/annotation.txt
 
 Run
 ----
-  bsub -qyesterday -o /path/to/work/cdna2genome/prepare_cdnas.out -e /path/to/work/cdna2genome/prepare_cdnas.err perl /path/to/cvs/ensembl-personal/user/cdna2genome/scripts/prepare_cdnas.pl -infile /path/to/work/cdna2genome/cDNA/cDNA.fa -outfile /path/to/work/cdna2genome/cdnas.clipped -annotation /path/to/work/cdna2genome/cdnas.annotation -dbnames embl_93,embl_92,embl_89,refseq_26,uniprot_12_6,uniprot_9_3,uniprot_12_5
+# Make sure the mole DBs under the -dbnames option are listed in descending chronological order (i.e. the newest DB comes first)
 
-   grep \> /path/to/work/cdna2genome/cDNA/cDNA.fa | wc -l
-  grep \> /path/to/work/cdna2genome/cdnas.clipped | wc -l
-  less /path/to/work/cdna2genome/cdnas.annotation | wc -l
+  bsub -qyesterday -o /path/to/work/cdna2genome/prepare_cdnas.out -e /path/to/work/cdna2genome/prepare_cdnas.err perl /path/to/cvs/ensembl-analysis/scripts/prepare_cdnas.pl -infile /path/to/work/cdna2genome/cDNA/cDNA.fa -outfile /path/to/work/cdna2genome/cdnas.clipped -annotation /path/to/work/cdna2genome/cdnas.annotation -dbnames embl_93,embl_92,embl_89,refseq_26,uniprot_12_6,uniprot_9_3,uniprot_12_5
+
+
+Not all cDNAs would have annotation information. Those without annotation info will not be written to the output fasta and annotation files:
+
+  grep \> /path/to/work/cdna2genome/cDNA/cDNA.fa | wc -l    # (i) number of cDNA entries before clipping and annotation
+  grep \> /path/to/work/cdna2genome/cdnas.clipped | wc -l    # (ii) number of cDNA entries remaining after running prepare_cdnas.pl
+  wc -l /path/to/work/cdna2genome/cdnas.annotation           # (iii) number of annotations should be the same as (ii) above.
+
 
 Clean annotation file
 ----------------------
-There are some problems if you use more than 4 columns in the annotation file
+
+The uncleaned annotation file looks like this:
+
+NM_013143.1     +       33      2247    | tail | 9 | do_nothing
+NM_013159.1     +       16      3060
+BC168191.1      +       20      315     | tail | 48 | do_nothing
+BC167011.1      +       29      1248    | tail | 27 | do_nothing
+
+
+There are some problems if you use more than 4 columns in the annotation file. Clean it:
 
   mv /path/to/work/cdna2genome/cdnas.annotation /path/to/work/cdna2genome/cdnas.annotation.bk
   less /path/to/work/cdna2genome/cdnas.annotation.bk | awk '{print $1"\t"$2"\t"$3"\t"$4}' > /path/to/work/cdna2genome/cdnas.annotation
+
+NM_013143.1     +       33      2247
+NM_013159.1     +       16      3060
+BC168191.1      +       20      315
+BC167011.1      +       29      1248
+
 
 Check on missing ones
 ---------------------
@@ -135,6 +195,18 @@ less /path/to/work/cdna2genome/prepare_cdnas.err | grep "Clipped off too many ba
   less /path/to/work/cdna2genome/prepare_cdnas.err | grep Parse_problem | grep -v \> | grep -v \< | wc -l
   less /path/to/work/cdna2genome/prepare_cdnas.err | grep '\(\s\)' | wc -l 
 
+# Make sure each cDNA has been accounted for, e.g.
+
+        (Starting with 57325 cDNAs)     
+
+        31870 clipped + annotated
+        19284 Not in mole DB
+        2 Removed (mainly AAAAAs)
+        1 Clipped seq shorter than 60bp  (# can specify minimum threshold of clipped seq with -min_length option on command line)
+        6168 Parsing problems
+        ----------------------------
+        57325 Total. Every cDNA has been accounted for.
+
 1.3 Chunks 
 ==
   mkdir /path/to/work/cdna2genome/chunks
@@ -146,9 +218,10 @@ eg. We have 21780 cDNAs to run.  If we want 1 cDNA per file, do:
   /path/to/progs/fastasplit/fastasplit.linux /path/to/work/cdna2genome/cdnas.clipped 21780 chunks 
 
 
-1.4 More set-up
+1.4 Analysis and Pipeline config set-up
 ==
-Depending on which parameters specified in your config file, cdna2genome can take a long time to run, or a very long time to run.
+Depending on which parameters specified in your config file, cdna2genome can take a long time to run, or a very long time to run if the "-exhaustive"
+option is used in Exonerate.
 
 
 Check we have softmasked genome:
@@ -157,9 +230,12 @@ Check we have softmasked genome:
 Set your exonerate options:
 
   vi /path/to/cvs/ensembl-config/species/assembly/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm
+
+
 #              XRATE_CDNA2GENOME => {
 #                QUERYTYPE => 'dna',
 #                QUERYSEQS  => '/path/to/work/cdna2genome/chunks/', # cdna chunks
+#                QUERYANNOTATION => '/path/to/work/cdna2genome/cdnas.annotation',  # cDNA annotation file must be specified
 #                OUTDB => { -dbname => 'reference_db',
 #                           -host => ' xxx',
 #                           -port => '3306',
@@ -169,8 +245,8 @@ Set your exonerate options:
 #                COVERAGE_BY_ALIGNED => 1,
 #                FILTER => { OBJECT     => 'Bio::EnsEMBL::Analysis::Tools::ExonerateTranscriptFilter',
 #                            PARAMETERS => {
-#                              -coverage => 90, # or lower 
-#                              -percent_id => 97,  # or lower
+#                              -coverage => 90,
+#                              -percent_id => 97,
 #                              -best_in_genome => 1,
 #                              -reject_processed_pseudos => 1,
 #                            },
@@ -179,16 +255,19 @@ Set your exonerate options:
 #                           "--softmasktarget TRUE --exhaustive FALSE  --score 500 ".
 #                           "--saturatethreshold 100 --dnahspthreshold 60 --dnawordlen 15 --bestn 10 "
 
-or try these options:
 
-#                OPTIONS => "--model cdna2genome --forwardcoordinates FALSE ".
-#                            "--softmasktarget TRUE --exhaustive FALSE  ".
-#                            "--score 500 --saturatethreshold 100 ".
-#                            "--dnahspthreshold 60 ".
-#                            "--dnawordlen 15 --codonwordlen 15 --bestn 10",
+A few notes on the exonerate options:
+
+(1) "coverage" and "percent_id" filtering thresholds can be set to "0" (i.e. no filter) to align "absolute everything" and we can filter after the analysis has finished.
+
+(2) About the "PROGRAM" key in the DEFAULT hash of Exonerate2Genes.pm:
+
+    if program not defined here, will look in program_file of analysis table. Or will take default 0.8.3 if neither is defined.
+                 PROGRAM             => undef, # /usr/local/ensembl/bin/exonerate-
 
 
 Set your batchqueue options
+
 Run on 64-bit machines
 
   vi /path/to/cvs/ensembl-config/species/assembly/Bio/EnsEMBL/Pipeline/Config/BatchQueue.pm
@@ -205,7 +284,7 @@ Run on 64-bit machines
 #       runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
 #     },
 
-We need linux because it's the hacked version of exonerate, only compiled for LINUX 64-bit.
+***** We need linux because it's the hacked version of exonerate, only compiled for LINUX 64-bit.
 
 Input_ids
 ----------
@@ -222,44 +301,15 @@ Input_ids
 |    21780 |
 +----------+
 
-Exonerate version
---------------
-Change the exonerate version:
-  vi /path/to/cvs/ensembl-analysis//modules/Bio/EnsEMBL/Analysis/Runnable/BaseExonerate.pm
-
- if (not $self->program) {
-    $self->program('/usr/local/ensembl/bin/exonerate-0.8.3';
-  }
- print STDERR "\n\n* * * Running program ".$self->program." * * *\n\n";
-
-Changed /path/to/cvs/ensembl-analysis/modules/Bio/EnsEMBL/Analysis/RunnableDB/Exonerate2Genes.pm
-(Added PROGRAM)
-
-
-And finally update db so that exonerate can be read from here:
-  mysql -h xxx -P3306 -u  xxx -p xxx -Dreference_db -e "update analysis set program_file = '/usr/local/ensembl/bin/exonerate.hacked' where logic_name = 'Xrate_cdna2genome'"
-
-This seems to work.
-
-# vi /ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Tools/ExonerateTranscriptFilter.pm
 
 1.5 Test and run
 ==
   set you PERL5LIB
 
-  man -M /cvs_co/exonerate/doc/man exonerate
-  vi /path/to/cvs//ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/ExonerateTranscript.pm
-Allow type C.
-
-
-Check annotation file is specified:
-  vi /path/to/cvs/ensembl-config/species/assembly/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm
-  #QUERYANNOTATION     => '/path/to/work/cdna2genome/cdnas.annotation',
 
   cd /path/to/cvs/ensembl-pipeline/scripts/
   perl test_RunnableDB -dbhost  xxx -dbport 3306 -dbname reference_db \
-  -dbuser  xxx -dbpass xxx -runnabledb_path Bio/EnsEMBL/Analysis/RunnableDB \
-  -logic Xrate_cdna2genome -input_id cdnas_chunk_0000020 -no_write
+  -dbuser  xxx -dbpass xxx -logic Xrate_cdna2genome -input_id cdnas_chunk_0000020 -no_write
 
 # output:
 # Fetching Xrate_cdna2genome from reference_db
@@ -270,12 +320,14 @@ Check annotation file is specified:
   cd /path/to/cvs/ensembl-pipeline/scripts
   bsub -qyesterday -o /path/to/scratch/cdna2genome//ruleman.out -e /path/to/scratch/cdna2genome/ruleman.err perl ./rulemanager.pl -dbhost  xxx -dbport 3306 -dbname reference_db -dbuser  xxx -dbpass xxx -shuffle -analysis Xrate_cdna2genome -input_id_type CDNACHUNK -once -submission_limit -submission_number 10
    
-Maybe check whether we can enter the exonerate to use in a config file instead of hacking
  ./monitor -dbname reference_db -dbhost  xxx -dbport 3306 -dbuser  xxx -dbpass xxx -finished -current
 
   mysql -u xxx -hdbhost7 -Dgenewise_db -e "select count(*), biotype from gene group by biotype"
 
+# check if there are EXCEPTIONSs in the analysis output/error files:
   grep -ri xcept /path/to/scratch/cdna2genome/*
+
+
 
 1.6 Investigate missing cDNAs
 ==
@@ -351,7 +403,15 @@ Add a new analysis xtra_cdna2genome
   mysql -u xxx -p xxx -h xxx -Dreference_db -e \
     "insert into rule_conditions (rule_id, rule_condition) values (26, 'SubmitXtraChunks');"
 Nearly forgot:
-    mysql -h xxx -P3306 -u  xxx -p xxx -Dreference_db -e "update analysis set program_file = '/usr/local/ensembl/bin/exonerate.hacked' where logic_name = 'xtra_cdna2genome'"
+    mysql -h xxx -P3306 -u  xxx -p xxx -Dreference_db -e "update analysis set program_file = '/path/to/hacked/version/of/exonerate' where logic_name = 'xtra_cdna2genome'"
+
+
+And finally update db so that exonerate can be read from here:
+  mysql -h xxx -P3306 -u  xxx -p xxx -Dreference_db -e "update analysis set program_file = '/path/to/hacked/version/of/exonerate' where logic_name = 'Xrate_cdna2genome'"
+
+This seems to work.
+
+# vi /ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Tools/ExonerateTranscriptFilter.pm
 
 Add new analysis SubmitXtraChunks
 ------------------------------
@@ -362,8 +422,8 @@ Add new analysis SubmitXtraChunks
 
 Make directories
 -----------------
-  mkdir /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome
-  mkdir /lustre/work1/ensembl/user/cow4/xtra_cdna2genome
+  mkdir /path/to/temp/data/output_dir/xtra_cdna2genome
+  mkdir /path/to/your/permanent/data/dir/xtra_cdna2genome
 
 Annotation file and cDNA fasta file
 -----------------------------------
@@ -424,11 +484,11 @@ Make sure ref and gw db are in sync.
 
 Run
 ----
-  bsub -qyesterday -o /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome//ruleman.out -e /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/ruleman.err perl ./rulemanager.pl -dbhost  xxx -dbport 3306 -dbname reference_db -dbuser  xxx -dbpass xxx -shuffle -analysis xtra_cdna2genome -input_id_type XTRACDNA -once -shuffle
+  bsub -qyesterday -o /path/to/temp/data/output_dir/xtra_cdna2genome//ruleman.out -e /path/to/temp/data/output_dir/xtra_cdna2genome/ruleman.err perl ./rulemanager.pl -dbhost  xxx -dbport 3306 -dbname reference_db -dbuser  xxx -dbpass xxx -shuffle -analysis xtra_cdna2genome -input_id_type XTRACDNA -once -shuffle
 
    ./monitor -dbname reference_db -dbhost  xxx -dbport 3306 -dbuser  xxx -dbpass xxx -finished -current
 
-  grep -ri xcept /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/*
+  grep -ri xcept /path/to/temp/data/output_dir/xtra_cdna2genome/*
 
   mysql -u xxx -hdbhost7 -Dgenewise_db -e "select count(*), biotype from gene group by biotype"
 
@@ -440,9 +500,9 @@ So, there are still 174 cDNAs that have not aligned.
 
 Which cDNAs didn't align?
 --------------------------
-  mysql -N -B -hdbhost7 -P3306 -u  xxx -Dgenewise_db -e "select  hit_name from transcript t, transcript_supporting_feature tsf, dna_align_feature daf where t.transcript_id = tsf.transcript_id and daf.dna_align_feature_id = tsf.feature_id and t.analysis_id = 38" | sort -u > /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/genewise_db.aligned
-  less /path/to/work/cdna2genome/cdnas.annotation_subset | awk '{print $1}' | sort -u >/lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/genewise_db.all
-  comm -23 /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/genewise_db.all /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/genewise_db.aligned 
+  mysql -N -B -hdbhost7 -P3306 -u  xxx -Dgenewise_db -e "select  hit_name from transcript t, transcript_supporting_feature tsf, dna_align_feature daf where t.transcript_id = tsf.transcript_id and daf.dna_align_feature_id = tsf.feature_id and t.analysis_id = 38" | sort -u > /path/to/temp/data/output_dir/xtra_cdna2genome/genewise_db.aligned
+  less /path/to/work/cdna2genome/cdnas.annotation_subset | awk '{print $1}' | sort -u >/path/to/temp/data/output_dir/xtra_cdna2genome/genewise_db.all
+  comm -23 /path/to/temp/data/output_dir/xtra_cdna2genome/genewise_db.all /path/to/temp/data/output_dir/xtra_cdna2genome/genewise_db.aligned 
 
 I looked at 5 of these 174 missing cDNAs and they are not in the kill list, so this is not the reason for their being missing.
 Some are provisional refseqs.
@@ -463,18 +523,18 @@ Get the hcoverage and percent_id:
 
   mysql -N -B -u xxx -hdbhost7 -Dgenewise_db -e "select hit_name, max(perc_ident) from dna_align_feature daf, transcript_supporting_feature tsf where daf.dna_align_feature_id = tsf.feature_id and tsf.feature_type = 'dna_align_feature' and daf.analysis_id = 38 group by hit_name" > /path/to/species_xtra_cdna2genome_max_perc_ident.ls
 
-  cp /path/to/species_xtra_cdna2genome_max_hcoverage.ls /lustre/work1/ensembl/user/cow4/xtra_cdna2genome/max_hcoverage.ls 
-  cp /path/to/species_xtra_cdna2genome_max_perc_ident.ls /lustre/work1/ensembl/user/cow4/xtra_cdna2genome/max_perc_ident.ls
+  cp /path/to/species_xtra_cdna2genome_max_hcoverage.ls /path/to/your/permanent/data/dir/xtra_cdna2genome/max_hcoverage.ls 
+  cp /path/to/species_xtra_cdna2genome_max_perc_ident.ls /path/to/your/permanent/data/dir/xtra_cdna2genome/max_perc_ident.ls
 
 Coverage histogram
   cd /path/to/cvs/ensembl-personal/user/cow/scripts
-  perl ./bins_for_histogram.pl 1 /lustre/work1/ensembl/user/cow4/xtra_cdna2genome/max_hcoverage.ls  > /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/coverage.hist 
+  perl ./bins_for_histogram.pl 1 /path/to/your/permanent/data/dir/xtra_cdna2genome/max_hcoverage.ls  > /path/to/temp/data/output_dir/xtra_cdna2genome/coverage.hist 
 
 Percent_id histogram
-  perl ./bins_for_histogram.pl 1 /lustre/work1/ensembl/user/cow4/xtra_cdna2genome/max_perc_ident.ls > /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/percent_id.hist
+  erl ./bins_for_histogram.pl 1 /path/to/your/permanent/data/dir/xtra_cdna2genome/max_perc_ident.ls > /path/to/temp/data/output_dir/xtra_cdna2genome/percent_id.hist
 
-  cp /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/coverage.hist /path/to/species_xtra_cdna2genome_coverage.hist
-  cp /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/percent_id.hist /path/to/species_xtra_cdna2genome_percent_id.hist
+  cp /path/to/temp/data/output_dir/xtra_cdna2genome/coverage.hist /path/to/species_xtra_cdna2genome_coverage.hist
+  cp /path/to/temp/data/output_dir/xtra_cdna2genome/percent_id.hist /path/to/species_xtra_cdna2genome_percent_id.hist
 
 View coverage in R
 --------------------
@@ -493,8 +553,8 @@ R
 > dev.off()
 > quit()
 
-  cp /path/to/species_coverage.pdf /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/cow_xtra_cdna2genome_coverage.pdf
-  cp /path/to/species_percent_id.pdf /lustre/scratch1/ensembl/user/cow4/xtra_cdna2genome/cow_xtra_cdna2genome_percent_id.pdf
+  cp /path/to/species_coverage.pdf /path/to/temp/data/output_dir/xtra_cdna2genome/cow_xtra_cdna2genome_coverage.pdf
+  cp /path/to/species_percent_id.pdf /path/to/temp/data/output_dir/xtra_cdna2genome/cow_xtra_cdna2genome_percent_id.pdf
 
 The coverage is all over the show but the percent_id is neat: almost flat, with it sharply increasing at about 95%.
 
@@ -510,7 +570,7 @@ We may want to come back and look at the xtra_cdna2genome cDNAs that did and did
   su - mysqlens
   scp -r /mysql/data_3306/databases/genewise_db  xxx:/mysql/data_3306/databases/genewise_db_bk
 
-1.10 BestTargetted
+1.10 Notes on BestTargetted
 ==
 You're probably running cdna2genome as part of an automatic gene annotation pipeline. If you're using cdna2genome as well as genewise to build targetted models, and then using the BestTargetted code to decide which models you prefer, remember that you will need to use some trickery to get BestTargetted to work with cdna2genome models. This is because the transcript_supporting_features for cdna2genome models are stored in the dna_align_feature table. (Targetted models from genewise have their supporting features stored in the protein_align_feature table.)
 
@@ -519,40 +579,6 @@ Without the trickery, you might get a silent error (does not throw), something l
 
 This error comes from cdna2genome models, because their supporting evidence is mRNA and it's not found in your protein index (/path/to/sequence/proteome/species.fa). You need to add these to your protein index.
 
-You now have 2 options:
-(i) Option 1:
-Write a script eg. get_protein_seq_for_cdna.pl
-that has your cDNA accession as the header but its matching protein sequence as the actual sequence.
-eg: >NM_001075425.1|NP_001068893
-MTPLLFPLLLASLLPSSSCNKANKHKPWIEAEYQGIVMENDNTVLLNPPLFALDKDAPLR
-YAGEICGFRLHGSGVPFEAVILDKATGEGLIRAKEPVDCEAQKEHTFTIQAYDCGEGPDG
-ANTKKSHKATVHVRVNDVNEFAPVFVERLYRAAVTEGKLYDRILRVEAIDGDCSPQYSQI
+To make sure BestTargetted.pm runs smoothly, we need to create new proteome and protein_index files (contents different from those used in Targetted Genewise).
 
-(ii) Option 2:
-You could also do this with redundant sequence, where the same protein sequence is found twice in your file; once with the protein accession and once with the cDNA accession as a header. (This way might be easier)
-eg
->NM_001075425.1
-MTPLLFPLLLASLLPSSSCNKANKHKPWIEAEYQGIVMENDNTVLLNPPLFALDKDAPLR
-YAGEICGFRLHGSGVPFEAVILDKATGEGLIRAKEPVDCEAQKEHTFTIQAYDCGEGPDG
-ANTKKSHKATVHVRVNDVNEFAPVFVERLYRAAVTEGKLYDRILRVEAIDGDCSPQYSQI
->NP_001068893
-MTPLLFPLLLASLLPSSSCNKANKHKPWIEAEYQGIVMENDNTVLLNPPLFALDKDAPLR
-YAGEICGFRLHGSGVPFEAVILDKATGEGLIRAKEPVDCEAQKEHTFTIQAYDCGEGPDG
-ANTKKSHKATVHVRVNDVNEFAPVFVERLYRAAVTEGKLYDRILRVEAIDGDCSPQYSQI
-
-Depending on which option you chose, you will use a different method to create an index
-
-For option (i), do:
-  cd /path/to/sequence/proteome/
-  # you have a species.fa file with all protein sequences here
-  /software/ensembl/bin/indicate -d /path/to/sequence/proteome/ -f species.fa -i index -p singleWordParser
-(You may need to hack indicate)
-
-Now need to change this index that the files are pointing to:
-Add the keep_single_analysis option
-  vi /Bio/EnsEMBL/Analysis/Config/GeneBuild/BestTargetted.pm
-
-
-For option (ii), do what is recommended in the normal genebuild documentation.
-
-Good luck!
+See further information in ensembl-doc/pipeline_docs/BestTargetted.txt
