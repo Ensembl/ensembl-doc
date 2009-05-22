@@ -1,0 +1,257 @@
++++++++++++++++
+ BestTargetted
++++++++++++++++
+
+(1) Getting protein sequence + index files ready
+(2) Analysis, rules, pipeline config set up
+
+
+BestTargetted analyses the predictions made from the same protein in the same path but using different methods (e.g. Genewise run with differnet options).  The analysis assesses each structure on how similar to the parent/query protein it is and then picks the structure which is most like the parent protein. Currently this is generally used to assess the best models built from species-specific  proteins in species that have a large amount of species-specific data. 
+
+
+
+
+(1) Getting protein sequence + index files ready
+=================================================
+
+If you are using targetted models built from genewise to run BestTargetted, then you can just use the same protein sequence and index files as in the TargettedGenewise step.  
+
+If you are using cdna2genome as well as genewise to build targetted models, and then using the BestTargetted code to decide which models you prefer, remember that you will need to use some trickery to get BestTargetted to work with cdna2genome models. This is because the transcript_supporting_features for cdna2genome models are stored in the dna_align_feature table. (Targetted models from genewise have their supporting features stored in the protein_align_feature table.)
+
+Without the trickery, you might get a silent error (does not throw), something like:
+  Can't call method "seq" on an undefined value at /path/to/ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Runnable/BestTargetted.pm line 191.
+
+This error comes from cdna2genome models, because their supporting evidence is mRNA and it's not found in your protein index (/path/to/sequence/proteome/species.fa). You need to add these to your protein index.
+
+To make sure BestTargetted.pm runs smoothly, you need to create new proteome and protein_index files:
+
+(i)  Get a list of distinct hitnames from the dna_align_feature table for the cDNAs which have aligned to the genome by cdna2genome--- File (1).
+
+
+        mysql -NB -uxxxx -hxxx -Dgenewise_db -e'select distinct(hit_name) from dna_align_feature daf, analysis a  where a.analysis_id = daf.analysis_id and a.logic_name = "Xrate_cdna2genome";' > daf_hitnames_from_cdna2genome.ls
+
+Make a note of the number of cDNAs you start with:
+
+wc -l daf_hitnames_from_cdna2genome.ls
+
+
+(ii) Get protein sequences for File(1) 
+
+Use the script at /path/to/cvs/ensembl-analysis/scripts/genebuild/get_protein_seq_for_cdna.pl  --- make File (2).
+
+        perl /path/to/ensembl-analysis/scripts/genebuild/get_protein_seq_for_cdna.pl -infile daf_hitnames_from_cdna2genome.ls -outfile BestTargetted_cdna_protein_list.fa -dbnames embl_99,refseq_34,uniprot_15_2,uniprot_15_1,emnew_20090514,emnew_20090511,emnew_20090505 > get_protein_seq_for_cdna.log
+
+        # The script fetches 13000 protein sequences per hour when run with about 2GB memory
+
+        File (2) is a "hybrid" file that has cDNA accessions as the primary header and protein accessions as the secondary header but its matching 
+        protein sequence as the actual sequence, e.g.
+
+                >NM_001075425.1  NP_001068893   #cDNA accession comes first
+                MTPLLFPLLLASLLPSSSCNKANKHKPWIEAEYQGIVMENDNTVLLNPPLFALDKDAPLR
+                YAGEICGFRLHGSGVPFEAVILDKATGEGLIRAKEPVDCEAQKEHTFTIQAYDCGEGPDG
+                ANTKKSHKATVHVRVNDVNEFAPVFVERLYRAAVTEGKLYDRILRVEAIDGDCSPQYSQI
+
+                >AK295502.1  BAG58422.1
+                MKRTHLFIVGIYFLSSCRAEEGLNFPTYDGKDRVVSLSEKNFKQVLKKYDLLCLYYHEPV
+                SSDKVTQKQFQLKEIVLELVAQVLEHKAIGFVMVDAKKEAKLAKKLDYKAFEEAAEHFQP
+                YIKFFATFDKGVAKKLSLKMNEVDFYEPFMDEPIAIPNKPYTEEELVEFVKEHQRPTLRR
+                LRPEEMFETWEDDLNGIHIVAFAEKSDPDGYEFLEILKQVARDNTDNPDLSILWIDPDDF
+                PLLVAYWEKTFKIDLFRPQIGVVNVTDADSVWMEIPDDDDLPTAEELEDWIEDVLSGKIN
+                TEDDDEDDDDDDNSDEEDNDDSDDDDDE
+
+Check the number of fasta entries in the File (2).  It should be the same as the number you started with at step (i).
+
+        grep -c ">" BestTargetted_cdna_protein_list.fa
+
+
+If some fasta sequence entries are missing, you can find out which protein accession is involved by checking the end of the log file:
+
+        Could_not_find_protein_seq_for NP_001099230.2
+        Unable to find corresponding protein seq for cDNA NM_001105760.2
+        No available pfetch servers!
+        Could_not_find_protein_seq_for AAF98119.1
+        Unable to find corresponding protein seq for cDNA AF227200.1
+        No available pfetch servers!
+
+
+Just fetch the protein sequences by hand (from e.g. NCBI website) and paste results in BestTargetted_cdna_protein_list.fa file, following the same
+format as in the fasta file, e.g. for the first missing entry above :
+
+        >NM_001105760.2  NP_001099230.2
+        XXXXXXXXXXXXXXXXX
+
+
+(iii) Concatenate File (2) to the SwissProt/RefSeq proteome file used for Targetted Genewise --- make File (3).
+
+        cat /proteome/fasta/file/used/in/TargettedGenewise.fa  BestTargetted_cdna_protein_list_fixed.fa > All_targetted_proteome_redun.fa
+
+
+(iv) "Prune" the headers in File (3) 
+
+Use the prune_keys_in_cdna2genome_targetted_proteinseq.pl to create a fasta file with unique  headers of either cDNA or protein accession IDs but redundant sequences --- File (4).
+
+ In the hybrid file, there are two header formats.  The four example headers below can be associated with the SAME protein sequence:
+        
+        >Q1AAA9 (from TarGW proteome)
+
+        >NP_987654   (from TarGW proteome)
+     
+        >NM_123456 | NP_987654 (from cdna_protein_list)
+        
+        >AA3333 | PP7777 (from cdna_protein_list)
+        
+
+We need to prune because indexing (next step) won't work with headers with two accessions: "NM_123456  NP_987654".  We need to "factorise" the headers,
+even if it means duplicating sequences in the proteome file.  Something like this will be good (note that the protein sequence is represented 5x):
+
+        >NM_12345 (cDNA accession)
+        ABCDEFG
+
+        >NP_987654 (RefSeq accession)
+        ABCDEFG
+
+        >AA3333 (EMBL cDNA accession)
+        ABCDEFG
+
+        >PP7777 (EMBL protein accession)
+        ABCDEFG
+
+        >Q1AAA9 (Uniprot accession)
+        ABCDEFG
+
+
+perl /path/to/ensembl-analysis/scripts/genebuild/prune_keys_in_cdna2genome_targetted_proteinseq.pl -combined_infile All_targetted_proteome_redun.fa -out_file All_targetted_proteome_final.fa > pruning_error.log
+
+
+(v) Index proteins in pruned File (4)
+
+        mkdir /my/path/to/protein_index/all_targetted
+
+
+# ***** NOTE!!!!!!*****  You'll need a version of indicate or some other programs to index multiple keys. 
+
+# If using a hacked version of indicate, the -m \>flag is important.
+
+        my/hacked/version/of/indicate -d $WORK/proteins  -f All_targetted_proteome_final.fa  -i /my/path/to/protein_index/all_targetted -p singleWordParser -M BTMultiParser  -m \> 
+
+
+
+
+(2) Analysis, rules, pipeline config setup
+==========================================
+
+
+Analysis set-up
+----------------
+
+vi /path/to/the/BestTar/analysis_setup/config/file
+
+        [BestTargetted]
+        module=BestTargetted
+        input_id_type=SLICE
+
+perl /path/to/ensembl-pipeline/scripts/analysis_setup.pl -dbhost xxx -dbuser xxx -dbport xxx -dbname xxx -dbpass xxx -read -file /path/to/the/BestTar/analysis_setup/config/file
+
+
+
+Rules set-up
+------------
+
+vi /path/to/the/BestTar/rules_setup/config/file
+
+        [BestTargetted]
+        condition=SubmitSlice
+
+
+perl /path/to/ensembl-pipeline/scripts/rule_setup.pl -dbhost xxx -dbuser xxx -dbport xxx -dbname xxx -dbpass xxx -read -file /path/to/the/BestTar/rules/setup/config/file
+
+
+
+BestTargetted.pm
+-----------------
+
+cp /path/to/cvs_checkout/ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Config/GeneBuild/BestTargetted.pm.example  /your/config/dir/Bio/EnsEMBL/Analysis/Config/GeneBuild/BestTargetted.pm
+
+vi /your/config/dir/Bio/EnsEMBL/Analysis/Config/GeneBuild/BestTargetted.pm
+
+
+### Config file version 1.5, BestTargetted Runnable module version 1.13, Runnable DB module version 1.6
+
+ %Config=
+  (
+   BEST_TARGETTED_CONFIG => {
+
+     DEFAULT => {
+
+       VERBOSE => 1 ,
+
+       # If you list more than 2 biotypes (below), and only one biotype builds
+       # a transcript from a particular protein at a particuar position, do
+       # you want to keep this transcript or throw is away? Can you trust it?
+       # Set KEEP_SINGLE_ANALYSIS to 1 if you want to keep the transcript.
+       KEEP_SINGLE_ANALYSIS => 1,
+       
+
+       # Location of your protein index (fasta file of all proteins)
+       SEQFETCHER_DIR => '/my/path/to/protein_index/all_targettedall_targetted',  #this index should contain all the proteins used in BestTargetted.
+                                                                                  #follow step (1) in this doc if you're considering cdna2genome models
+                                                                                  #as well as those from Targetted Genewise.
+ 
+       SEQFETCHER_OBJECT =>  'Bio::EnsEMBL::Pipeline::SeqFetcher::OBDAIndexSeqFetcher'
+
+       # add the logic names of your targetted genes here.
+       # Note that you'll have to add to your protein index all protein_seqs for any
+       # transcripts made from cdna2genome
+       # fetch genes of differnt biotypes from different databases. use the key out of
+       # Databases.pm to define the databases you like to fetch data from.
+       # if you don't fetch data from i.e. EST_CDNA_DB jsut delete the key and no
+       # connection to the db is made.
+       INPUT_DATA_FROM_DBS  => {
+                          GENEWISE_DB => ['targetted'] ,
+                          EST_CDNA_DB => ['cdna2genome'] ,
+                      }  ,
+
+       # db where we read genes from
+       DB_NAME                            => 'GENEWISE_DB',   # this key isn't really used
+
+       # db that we write genes to
+       OUT_DB_NAME                        => 'GENEWISE_DB',
+
+       # version of exonerate used
+       EXONERATE_PROGRAM                  => '/usr/local/ensembl/bin/exonerate-0.9.0',
+
+       BIOTYPES                           => 'BestTargetted',  # this key isn't used, but RunnableDB code will throw an exception when it's missing, e.g.
+                                                        # MSG: You must define BIOTYPES in config for logic 'BestTargetted' or in the DEFAULT entry
+
+     },
+
+     BESTTARGETTED => {},  # this hash needs to be present even if it's empty. Its key must be the logic_name of your BestTargetted analysis.
+   }
+
+  );
+
+
+
+BatchQueue settings
+--------------------
+
+  vi /path/to/cvs/ensembl-config/species/assembly/Bio/EnsEMBL/Pipeline/Config/BatchQueue.pm
+    {
+       logic_name => 'BestTargetted',
+       batch_size => 50,  # CPU time per slice usually is very short (within 1 minute)
+
+       resource => '',  # either leave it blank or throttle DBs as below to make sure mySQL instances aren't overloaded
+
+      #  resource => 'select[linux && my_in_DB1 <=500 && my_in_DB2 <=500 && my_ref_DB <=500] rusage[my_in_DB1=10:duration=5:decay=1:my_in_DB2=10:duration=5:decay=1:my_ref_DB=10:duration=5:decay=1]'
+
+       retries    => 3,
+       runner     => '',
+       sub_args   => '',
+       queue      => 'long',
+       cleanup    => 'no',
+       output_dir => '/path/to/data/output/dir/BestTargetted',
+       runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
+     },
+
+
+
