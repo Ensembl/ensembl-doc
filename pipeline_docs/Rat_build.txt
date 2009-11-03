@@ -1,3 +1,16 @@
+
+
+WARNING ! 
+
+The information about the rat builds  is out-of-date [ written in 2005 ].
+We still keep the file here to give a brief overview how the build has been done in 2005. 
+
+
+
+
+
+
+
 Information about the rat_build for Rnor3.2
 
 contacts
