@@ -1,3 +1,27 @@
+
+
+
+
+
+
+
+
+NOTE: 
+NOTE:    The affy mapping process is now ( 10/2009 ) done by the Ensembl functional genomics group. 
+NOTE: 
+NOTE:    A more recent documentation can be found in the ensembl-funcgenomics CVS-repository : 
+NOTE: 
+NOTE:                       ensembl-functgenomics/docs/array_mapping.txt
+NOTE: 
+NOTE: 
+
+
+
+
+
+
+
+
 This document outlines how to align solexa reads to the geneome and to transcripts ( useful for confirming gene models. )
 
 This is pretty straight forward, it is not that different to aligning ESTs to the genome using exonerate, the only real difference is that we use the ExonerateSolexa and ExonerateSolexaTranscripts modules and config in ensembl-analysis. 
