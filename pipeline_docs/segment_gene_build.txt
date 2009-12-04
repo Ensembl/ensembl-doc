@@ -22,7 +22,9 @@ then transferred into a database that contains an existing, standard
 gene-build, removing transcripts that "interfere" (overlap at the exon
 level) with segments (in the assumption that they are wrong).
 
-
+Note that we currently only perform the segment_build for human and mouse 
+as they have sufficient genes annotated by IMGT. This analysis has not
+yet been included in the genebuild for other species.
 
 ========
 OVERVIEW
