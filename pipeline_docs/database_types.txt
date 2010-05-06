@@ -1,0 +1,104 @@
+* * * * * * * * * * 
+* Database types  *
+* * * * * * * * * * 
+A doc about database types...
+
+
+Overview
+1. The Core database
+2. The cDNA database
+3. The Otherfeatures database
+4. The Variation database
+5. The FuncGen database
+6. The Vega database
+7. The Coreexpressionest database
+8. The Coreexpressiongnf database
+
+There are a number of different database types on the Ensembl public database server. For example, the human data for release 57 is found in the following databases:
+
+  mysql -NB -uanonymous -hensembldb.ensembl.org -P5306 -e "show databases like 'homo_sapiens%57%'"
+homo_sapiens_cdna_57_37b
+homo_sapiens_core_57_37b
+homo_sapiens_coreexpressionest_57_37b
+homo_sapiens_coreexpressiongnf_57_37b
+homo_sapiens_funcgen_57_37b
+homo_sapiens_otherfeatures_57_37b
+homo_sapiens_variation_57_37b
+homo_sapiens_vega_57_37b
+
+
+1. The Core database
+==
+The core database is provided by the Ensembl Genebuild team. 
+
+This database holds all information about the Ensembl (GENCODE) gene set, including genes, transcripts, exons and translations. In addition the database also links all transcripts and exons to their supporting evidence.
+
+Linking tables to find supporting evidence:
+transcript -> transcript_supporting_feature -> dna_align_feature (cDNA alignments supporting noncoding regions)
+transcript -> transcript_supporting_feature -> protein_align_feature (protein alignments supporting coding regions)
+exon -> supporting_feature -> dna_align_feature
+exon -> supporting_feature -> protein_align_feature
+
+Note that the cDNA alignments within the core database is only a subset of the cDNA alignments found in the cDNA database. This is becuse the core database only stores cDNAs that have been used to support a transcript model.
+
+All genes, transcripts and translations are cross-referenced to external databases where possible eg. for human the models may be cross-referenced to HGNC, CCDS, RefSeq, SwissProt, etc.
+
+Linking tables to find cross-references (xrefs):
+gene -> object_xref -> xref
+transcript -> object_xref -> xref
+translation -> object_xref -> xref
+
+
+2. The cDNA database
+==
+The core database is provided by the Ensembl Genebuild team.
+
+Currently only the human and mouse have a cdna database. This database holds *all* possible cdna alignments for the species. The database is updated every release to ensure that the latest cDNA sequences will be included.
+
+
+3. The Otherfeatures database
+==
+The core database is provided by the Ensembl Genebuild team.
+
+Most high-coverage genomes are provided with an otherfeatures database. The holds gene-related information outside of the core Ensembl gene set (core db) and full set of cDNA alignments (cdna db).
+
+The information within an otherfeatures database varies depending on what is available. An otherfeatures database will almost always contain the following analyses:
+* EST alignments of all species-specific ESTs
+* cDNA alignments of all species-specific cDNAs (this is true for all species except human and mouse which have their own cdna database.)
+* ESTgenes: the EST aligments can be collapsed and used to build gene models using either the ESTGene module (in the case of human) or TranscriptCoalescer module (for all other species)
+
+An otherfeatures database may also hold other data such as:
+* Alternate gene sets provided by external collaborators
+* CCDS models (human and mouse only)
+* RefSeq models (human only)
+etc
+
+The otherfeatures database is generated as described in the_genebuild_process.txt under section called 'Alignment of cDNAs and ESTs'.  
+
+4. The Variation database
+==
+The variation database is provided by the Ensembl Variation team and holds data on eg. SNPs and their consequences.
+
+
+5. The FuncGen database
+==
+The fungen database is provided by the Ensembl Functional genomics team and holds data on eg. regulatory elements.
+
+
+6. The Vega database
+==
+The vega database is provided by the HAVANA / Vega group and hold manually curated genes external to the Ensembl team. 
+For more information please go to http://vega.sanger.ac.uk/index.html where there is an option to contact their Helpdesk.
+
+HAVANA annotate their gene models manually in their own database. Regular dumps are made of this database and the current gene models are loaded into an Ensembl-schema database. It is this vega database that is used to merge with Ensembl's automatically annotated gene models when creating the merge Ensembl/HAVANA GENCODE gene set.
+
+
+7. The Coreexpressionest database
+==
+This database is carried through each release. The data within does not change between releases.
+
+
+8. The Coreexpressiongnf database
+==
+This database is carried through each release. The data within does not change between releases.
+
