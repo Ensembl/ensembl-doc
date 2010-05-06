@@ -214,6 +214,11 @@ human cDNAs and ESTs may also be aligned to the genome. cDNA evidence is used
 to complete gene predictions and to add UTR information to protein-based CDS
 models. EST evidence is most often not used in the genebuild process.
 
+Note that for human and mouse, the cDNA alignments might be generated using the 
+cDNA_update pipeline and the results stored in the 'cdna' database instead of the 
+'otherfeatures' database.
+ensembl-pipeline/scripts/cDNA_update/cDNA_update.pl
+
 When aligning cDNAs and ESTs to the genome, we use a default of coverage >= 90
 and percent_id >= 97. Sometimes these parameters align too few sequences and
 the analysis is rerun using no coverage or percent_id cutoff. The result of
@@ -221,7 +226,7 @@ this second run is plotted (x=percent_id, y=number of sequences) and a cutoff
 slightly lower than percent_id=97 is chosen.
 
 'EST genes' are produced from the original alignments by running
-TranscriptCoalescer.
+TranscriptCoalescer or ESTGenebuilder, as described later.
 
 (iv) Other
 
@@ -1098,6 +1103,9 @@ Exonerate2Genes. It can also take in genewise genes (generally
 similarity based) and ab initio predictions to try and add in
 resolution of the EST structures.
 
+Note that ESTGenebuilder is used instead of TranscriptCoalescer for human.
+All other species use TranscriptCoalescer.
+
 The config for this process at the moment is inflexible and only one
 set of config can be defined for a TranscriptCoalescer run. This does
 create complications for the TranscriptConsensus analysis described
@@ -1141,6 +1149,10 @@ Thensembl-pipeline/scripts/GeneBuild
 
 This will create 1MB slice names avoiding gene clusters covering
 boundaries.
+
+The ESTs used to generate ESTgenes are stored in the otherfeatures database.
+Results from TranscriptCoalescer and ESTgenes are generally also written into 
+the otherfeatures database.
 
 13.13 TranscriptConsensus
 ==
