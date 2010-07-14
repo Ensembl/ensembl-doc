@@ -620,6 +620,28 @@ Grepping through the output files from this script can give you useful informati
 
 A second useful way for checking your results is to look at the transcript models in Apollo Gene Annotation Tool, to make sure that the models being made "look correct". Sometimes using the wrong parameters in an analysis can result in strange-looking transcript structures (eg. transcripts with unusually long introns) and it is sometimes easier to spot these by eye than by writing a script.
 
+USEFUL SQL:
+
+(i) All genes must have transcripts
+  select g.* from gene g left join transcript t on t.gene_id=g.gene_id where t.gene_id is NULL;
+
+(ii) All transcripts must have exon_transcript links
+  select t.* from transcript t left join exon_transcript et on t.transcript_id=et.transcript_id where \
+  et.transcript_id is NULL;
+
+(iii) All exon_transcript must have exon links
+  select et.* from exon_transcript et left join exon e on et.exon_id  \
+  = e.exon_id where e.exon_id is NULL;
+
+(iv) All transcripts must link to transcript_supporting_feature
+  select t.* from transcript t left join transcript_supporting_feature tsf on \
+  t.transcript_id=tsf.transcript_id where tsf.transcript_id is NULL;
+
+(v) All transcripts up to the genebuilder stage must have translations
+  select t.* from transcript t left join translation tln on \
+  t.transcript_id=tln.transcript_id where tln.transcript_id is NULL;
+
+
 
 12.2 At handover 
 ==
