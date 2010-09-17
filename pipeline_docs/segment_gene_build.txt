@@ -10,7 +10,7 @@ V(D)J recombination event. When aligned back to the genome using a
 spliced-alignment program (e.g. Genewise, Exonerate), the segment
 boundaries are often incorrectly predicted because the junctions have a
 very different sequence signal to that of splice sites. In addition,
-the C and V segments are often mult-exon, making delineation of the
+the C and V segments are often multi-exon, making delineation of the
 predicted "transcript" into V/D/J/C segments non trival. 
 
 To overcome this problem, we make use of the IMGT database
@@ -61,11 +61,37 @@ REQUIREMENTS
   ensembl-pipeline
   ensembl-personal/klh/imgt
 
+  (The last path contains some specific Bio::Seq and Bio::SeqIO modules
+   required by the sequence extraction script.)
+
   As normal, bioperl is also required. For the extraction of sequence
   segments from the IMGT flat-file, it is necessary to use a recent
-  version of bioperl (1.5+). Also, you might find ensembl-config
-  useful as it contains exonerate settings for the March 2006 human
-  and mouse builds.
+  version of bioperl (bioperl 1.5.1).  This version is also compatible
+  with the Ensembl pipeline (e.g. for running Exonerate analyses), so
+  you don't have to worry about changing back to older bioperl versions
+  when you've finished extracting sequences.
+
+  ### CAUTION!!! ###
+  If you decided to use BioPerl-1.6.0 for the extract stage, once the 
+  extraction has finished, you must remember to switch back to earlier 
+  versions of bioperl, e.g. bioperl-0.7.2.  If you keep on using 1.6.0, 
+  you will run into big problems when running exonerate (or probably any
+  other) analyses due to name space clashes.  The analysis would die
+  as soon as you start running it as the code will fail to even find your
+  RunnableDB module! The error message will look something like this:
+
+  " Couldn't require Bio/EnsEMBL/Analysis/RunnableDB/Exonerate2Genes 
+  "Transcript_info" is not exported by the 
+  Bio::EnsEMBL::Analysis::Tools::GeneBuildUtils::TranscriptUtils module  "
+ 
+  ### END OF CAUTION ###
+  
+  Also, you might find ensembl-config useful as it contains exonerate 
+  settings for the March 2006 human and mouse builds.  The exact config 
+  used can be found in ensembl-config: 
+  human/NCBI36_ig/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm, and
+  mouse/NCBIM36_ig/Bio/EnsEMBL/Analysis/Config/Exonerate2Genes.pm
+  respectively.
 
 
 - Databases
@@ -118,7 +144,7 @@ STEP 2: Extraction of relevant segments from flat-file
 ensembl-personal/klh/imgt/scripts contains two scripts to help with
 this task. The first, extract_segments_from_imgt.pl, fetches
 segments with the specified tag or tags from the flat file. The
-second, contant_regions_from_imgt.pl, extracts constant regions from
+second, constant_regions_from_imgt.pl, extracts constant regions from
 genomic DNA entries the flat file. A specialist script is needed to do
 this, because the constant regions can contain multiple exons and also
 UTR which needs to be removed. 
