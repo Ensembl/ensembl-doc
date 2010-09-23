@@ -897,10 +897,10 @@ like
 
 Once all the Pmatch runs have finished, BestPmatch can be run. This
 takes all the results and for each protein finds the best hit and
-those within 2% percent identity of it to ensure that if the best
-hit is to a pseudogene it doesn't prevent a protein coding gene from
-being predicted. BestPmatch runs across the whole genome so a input id
-string of genome is sufficient. It used the same config file as Pmatch
+those within 2% percent identity of it to ensure that if the best hit
+is to a pseudogene it doesn't prevent a protein coding gene from being
+predicted. BestPmatch runs across the whole genome so an input id
+string of genome is sufficient. It uses the same config file as Pmatch
 but a different config hash. The variables which need definition are:
 
 Bio::EnsEMBL::Analysis::Config::GeneBuild::Pmatch.
@@ -914,7 +914,7 @@ Once this is run a set of best in genome hits for each protein is
 available and these can be used to defined which proteins to align to
 the genome using Genewise and in what location
 
-As there is only one run for BestPmatch it input id doesn't really
+As there is only one run for BestPmatch its input id doesn't really
 matter. As every RunnableDB needs an input id for the pipeline system
 to be able to track it. This means we give BestPmatch the string
 genome.
