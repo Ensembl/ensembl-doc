@@ -97,16 +97,31 @@ REQUIREMENTS
 - Databases
 
   (1) A pipeline database. This database should contain the sequence
-      and assembly of the genome of interest, and will store the
-      results of the Exonerate alignments. 
+      and assembly of the genome of interest. This can be the reference DB
+      that you have been using for an Ensembl gene build, or a new DB
+      created for the purpose of running the Ig pipeline.
+    
+      ### CAUTION: If you use a brand new pipeline database to run the
+      ###          Ig pipeline, and will copy the Ig genes eventually
+      ###          back into a reference DB (e.g. for handover), make
+      ###          sure you have synchronised the analyis tables between
+      ###          the pipeline and reference databases
+      
+  (2) Output database I which stores the "raw" Exonerate alignments
+      of Ig segments.  If your pipeline database is not a reference DB
+      used in a genebuild (i.e. does not contain any protein_align_features
+      or dna_align_features from raw computes), then you can write the
+      raw Exonerate results into your pipeline database, without creating
+      a separate output DB.
 
-  (2) An output database. This will be the the database into which
-      the gene-segments are written by the IgSegBuilder stage. 
+  (3) Output database II which stores the Ig gene segments built by
+      IgSegBuilder code from "raw" Exonerate alignements in output DB (I).
 
-  (3) A release database (optional). If providing the gene segments as
-      a patch for an existing build, this database will contain the
-      genes, features and all other data from that build (and is the
-      database that will be patched and handed over).  
+  (4) A release database (optional). If providing the gene segments as
+      a patch for an existing build, or if incorporating Ig gene segments
+      into a new Ensembl genebuild, this database will contain the
+      genes, features and all other data from that existing/new build
+      (and is the database that will be patched and handed over).  
 
 - Data
 
@@ -293,17 +308,24 @@ located anywhere near any C/LV segments).
 
 The result is a set of final, Ig/TcR gene segments. 
 
-The module works on slice input ids, and can cope with whole
+The module works on slice input IDs, and can cope with whole
 chromomes. Since it is likely that only a small number of top-level
 sequences will contain raw exonerate alignments, it is more efficient
-to make input ids for these slices only; having an input id for each
+to make input IDs for these slices only; having an input id for each
 toplevel sequence will ensure that the whole genome is analysed but
 the vast majority of jobs will do nothing.
 
-Note: the analysis under which these jobs are run should have
-logic_name "ensembl_segment"; this analysis will be attached to the
+Note: Previously there was a note about the choice of analysis
+logic_name for running IgSegBuilder. It said that "the 
+analysis under which these jobs are run should have logic_name 
+'ensembl_segment'; this analysis will be attached to the
 final genes and transcripts, and is the analysis expected by the
-web-code for correct display. 
+web-code for correct display."
+
+In recent runs of the pipeline (e.g. since release 58 for mouse), 
+logic_name "IgSegBuilder" has been used for the analysis without any 
+problems.  For eventual display on the website, the Ig genes were 
+under logic_name "ensembl_IG_gene".
 
 
 Config
@@ -358,47 +380,51 @@ were patched in the following way:
 This was done with the script
 ensembl-analysis/scripts/ig/transfer_gene_segments.pl.
 
-
 If the gene segments are available whilst a full-build is being
 performed, the script can still be used. It should be run as the last
-step, before stable id mapping (or in the case of a brand new build,
+step, before stable ID mapping (or in the case of a brand new build,
 creation) is performed.
 
-Stable ids
+Stable IDs
 ----------
 
 For human and mouse 42, it was decided that the gene segments should
-be given brand-new stable ids, and that the stable ids of all deleted
+be given brand-new stable IDs, and that the stable IDs of all deleted
 genes, transcripts and translations should be retired. The
-transfer_gene_segments.pl script performs this functionality (updating
-the stable id mapping tables appropriately) when supplied with the
-"-patch" option. A stable-id mapping run was therefore not
-necessary. This strategy can be applied in when adding segments to an
-existing build as a patch, where no other gene updates/changes are
-involved. 
+transfer_gene_segments.pl script (version 1.5 or before) performs this
+functionality (updating the stable id mapping tables appropriately) 
+when supplied with the "-patch" option. A stable-id mapping run was 
+therefore not necessary. This strategy can be applied in when adding 
+segments to an existing build as a patch, where no other gene 
+updates/changes are involved. 
 
 For future builds of human and mouse on the same assembly, the
 segments should be integrated with the main build before stable id
 mapping is performed (as explained above). The stable id mapping
-process should then reassign the correct ids to the gene
-segments. However, it is worth checking that it has worked correctly;
-if any of the segment ids from the previous assembly build have been
-retired, or if any of the segment ids in the new build are brand-new
-and unique to this build, something has gone wrong with the
-mapping. In this case, the offending stable ids might need to be
-rescued manually. There is no script support for this unlikely event,
-so if it happens, it's best to consult with the core team at the
-earliest opportunity.
+process (supported by the core team) should then reassign the correct 
+IDs to the gene segments, and we do not rely on the transfer_gene_segments.pl
+script to "map" stable IDs of Ig genes. For this reason, from verison 1.7 
+onwards, the transfer_gene_segments.pl script no longer deals with
+mapping of stable IDs. However, it is worth checking that stable ID
+mapping has worked correctly; if any of the segment IDs from the previous 
+assembly build have been retired, or if any of the segment IDs in the 
+new build are brand-new and unique to this build, something has gone 
+wrong with the mapping. In this case, the offending stable IDs might 
+need to be rescued manually. There is no script support for this 
+unlikely event, so if it happens, it's best to consult with the core 
+team at the earliest opportunity.
 
 For future builds of human and mouse on new assemblies, the segments
-should be integrated with the main build before stable id
-mapping. However, in this case, there is a chance that stable id
-mapping might legitimately result in stable id gain/loss. This can
-happen if the sequence in the Ig/TcR regions has changed, resulting in
-gene gain or loss (since these regions are mature in human and mouse,
-this is rare, but can still happen). But it should be checked that the
-stable id gains and losses correspond to gene gain/loss in the gene
-segment set. 
+should be integrated with the main build before stable ID
+mapping (supported by the core team). (As explained above, from version
+1.7 onwards, the transfer_gene_segments.pl script no longer handles
+stable ID assingment for Ig genes.) However, in this case, there is 
+a chance that stable ID mapping might legitimately result in stable ID
+gain/loss. This can happen if the sequence in the Ig/TcR regions has 
+changed, resulting in gene gain or loss (since these regions are mature
+in human and mouse, this is rare, but can still happen). But it should
+be checked that the stable ID gains and losses correspond to gene 
+gain/loss in the gene segment set. 
 
 
 
@@ -414,14 +440,14 @@ source protein/cDNA data for the build was extracted
 (b) IMGT/GENE-DB - contains descriptions and annotation for all known
 Ig and TcR gene segments in human and mouse. 
 
-These xrefs are defined in a file which maps stable ids to IMGT
+These xrefs are defined in a file which maps stable IDs to IMGT
 entities. This file is supplied as a source when performing the
 Xref_Parsing step of the core xrefs (see other documentation).
 
 For the initial segments builds in human and mouse, this file had to
 be created from scratch. This was done using the script
 ensembl-analysis/scripts/ig/xref_gene_segments.pl, which should be run
-after stable ids for the segments have been assigned:
+after stable IDs for the segments have been assigned:
 
 perl xref_gene_segments.pl -dbhost *** -dbuser *** -dbpass *** -dbport *** -dbname *** -indexdir $WORK/ig/IMGT/october2006/database -indexfile indicate_idx -allgenenames > Segment_xrefs.txt
 
@@ -458,8 +484,8 @@ Impact of stable id mapping on xrefs
 
 When rebuilding on a genome that already had a segment set, it is
 important to check that the stable-id mapping went as expected. If
-stable-ids were gained/lost, then the IMGT xref file needs to be
-updated to reflect the gained/lost ids. A good way of doing this would
+stable-IDs were gained/lost, then the IMGT xref file needs to be
+updated to reflect the gained/lost IDs. A good way of doing this would
 be to run the above script on the whole set, using the result to
 manually edit the central xref file to reflect the changes. 
 
