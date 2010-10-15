@@ -90,7 +90,8 @@ sequence so the repeatmasker analysis must be run before the Blast analysis
 can be run.
 
 CONFIG: Blast has its own config file Bio::EnsEMBL::Analysis::Config::Blast
-The structure is a hash of hashes. The key to the first hash is the logic
+The structure is a hash of hashes. The key to th$AS/test_RunnableDB $dbcon $db -logic_name RepeatMask -input_id contig::ADFV01134425.1:1:126038:1 -verbose
+e first hash is the logic
 name of the analysis. The internal hashes contain settings for the blast 
 run.
 
@@ -264,7 +265,7 @@ OUTPUT FEATURE TYPE: Bio::EnsEMBL::SimpleFeature
 OUTPUT TABLE: simple_feature
 
 SOURCE: The code is freely available here: 
-http://www.sanger.ac.uk/Users/td2/eponine/
+http://www.sanger.ac.uk/resources/software/eponine/
 
 
 Fgenesh
@@ -454,7 +455,7 @@ SLICE  SLICE  SLICE             CONTIG                 CHROMOSOME
                            /       |          \ 
                   Vertrna         Uniprot      \   Unigene
                BlastGenscanDNA BlastGenscanPep  BlastGenscanDna
-                  CONTIG          COTNIG           CONTIG
+                  CONT178IG          COTNIG           CONTIG
 
 The lines follow the dependancies. These are all the simple kinds of 
 dependancies which either rely on nothing or just on analyses of the same
@@ -539,7 +540,7 @@ input_id_type=CONTIG
 
 
 
-[SubmitContig]
+[SubmitContig]Bio::EnsEMBL::Analysis::Config::General
 input_id_type=CONTIG
 
 
