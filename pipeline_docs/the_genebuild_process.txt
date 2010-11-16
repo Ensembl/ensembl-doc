@@ -304,14 +304,14 @@ The program documentation to look at includes
 5. Filtering predicted CDS structures
 ===============================
 
-The CDS prediction process (see above) can produce a large number of very 
-similar CDS predictions. We have a number of methods for filtering these 
-predictions to reduce the search space and make erroneous clustering of 
-transcript models into gene less likely. 
+The CDS prediction process (see above) can produce a large number of very
+similar CDS predictions. We have a number of methods for filtering these
+predictions to reduce the search space and make erroneous clustering of
+transcript models into gene less likely.
 
 The filtering process, much like the Similarity stage, is an iterative process.
-Various methods are used to filter out unwanted predictions until we arrive at 
-a healthy set. 
+Various methods are used to filter out unwanted predictions until we arrive at a
+healthy set.
 
 The results of filtering are usually written to a clean database.
 
@@ -319,40 +319,40 @@ Three filtering methods are discussed:
 
 (i) BestTargetted
 
-This looks at predictions made from the same protein in the same location but 
-using different methods/algorithms (eg. Exonerate vs Genewise). It assesses 
-each structure on how similar to the parent protein it is and then picks the 
-structure which is most like the parent protein. Currently this is generally 
-used to assess the best models built from species-specific proteins in species 
-that have a large amount of species-specific data. 
+This looks at predictions made from the same protein in the same location but
+using different methods/algorithms (eg. Exonerate vs Genewise). It assesses
+each structure on how similar to the parent protein it is and then picks the
+structure which is most like the parent protein. Currently this is generally
+used to assess the best models built from species-specific proteins in species
+that have a large amount of species-specific data.
 
 (ii) TranscriptConsensus
 
-The second filtering method is called TranscriptConsensus. This filtering is 
-based purely on genes which cluster together on the basis of overlap. Each 
-cluster is collapsed into a redundant set of exons and introns. Each exon/intron 
-is scored on the basis of supporting evidence. This can include est or cdna 
-evidence. The best transcript of each cluster is selected. This does tend to 
-remove most alternative splice forms but is it currently considered in species 
-whose gene structures are mostly based on non species specific evidence that 
+The second filtering method is called TranscriptConsensus. This filtering is
+based purely on genes which cluster together on the basis of overlap. Each
+cluster is collapsed into a redundant set of exons and introns. Each exon/intron
+is scored on the basis of supporting evidence. This can include est or cdna
+evidence. The best transcript of each cluster is selected. This does tend to
+remove most alternative splice forms but is it currently considered in species
+whose gene structures are mostly based on non species specific evidence that
 many of the alternative splice forms are incorrect.
 
-In assessing the predicted models, models are labelled as 'good', 'bad' or 
+In assessing the predicted models, models are labelled as 'good', 'bad' or
 'small'.
 
 
 (iii) LayerAnnotation
 
-The LayerAnnotation module can also be used to filter CDS structures. A 
-hierarchy of biotypes are passed to the module which then accepts all models 
-from the top layer (biotype) and successively fills in gaps using models from 
+The LayerAnnotation module can also be used to filter CDS structures. A
+hierarchy of biotypes are passed to the module which then accepts all models
+from the top layer (biotype) and successively fills in gaps using models from
 the next layer (biotype) in the list. This requires some knowledge of which
-biotypes are expected to produce the best models - usually determined using 
+biotypes are expected to produce the best models - usually determined using
 TranscriptConsensus (see above) or Apollo.
 
-Apollo (http://apollo.berkeleybop.org/current/index.html) is quick and easy to 
-install. It allows you to view results from each stage in the genebuild and is 
-an invaluable tool in helping us to assess the quality of our gene models. 
+Apollo (http://apollo.berkeleybop.org/current/index.html) is quick and easy to
+install. It allows you to view results from each stage in the genebuild and is
+an invaluable tool in helping us to assess the quality of our gene models.
 
 
 The program documentation to look at includes:
@@ -366,21 +366,19 @@ The program documentation to look at includes:
 6. Addition of UTRs to CDS structures
 ===============================
 
-Once a set of CDS structures have been predicted and assessed we
-can then use any available cDNA, EST and Ditag data to try and give
-these models UTRs. Mostly this data is species specific but in
-some cases when a high quality data set is available from another
-species close by that can also be used, for example Human cDNAs
-were used to add UTR to Rhesus Macaque CDS structures. The ditag
-alignments aren't discussed here but documentation can be found in
-ensembl-doc/pipeline_docs/ditag_analysis.txt. The cDNA and EST data
-will of hopefully been aligned at stage 3 using Exonerate2Genes.
-These alignments are compared with the CDS structures to find cDNA
-alignments that match the CDS structure and can provide additional
-information. If a CDS structure has no cDNA match EST data will also
-be looked at. Aligned ditags can be used to give support to one cDNA
-over another. This should produce a gene set which can then be fed
-into our GeneBuilder Algorithm.
+Once a set of CDS structures have been predicted and assessed we can then use
+any available cDNA, EST and Ditag data to try and give these models UTRs.
+Mostly this data is species specific but in some cases when a high quality
+data set is available from another species close by that can also be used, for
+example Human cDNAs were used to add UTR to Rhesus Macaque CDS structures.
+The ditag alignments aren't discussed here but documentation can be found in
+ensembl-doc/pipeline_docs/ditag_analysis.txt. The cDNA and EST data will of
+hopefully been aligned at stage 3 using Exonerate2Genes. These alignments are
+compared with the CDS structures to find cDNA alignments that match the CDS
+structure and can provide additional information. If a CDS structure has no
+cDNA match EST data will also be looked at. Aligned ditags can be used to give
+support to one cDNA over another. This should produce a gene set which can then
+be fed into our GeneBuilder Algorithm.
 
 Results are usually written to a clean database.
 
@@ -393,15 +391,14 @@ The program documentation to look at includes:
 7. Finding missing models/Improving existing models
 ===============================
 
-Once you have aligned all of your evidence sets and produced gene
-models from them you may want to look for what you may have missed.
-We use an orthology based analysis which run a comparative analysis
-of the predicted peptide set with at least 3 other species, generally
-human as it provides the highest quality annotation set plus two more
-closely related species. Once a set of orthologs have been predicted
-missing one to one relationships are looked for as as relationships
-where the protein in your species is significantly longer or shorter
-than it is in the other species.
+Once you have aligned all of your evidence sets and produced gene models from
+them you may want to look for what you may have missed. We use an orthology
+based analysis which run a comparative analysis of the predicted peptide set
+with at least 3 other species, generally human as it provides the highest
+quality annotation set plus two more closely related species. Once a set of
+orthologs have been predicted missing one to one relationships are looked for as
+as relationships where the protein in your species is significantly longer or
+shorter than it is in the other species.
 
 The program documentation to look at includes:
 
@@ -414,14 +411,13 @@ The program documentation to look at includes:
 8. Merging prediction sets of varying qualities
 ===============================
 
-The above processed can create various different sets of CDS
-structures which need to be merged together with differing priorities.
-There are two pieces of code to do this the first is IncrementalBuild
-which is a runnable that simply compares 2 gene sets and returns
-those in the secondary set which don't overlap with the primary. The
-LayerAnnotation code (see above) is more complex. It can compare multiple gene
-sets to each other using varying rules both for filtering, what to
-compare and how to store them.
+The above processed can create various different sets of CDS structures which
+need to be merged together with differing priorities. There are two pieces of
+code to do this the first is IncrementalBuild which is a runnable that simply
+compares 2 gene sets and returns those in the secondary set which don't overlap
+with the primary. The LayerAnnotation code (see above) is more complex. It can
+compare multiple gene sets to each other using varying rules both for filtering,
+what to compare and how to store them.
 
 The program documentation to look at includes:
 
@@ -433,28 +429,27 @@ The program documentation to look at includes:
 9. Creating a non-redundant set of models
 ===============================
 
-Once you have the most complete set of CDS structures you think you
-can find you need to reduce them to a non redundant set of transcripts
-and group them into gene objects. Our algorithm for doing this is
-the GeneBuilder[4]. The comparative analysis used to find missing
-models require this to be run first and then it needs to be run again
-as the final set of transcripts is defined. The GeneBuilder itself
-clusters genes on coding exon overlap and then compares exon pairs collapsing
-identical pairs into non redundant groups. If there are more than 10
-alt-splice forms in a particular cluster the 10 best are taken and
+Once you have the most complete set of CDS structures you think you can find
+you need to reduce them to a non redundant set of transcripts and group them
+into gene objects. Our algorithm for doing this is the GeneBuilder[4]. The
+comparative analysis used to find missing models require this to be run first
+and then it needs to be run again as the final set of transcripts is defined.
+The GeneBuilder itself clusters genes on coding exon overlap and then compares
+exon pairs collapsing identical pairs into non redundant groups. If there are
+more than 10 alt-splice forms in a particular cluster the 10 best are taken and
 this is based on length, presence of UTR and other similar factors.
 
 GeneBuilder is run on single-transcript gene models.
 
 You may find that after running the GeneBuilder, you have fewer multi-
 transcript gene models than expected. In this case, it is possible to add models
-into the set - perhaps using LayerAnnotation or Compara. The GeneBuilder can 
-be re-run after LayerAnnotation and the number of genes counted. The process 
-loops until we have enough good models.
+into the set - perhaps using LayerAnnotation or Compara. The GeneBuilder can be
+re-run after LayerAnnotation and the number of genes counted. The process loops
+until we have enough good models.
 
-Note that before approx. mid-2007, the GeneBuilder clustered on all
-exons and not only coding exons. Species that have not be rebuilt since
-this time will have their genes clustered according to the older rule.
+Note that before approx. mid-2007, the GeneBuilder clustered on all exons and
+not only coding exons. Species that have not be rebuilt since this time will
+have their genes clustered according to the older rule.
 
 The program documentation to look at includes:
 
@@ -464,16 +459,15 @@ The program documentation to look at includes:
 10. Identifying pseudogenes and other problematic CDS structures
 ===============================
 
-Pseudogene annotation in Ensembl is run at the end of the genebuild
-process and is essentially about removing pseudogenes that have been
-incorrectly predicted as functional genes, no attempt is made to
-actively predict pseudogenes. Pseudogenes are initially identified
-at the transcript level, all transcripts are then compared on a gene
-by gene basis. 
+Pseudogene annotation in Ensembl is run at the end of the genebuild process and
+is essentially about removing pseudogenes that have been incorrectly predicted
+as functional genes, no attempt is made to actively predict pseudogenes.
+Pseudogenes are initially identified at the transcript level, all transcripts
+are then compared on a gene by gene basis.
 
 Results from the Pseudogene analysis are usually written to the original
 reference (core) database.
- 
+
 The criteria for determining a transcript to be a pseudo-transcript are:
 
     * At least 80% of the introns are covered with repeats and the
@@ -487,51 +481,46 @@ The criteria for determining a transcript to be a pseudo-transcript are:
       ( evidence of retro-transposed flanking genomic DNA is also
       considered.)
 
-If a gene is found to contain a mixture of pseudo and real
-transcripts, the pseudo-transcripts are removed and the gene is
-considered to be functional. If a gene contains pseudo-transcripts
-exclusively the pseudo-transcripts and translations are deleted
-leaving only the longest transcript to represent the gene.
+If a gene is found to contain a mixture of pseudo and real transcripts, the
+pseudo-transcripts are removed and the gene is considered to be functional.
+If a gene contains pseudo-transcripts exclusively the pseudo-transcripts and
+translations are deleted leaving only the longest transcript to represent the
+gene.
 
 For more information, see section " 13.18 PseudoGene ".
 
-Viral pseudogenes are identified through a different method which
-uses a script to scan core databases after release to look for viral
-associated protein domains. The script produces a summary of the
-affected genes, a list of gene identifiers to remove and a list of
-supporting protein evidence to add to the kill list. If checking a
-database that is already on the website it can also generate an HTML
-click list so the results can easily be checked. The domains used to
-identify the genes are stored in a file called domain_kill_list.txt,
-they consist of primary domain profiles that are used to find the
-putative viral genes and secondary domain profiles that are used as
-supporting evidence that a gene is viral but are not considered to be
-proof on their own. Genes are considered viral if any of the following
-are true:
+Viral pseudogenes are identified through a different method which uses a script
+to scan core databases after release to look for viral associated protein
+domains. The script produces a summary of the affected genes, a list of gene
+identifiers to remove and a list of supporting protein evidence to add to the
+kill list. If checking a database that is already on the website it can also
+generate an HTML click list so the results can easily be checked. The domains
+used to identify the genes are stored in a file called domain_kill_list.txt,
+they consist of primary domain profiles that are used to find the putative
+viral genes and secondary domain profiles that are used as supporting evidence
+that a gene is viral but are not considered to be proof on their own. Genes are
+considered viral if any of the following are true:
 
     * They contain a hit to a primary domain and they have at least
-      one 'short' transcript. ( 'Short' = genomic span of CDS / CDS length >=
-      2 )
+      one 'short' transcript. ( 'Short' = genomic span of CDS / CDS length >= 2 )
 
     * They do not have any short transcripts but all the domains in
       all the transcripts are either primary or secondary domains
 
 
-Once the viral genes have been identified and the kill list collated
-the script then finds any other genes made from proteins on the kill
-list and applies the length filter to them to decide whether to kill
-them.
+Once the viral genes have been identified and the kill list collated the script
+then finds any other genes made from proteins on the kill list and applies the
+length filter to them to decide whether to kill them.
 
-For more information, see " 13.22 Viral genes, anti_virus.pl " 
-( contains documentation when you run it ).
+For more information, see " 13.22 Viral genes, anti_virus.pl " (contains
+documentation when you run it).
 
-Other genes have been removed in the past via a variety of techniques
-which collectively became known as "Dodgy genes", these were often
-genes built from flawed evidence that probably should never have
-been entered into the sequence databases. It does not really have a
-formal code base but is more of a list of criteria that can be used to
-highlight potentially problematic gene structures. Genes removed in
-this way include:
+Other genes have been removed in the past via a variety of techniques which
+collectively became known as "Dodgy genes", these were often genes built from
+flawed evidence that probably should never have been entered into the sequence
+databases. It does not really have a formal code base but is more of a list of
+criteria that can be used to highlight potentially problematic gene structures.
+Genes removed in this way include:
 
     * Genes with no PFAM or SMART domains, no orthologs or paralogs,
       that were not projected in any of the 2x genomes and have coding
@@ -540,8 +529,8 @@ this way include:
     * A combination of some of the above criteria and a lack of other
       evidence i.e. supporting ESTs or cDNAs.
 
-For the human genebuild this approach has been extended to incorporate
-the Alpheaus gene assessments.
+For the human genebuild this approach has been extended to incorporate the
+Alpheaus gene assessments.
 
 
 The program documentation to look at:
@@ -557,28 +546,27 @@ After the gene set is complete, we do:
 
 (i) Xrefs
 
-The xref system cross-references the structures in our database with sequences 
-in external databases. For example, human gene models that are found in the 
-CCDS set will be cross-referenced to the CCDS database and they will have a 
-link out to the external CCDS site. There are a number of databases that we 
+The xref system cross-references the structures in our database with sequences
+in external databases. For example, human gene models that are found in the
+CCDS set will be cross-referenced to the CCDS database and they will have a
+link out to the external CCDS site. There are a number of databases that we
 cross-reference to including EMBL, Uniprot, Unigene, RefSeq, Interpro, GO.
 
-The relevant modules can be found here:
-ensembl/misc-scripts/xref_mapping/
+The relevant modules can be found here: ensembl/misc-scripts/xref_mapping/
 
 See ensembl-doc/pipeline_docs/using_the_xref_system.txt for some explanation.
 
 A note on status and source: 
-If the protein evidence for a transcript is from the same species (usually 
-made in the targetted stage) then status = KNOWN. If the protein evidence 
-for a transcript is from a different species (usually made in the similarity 
-stage) then status = NOVEL. The status is set during the xref stage. 
+If the protein evidence for a transcript is from the same species (usually made
+in the targetted stage) then status = KNOWN. If the protein evidence for a
+transcript is from a different species (usually made in the similarity stage)
+then status = NOVEL. The status is set during the xref stage.
 
 (ii) Protein annotation
 
-Translations in the core database are searched for domains eg:
-Prints, PrositePatterns, PrositeProfiles, Pfam, Tigerfam, Smart, Superfamily, Pirsf
-Seq, SignalP, Ncoils, Tmhmm
+Translations in the core database are searched for domains eg: Prints,
+PrositePatterns, PrositeProfiles, Pfam, Tigerfam, Smart, Superfamily, Pirsf Seq,
+SignalP, Ncoils, Tmhmm
 
 See ensembl-doc/pipeline_docs/protein_annotation.txt
 
@@ -588,12 +576,15 @@ See ensembl-doc/pipeline_docs/ncRNAs.txt
 
 (iv) Stable ID mapping
 
-The stable id mapping code is written, maintained and run by Ensembl's Core team. It is used to assign stable ids to a new gene set: 
+The stable id mapping code is written, maintained and run by Ensembl's
+Core team. It is used to assign stable ids to a new gene set:
 ensembl/misc-scripts/id_mapping/README
 
 (v) Biotypes
 
-All protein-coding transcripts have biotype 'protein_coding'. Transcripts defined by the Pseudogene module as being pseudogenes will have biotype of 'pseudogene'. Non-coding RNAs are split into several biotypes.
+All protein-coding transcripts have biotype 'protein_coding'. Transcripts
+defined by the Pseudogene module as being pseudogenes will have biotype of
+'pseudogene'. Non-coding RNAs are split into several biotypes.
 
 A list of accepted biotypes can be found here:
 ensj-healthcheck/biotypes.txt
@@ -605,20 +596,34 @@ ensj-healthcheck/biotypes.txt
 
 12.1 Throughout the genebuild
 ==
-It is advisable to run quality checks throughout the genebuild, to make sure that one analysis doesn't produce weird results that affect downstream analyses. For example, we might check for stop codons in our transcripts after running UTR addition. If we wait until the end of a genebuild before doing these checks, and we find something went wrong, it could mean a lot of the genebuild work needs to be redone.
+It is advisable to run quality checks throughout the genebuild, to make sure
+that one analysis doesn't produce weird results that affect downstream analyses.
+For example, we might check for stop codons in our transcripts after running UTR
+addition. If we wait until the end of a genebuild before doing these checks, and
+we find something went wrong, it could mean a lot of the genebuild work needs to
+be redone.
 
 The following script finds most major errors:
 ensembl-analysis/scripts/buildchecks/check_GBgenes.pl
 
 See section "13.23 Gene Set QC" for more information.
 
-Grepping through the output files from this script can give you useful information such as:
-- approximate number of genes. (grep for "Reclustering reduced number of genes" and then print the sum of the 10th column eg. grep "Reclustering reduced number of genes"  outfiles_dir/* | awk '{sum +=$10} END {print sum}')
-- genes with errors. (grep "Number of genes with errors")
-- stop codons. (grep "Translation failed")
-- Biotype of translations with stop codons - sometimes it's one analysis (biotype) causing the problem.
+Grepping through the output files from this script can give you useful
+information such as:
+  - approximate number of genes. (grep for "Reclustering reduced
+    number of genes" and then print the sum of the 10th column eg. grep
+    "Reclustering reduced number of genes" outfiles_dir/* | awk '{sum +=$10} END {print sum}')
+  - genes with errors. (grep "Number of genes with errors")
+  - stop codons. (grep "Translation failed")
+  - Biotype of translations with stop codons - sometimes it's one
+    analysis (biotype) causing the problem.
 
-A second useful way for checking your results is to look at the transcript models in Apollo Gene Annotation Tool, to make sure that the models being made "look correct". Sometimes using the wrong parameters in an analysis can result in strange-looking transcript structures (eg. transcripts with unusually long introns) and it is sometimes easier to spot these by eye than by writing a script.
+A second useful way for checking your results is to look at the transcript
+models in Apollo Gene Annotation Tool, to make sure that the models being made
+"look correct". Sometimes using the wrong parameters in an analysis can result
+in strange-looking transcript structures (eg. transcripts with unusually long
+introns) and it is sometimes easier to spot these by eye than by writing a
+script.
 
 USEFUL SQL:
 
@@ -645,13 +650,16 @@ USEFUL SQL:
 
 12.2 At handover 
 ==
-Of course, at the end of the genebuild, we need to run a whole lot of checks before the data goes 'live'. These checks are called healthchecks and they can be found in an ensembl checkout called ensj-healthcheck.
+Of course, at the end of the genebuild, we need to run a whole lot of checks
+before the data goes 'live'. These checks are called healthchecks and they can
+be found in an ensembl checkout called ensj-healthcheck.
 
-The healthcheck code is written in Java and is maintained by our Ensembl-Core team.
-A detailed document on running the healthcecks can be found here:
+The healthcheck code is written in Java and is maintained by our Ensembl-Core
+team. A detailed document on running the healthcecks can be found here:
 ensj-healthcheck/README
 
-The healthchecks come in 2 types: those that relate directly to the data and those that relate to how the data has changed since the previous release.  
+The healthchecks come in 2 types: those that relate directly to the data and
+those that relate to how the data has changed since the previous release.
 
 Healthchecks relating directly to the data should check for things like:
 - are there stop codons in your transcripts?
@@ -663,13 +671,15 @@ Healthchecks relating directly to the data should check for things like:
 - have repeat-types and framshift attribute scripts been run?
 etc.
 
-Healthchecks relating to how the data has changed since the previous release should check for things like:
-(requires connection to database used for previous release)
+Healthchecks relating to how the data has changed since the previous release
+should check for things like: (requires connection to database used for previous
+release)
 - do you have a similar number of genes in this build as you did in the previous build?
 - For xrefs, do you have a similar number of cross-references as you did in the previous build?
 etc.
 
-All healthchecks of all types can be run in a single command for your species so you don't need to worry about missing any checks. eg. for human you would do:
+All healthchecks of all types can be run in a single command for your species so
+you don't need to worry about missing any checks. eg. for human you would do:
 
  cd ensj-healthcheck
  vi database.properties # enter database port, name
