@@ -2,10 +2,8 @@
 * Ensembl stable ID mapping developer guide *
 *********************************************
 
-Author: Patrick Meidl <meidl@ebi.ac.uk>
-
-Please post questions to the Ensembl developers mailinglist
-<ensembl-dev@ebi.ac.uk>
+Please post questions to the Ensembl developers mailing list
+<dev@ensembl.org>
 
 
 This document describes the technical details of the Ensembl stable ID mapping
