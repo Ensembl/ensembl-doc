@@ -274,7 +274,7 @@ Prints => {
 }
 
 In the RunnableDB, the input id is appended to this base directory to
-ontain the fully qualified name of the file to be analysed. 
+contain the fully qualified name of the file to be analysed. 
 
 Since many analyses share the same base directory, it saves typing to
 define this in the DEFAULT entry, and then to add extra
@@ -378,7 +378,7 @@ the database with such input ids (for the corresponding dummy
 analysis; see the_ensembl_pipeline_infrastructure.txt), do:
 
 perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
--dbname yourdatabase -dbport 3306 -translation_ids -logic_name SubmitTranslation
+-dbname yourdatabase -dbport 3306 -translation_ids -logic_name SubmitChunk
 
 Some analyses are so fast computationally that they can be given the
 whole proteome file and run in a reasonable time frame. These analyses
@@ -473,25 +473,16 @@ input_id_type=CHUNK
 [Prints]
 db=Prints
 db_file=/data/blastdb/Ensembl/interpro_scan/prints.pval
-program=FingerPRINTScan
-program_file=FingerPRINTScan
+program=/software//ensembl/bin/FingerPRINTScan
+program_file=/software//ensembl/bin/FingerPRINTScan
 module=ProteinAnnotation/Prints
 gff_source=Prints
 gff_feature=domain
 input_id_type=CHUNK
 
-[scanprosite]
-db=Prosite_patterns
-db_file=/data/blastdb/Ensembl/interpro_scan/prosite.patterns
-parameters=-confirm => /data/blastdb/Ensembl/interpro_scan/confirm.patterns
-module=ProteinAnnotation/PrositePattern
-gff_source=Prosite_pattern
-gff_feature=domain
-input_id_type=CHUNK
-
 [pfscan]
 db=Prosite_profiles
-db_file=/data/blastdb/Ensembl/interpro_scan_old/prosite.profiles
+db_file=/data/blastdb/Ensembl/interpro_scan/prosite.profiles
 program=pfscan
 program_file=pfscan
 module=ProteinAnnotation/PrositeProfile
@@ -501,61 +492,58 @@ input_id_type=CHUNK
 
 [Pfam]
 db=Pfam
-db_file=/data/blastdb/Ensembl/Pfam_ls;/data/blastdb/Ensembl/Pfam_fs
-program=hmmpfam
-program_file=hmmpfam
-parameters=--cut_ga
-module=ProteinAnnotation/Pfam
+db_file=/data/blastdb/Ensembl/interpro_scan/Pfam-A.hmm
+program=/software/ensembl/bin/hmmer3/hmmscan
+program_file=/software/ensembl/bin/hmmer3/hmmscan
+parameters=--acc --noali --cut_ga --cpu 1
+module=ProteinAnnotation/Hmmpfam
 gff_source=Pfam
 gff_feature=domain
-input_id_type=TRANSLATIONID
+input_id_type=CHUNK
 
 [Tigrfam]
 db=TIGRfam
 db_file=/data/blastdb/Ensembl/interpro_scan/TIGRFAMs_HMM.LIB
-program=hmmpfam
-program_file=hmmpfam
-parameters=--cut_ga
+program=/software/ensembl/bin/hmmer3/hmmscan
+program_file=/software/ensembl/bin/hmmer3/hmmscan
+parameters=--acc --noali --cut_tc --cpu 1
 module=ProteinAnnotation/Hmmpfam
 gff_source=TIGRFAM
 gff_feature=domain
-input_id_type=TRANSLATIONID
+input_id_type=CHUNK
 
 [Superfamily]
 db=Superfamily
 db_file=/data/blastdb/Ensembl/interpro_scan/superfamily.hmm
-program=hmmpfam
-program_file=hmmpfam
-parameters=-scopmap => /data/blastdb/Ensembl/interpro_scan/superfamily.tab, -evalue => 0.02
+program=/software/ensembl/bin/superfamily.pl
+program_file=/software/ensembl/bin/superfamily.pl
+parameters=-t /tmp -m /data/blastdb/Ensembl/interpro_scan/superfamily.hmm -d /data/blastdb/Ensembl/interpro_scan/superfamily.tab -a /data/blastdb/Ensembl/interpro_scan/superfamily.acc -p /software/ensembl/bin/hmmpfam -s /software/ensembl/bin/ 1e-05 -r y
 module=ProteinAnnotation/Superfamily
 gff_source=Superfamily
 gff_feature=domain
-input_id_type=TRANSLATIONID
+input_id_type=CHUNK
 
 [Smart]
 db=Smart
 db_file=/data/blastdb/Ensembl/interpro_scan/smart.HMMs
 program=hmmpfam
 program_file=hmmpfam
-parameters=-E 0.01
+parameters=-E 0.01 -A 100 -Z 350000 --acc --cpu 1
 module=ProteinAnnotation/Hmmpfam
 gff_source=Smart
 gff_feature=domain
-input_id_type=TRANSLATIONID
+input_id_type=CHUNK
 
 [PIRSF]
 db=PIRSF
-db_file=/data/blastdb/Ensembl/interpro_scan/sf_hmm;/data/blastdb/Ensembl/interpro_scan/sf_hmm_sub
-program=hmmpfam
-program_file=hmmpfam
-parameters=-thresholds => /data/blastdb/Ensembl/interpro_scan/pirsf.dat, -options => -E 0.01
+db_file=/data/blastdb/Ensembl/interpro_scan/pirsf.dat
+program=/software/ensembl/bin/pirsf.pl
+program_file=/software/ensembl/bin/pirsf.pl
+parameters=-pirsf /data/blastdb/Ensembl/interpro_scan/pirsf.dat -sfhmm /data/blastdb/Ensembl/interpro_scan/sf_hmm.bin -subsf /data/blastdb/Ensembl/interpro_scan/sf_hmm_sub -sfseq /data/blastdb/Ensembl/interpro_scan/sf.seq -sftb /data/blastdb/Ensembl/interpro_scan/sf.tb -hmmer /software/ensembl/bin/hmmpfam -blast /software/ensembl/bin/blastall
 module=ProteinAnnotation/PIRSF
 gff_source=PIRSF
 gff_feature=domain
-input_id_type=TRANSLATIONID
-
-[SubmitTranslation]
-input_id_type=TRANSLATIONID
+input_id_type=CHUNK
 
 [SubmitChunk]
 input_id_type=CHUNK
@@ -571,19 +559,19 @@ Rule configuration
 condition=SubmitProteome
 
 [Pfam]
-condition=SubmitTranslation
+condition=SubmitChunk
 
 [Tigrfam]
-condition=SubmitTranslation
+condition=SubmitChunk
 
 [Superfamily]
-condition=SubmitTranslation
+condition=SubmitChunk
 
 [Smart]
-condition=SubmitTranslation
+condition=SubmitChunk
 
 [PIRSF]
-condition=SubmitTranslation
+condition=SubmitChunk
 
 [Signalp]
 condition=SubmitChunk
@@ -672,18 +660,6 @@ BatchQueue.pm QUEUE_CONFIG entries
       output_dir => '/out/dir/prints',
     },
 
-    {
-      logic_name => 'scanprosite',
-      batch_size => 1,
-      resource   => 'linux',
-      retries    => 3,
-      sub_args   => '',
-      runner     => '',
-      queue      => 'normal',
-      cleanup    => 'yes',
-      runnabledb_path => 'Bio/EnsEMBL/Analysis/RunnableDB',
-      output_dir => '/out/dir/prositepatterns',
-    },
     {
       logic_name => 'pfscan',
       batch_size => 1,
