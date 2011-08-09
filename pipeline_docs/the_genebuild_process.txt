@@ -1128,9 +1128,9 @@ which can be created as described earlier in the document.
 13.12 TranscriptCoalescer
 ==
 
-This is a module for turning EST alignments into gene structures. It's
+This is a module for turning EST alignments into gene structures. Its
 RunnableDB is Bio::EnsEMBL::Analysis::RunnableDB::TranscriptCoalescer.
-It needs est alignments as input and these generally come from
+It needs EST alignments as input and these generally come from
 Exonerate2Genes. It can also take in genewise genes (generally
 similarity based) and ab initio predictions to try and add in
 resolution of the EST structures.
