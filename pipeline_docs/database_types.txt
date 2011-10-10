@@ -13,18 +13,21 @@ Overview
 6. The Vega database
 7. The Coreexpressionest database
 8. The Coreexpressiongnf database
+9. The Rnaseq database
 
 There are a number of different database types on the Ensembl public database server. For example, the human data for release 57 is found in the following databases:
 
-  mysql -NB -uanonymous -hensembldb.ensembl.org -P5306 -e "show databases like 'homo_sapiens%57%'"
-homo_sapiens_cdna_57_37b
-homo_sapiens_core_57_37b
-homo_sapiens_coreexpressionest_57_37b
-homo_sapiens_coreexpressiongnf_57_37b
-homo_sapiens_funcgen_57_37b
-homo_sapiens_otherfeatures_57_37b
-homo_sapiens_variation_57_37b
-homo_sapiens_vega_57_37b
+  mysql -NB -uanonymous -hensembldb.ensembl.org -P5306 -e "show databases like 'homo_sapiens%64%'"
+homo_sapiens_cdna_64_37
+homo_sapiens_core_64_37
+homo_sapiens_coreexpressionatlas_64_37
+homo_sapiens_coreexpressionest_64_37
+homo_sapiens_funcgen_64_37
+homo_sapiens_otherfeatures_64_37
+homo_sapiens_rnaseq_64_37
+homo_sapiens_variation_64_37
+homo_sapiens_vega_64_37
+
 
 
 1. The Core database
@@ -60,7 +63,7 @@ Currently only the human and mouse have a cdna database. This database holds *al
 ==
 The core database is provided by the Ensembl Genebuild team.
 
-Most high-coverage genomes are provided with an otherfeatures database. The holds gene-related information outside of the core Ensembl gene set (core db) and full set of cDNA alignments (cdna db).
+Most high-coverage genomes are provided with an otherfeatures database. The holds gene-related information outside of the core Ensembl gene set (core db) and full set of cDNA alignments (cdna db where available).
 
 The information within an otherfeatures database varies depending on what is available. An otherfeatures database will almost always contain the following analyses:
 * EST alignments of all species-specific ESTs
@@ -70,7 +73,7 @@ The information within an otherfeatures database varies depending on what is ava
 An otherfeatures database may also hold other data such as:
 * Alternate gene sets provided by external collaborators
 * CCDS models (human and mouse only)
-* RefSeq models (human only)
+* RefSeq models (human and mouse only)
 etc
 
 The otherfeatures database is generated as described in the_genebuild_process.txt under section called 'Alignment of cDNAs and ESTs'.  
@@ -101,4 +104,10 @@ This database is carried through each release. The data within does not change b
 8. The Coreexpressiongnf database
 ==
 This database is carried through each release. The data within does not change between releases.
+
+
+9. The Rnaseq database
+==
+This database holds gene models base don rnaseq data. Currently only human has an rnaseq database.
+
 
