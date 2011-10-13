@@ -113,7 +113,8 @@ Ncoils
 DESCRIPTION : Prediction of coiled-coil regions
 PROGRAM     : ncoils
 MODULE      : RunnableDB/ProteinAnnotation/Coil.pm
-DATA        : None
+DATA
+ model file (/usr/local/ensembl/data/coils)
 
 
 Tmhmm
@@ -135,6 +136,17 @@ PROGRAM     : FingerPRINTScan
 MODULE      : RunnableDB/ProteinAnnotation/Prints.pm
 DATA        :
  Fingerprint file (/data/blastdb/Ensembl/interpro_scan/prints.pval)
+
+
+pfscan
+------
+
+DESCRIPTION : scan a protein with a profile library
+PROGRAM     : pfscan
+MODULE      : RunnableDB/ProteinAnnotation/PrositeProfile
+DATA        :
+ Profile file (/data/blastdb/Ensembl/interpro_scan/prosite.profiles)
+
 
 
 PrositePatterns
@@ -162,18 +174,17 @@ Pfam
 ----
 
 DESCRIPTION : Hits to the Pfam database of protein domain HMMs
-PROGRAM     : hmmpfam
-MODULE      : RunnableDB/ProteinAnnotation/Pfam.pm
+PROGRAM     : hmmscan
+MODULE      : RunnableDB/ProteinAnnotation/Hmmpfam.pm
 DATA        :
- Full-length hit HMM library file (/data/blastdb/Ensembl/Pfam_ls)
- Fragment-hit HMM library file (/data/blastdb/Ensembl/Pfam_fs) 
+ Full-length hit HMM library file (/data/blastdb/Ensembl/interpro_scan/Pfam-A.hmm)
 
 
 Tigrfam
 -------
 
 DESCRIPTION : Hits to the TIGRfam database of protein domain HMMs
-PROGRAM     : hmmpfam
+PROGRAM     : hmmscan
 MODULE      : RunnableDB/ProteinAnnotation/Hmmpfam.pm
 DATA        : 
  HMM libary file (/data/blastdb/Ensembl/interpro_scan/TIGRFAMs_HMM.LIB)
@@ -188,6 +199,7 @@ MODULE      : RunnableDB/ProteinAnnotation/Superfamily.pm
 DATA        :
  HMM library file (/data/blastdb/Ensembl/interpro_scan/superfamily.hmm)
  Superfamily -> SCOP map (/data/blastdb/Ensembl/interpro_scan/superfamily.tab)
+ Accession file (/data/blastdb/Ensembl/interpro_scan/superfamily.acc)
 
 Smart
 -----
@@ -208,6 +220,7 @@ MODULE      : RunnableDB/ProteinAnnotation/PIRSF.pm
 DATA        : 
  Superfamily HMM library file (/data/blastdb/Ensembl/interpro_scan/sf_hmm)
  Sub-family HMM library file (/data/blastdb/Ensembl/interpro_scan/sf_hmm_sub)
+ Superfamily sequence file (/data/blastdb/Ensembl/interpro_scan/sf.seq
  Thresholds file (/data/blastdb/Ensembl/interpro_scan/pirsf.dat)
 
 
