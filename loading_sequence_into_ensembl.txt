@@ -193,6 +193,8 @@ isn't as fast
 The last step, once all seq regions and assemblies have been loaded, is that 
 you must run the set_top_level.pl script which is also found in
 ensembl-pipeline/scripts
+  
+  perl ./set_toplevel.pl -dbhost host -dbuser user -dbname my_db -dbpass ****  -dbport port
 
 This is a script which looks through the seq_region tables and establishes
 which seq regions have nothing above them assembly wise.  This would
@@ -210,3 +212,6 @@ genomes have their sequence and agp provided in subtly different forms.
 Hence the scripts' code will probably need fiddling with before they
 will do what you want them too. If you have any questions 
 ensembl-dev@ebi.ac.uk is a good place to ask them. 
+
+
+
