@@ -554,7 +554,7 @@ cross-reference to including EMBL, Uniprot, Unigene, RefSeq, Interpro, GO.
 
 The relevant modules can be found here: ensembl/misc-scripts/xref_mapping/
 
-See ensembl-doc/pipeline_docs/using_the_xref_system.txt for some explanation.
+See ensembl/misc-scripts/xref_mapping/docs/xrefs_detailed_docs.txt some explanation.
 
 A note on status and source: 
 If the protein evidence for a transcript is from the same species (usually made

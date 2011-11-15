@@ -379,7 +379,7 @@ This describes the processes of running an EST or cDNA based genebuild
 * running_the_protein_annotation.txt
 This describes how to run the protein annotation stage
 
-* using_the_xref_system.txt
+* ensembl/misc-scripts/xref_mapping/docs/xrefs_detailed_docs.txt 
 This describes how to use our xref system
 
 * custom_analyses.txt
