@@ -391,7 +391,7 @@ the database with such input ids (for the corresponding dummy
 analysis; see the_ensembl_pipeline_infrastructure.txt), do:
 
 perl make_input_ids -dbhost yourhost -dbuser yourusername -dbpass yourpass
--dbname yourdatabase -dbport 3306 -translation_ids -logic_name SubmitChunk
+-dbname yourdatabase -dbport 3306 -translation_ids -logic_name SubmitTranslation
 
 Some analyses are so fast computationally that they can be given the
 whole proteome file and run in a reasonable time frame. These analyses
@@ -488,6 +488,7 @@ db=Prints
 db_file=/data/blastdb/Ensembl/interpro_scan/prints.pval
 program=/software//ensembl/bin/FingerPRINTScan
 program_file=/software//ensembl/bin/FingerPRINTScan
+parameters=-e 0.0001 -d 10 -E 257043 84355444 -fjR -a -o 15
 module=ProteinAnnotation/Prints
 gff_source=Prints
 gff_feature=domain
