@@ -1,6 +1,6 @@
 This document covers how to run ncRNA annotations on one or more genomes using an automated
 system. The second half of the document details the modules involved.
-If you have any questions about it please contact ensembl-dev@ebi.ac.uk
+If you have any questions about it please contact dev@ensembl.org
 
 Code
 ----
@@ -176,7 +176,7 @@ The next section talks in detail about how the modules work.
 
 
 This section covers the ncRNA annotation modules within the ensembl pipeline system. If
-you have any questions about it please contact ensembl-dev@ebi.ac.uk
+you have any questions about it please contact dev@ensembl.org
 
 Non coding RNAs are involved in many biological processes and are increasingly
 seen as important. As is the case with proteins, it is the overall structure of
