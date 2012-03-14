@@ -1,0 +1,406 @@
+Genebuilding with RNA-Seq
+*************************
+
+This is a document aiming to explain how to use ensembl code to build gene models from paired end RNA-Seq data
+
+What you will need
+==================
+We need several sets of perl code in order to run. These
+are all freely available via CVS (see overview.txt).
+
+These are required
+
+ensembl
+ensembl-pipeline
+ensembl-analysis
+ensembl-personal
+ensembl-doc ( "helpful" documentation )
+
+you also need bioperl which is again freely available
+
+bioperl-live (bioperl-release-1-2-3)
+
+This document assumes familiarity with the Ensembl pipeline system, for further documentation detailing pipeline set up and use see ensembl-doc.
+
+We currently run genomic alignments of the reads using BWA - Li H. and Durbin R. (2009) Fast and accurate short read alignment with Burrows-Wheeler Transform. Bioinformatics, 25:1754-60. [PMID: 19451168]
+We use samtools for alignment processing - Li H.*, Handsaker B.*, Wysoker A., Fennell T., Ruan J., Homer N., Marth G., Abecasis G., Durbin R. and 1000 Genome Project Data Processing Subgroup (2009) The Sequence alignment/map (SAM) format and SAMtools. Bioinformatics, 25, 2078-9. [PMID: 19505943]
+We use Exonerate for aligning split reads ( introns ) http://www.ebi.ac.uk/~guy/exonerate/
+
+The pipeline consists of 4 main steps and 1 QC step.
+1. Aligning the reads to the genome (BWA)
+2. Building "rough" transcript structures from the aligned reads (Bam2Genes module)
+3. Making intron features using Exonerate (Bam2Introns module)
+4. Combining the intron features with the "rough" transcripts to build refined gene models. (RefineSolexaGenes module)
+5. (optional) Alignment of the predicted open reading frames to a BLAST database ie: Uniprot (BlastRNA-SeqPep module)
+
+
+1. Aligning to the genome
+==========================
+
+BWA can be run as part of the ensembl pipeline. There is a document explaining how the pipeline can be automatically configured: ensembl-analysis/Scripts/RNASeq/README
+First you need to dump the sequence of your genome without using the ensembl style headers ie: use 1 or chr1 rather than chromosome:ZV9:1:1:1999999:1 this is because the
+colons used in the ensembl style header are special characters in SAM format headers.
+Next you need to index the genome flat file using BWA something like:
+bwa index /path/to/my/genome_file.fa
+
+The pipeline is configured from a tab deliminated flat file detailing the file names and meta data associated with the sequencing run.
+The pipeline is run using the rulemanager and the lanes are aligned using BWA.
+
+Remeber - all this is performed by the pipeline modules BWA and BWA2BAM which are auto configured using the setup_rnaseq_pipeline.pl script in  ensembl-analysis/Scripts/RNASeq
+
+BWA command line for reference:
+bwa aln -n 50 -i 100 -f  alignment_1.sai /path/to/my/genome_file.fa /path/to/my/fastq_1.fastq
+bwa aln -n 50 -i 100 -f  alignment_2.sai /path/to/my/genome_file.fa /path/to/my/fastq_2.fastq
+
+In this case we are aligning 100bp reads the -i 100 means do not allow indels anywhere in the alignment the -n 50 is allow up to half the alignment to be miss matched, this
+is so we can align reads that are split over exon boundaries.
+
+Then the alignments are paired and the results written out into BAM format, 
+
+sampe command line:
+bwa sampe -A -a 200000 -f  paired_alignment.sam /path/to/my/genome_file.fa alignment_1.sai  alignment_2.sai /path/to/my/fastq_1.fastq /path/to/my/fastq_2.fastq
+
+BAM files are created from the SAM format using samtools, ie:
+
+samtools view command line:
+samtools view -S -b paired_alignment.sam  -o  alignment.bam
+
+the BAM file is sorted indexed and multiple bam files may be merged
+samtools sort and index commands:
+samtools sort alignment.bam   alignment_sorted
+samtools merge pooled_PE.bam alignment_PE_sorted_lane_1.bam alignment_PE_sorted_lane_2.bam alignment_PE_sorted_lane_3.bam
+samtools index pooled_PE.bam
+
+This gives us one large sorted indexed BAM file that is the basis of all the downstream analysis.
+All this is performed by the pipeline modules BWA and BWA2BAM which are auto configured using the 
+
+2. Building Rough transcripts
+==============================
+
+
+Next we run Bam2Genes to make rough models
+Here is some example configuration that can be used to set up the analyses
+Analysis config:
+
+[SubmitChromosome]
+input_id_type=CHROMOSOME
+
+[bam2genes]
+module=Bam2Genes
+input_id_type=CHROMOSOME
+
+[bam2introns]
+module=Bam2Introns
+input_id_type=STABLEID
+program=exonerate-0.9.0
+program_file=/usr/local/ensembl/bin/exonerate-0.9.0
+
+[SubmitBam2Introns]
+input_id_type=STABLEID
+
+[sam2bam]
+module=Bio::EnsEMBL::Analysis::RunnableDB::Sam2Bam
+program=samtools
+program_file=/software/solexa/bin/samtools
+input_id_type=GENOME
+
+[submit_sam2bam]
+module=DUMMY
+input_id_type=GENOME
+
+[refine_genes]
+module=Bio::EnsEMBL::Analysis::RunnableDB::RefineSolexaGenes
+input_id_type=CHROMOSOME
+
+[RNA-SeqBlast]
+db=BlastDB
+db_file=/path/to/my/BlastDB
+program=wublastp
+program_file=wublastp
+parameters=-cpus => 1, -hitdist => 40
+module=BlastRNA-SeqPep
+gff_source=wublastp
+gff_feature=similarity
+input_id_type=CHROMOSOME
+
+
+
+Rules config:
+[bam2genes]
+condition=SubmitChromosome
+[bam2introns]
+condition=SubmitBam2Introns
+[sam2bam]
+condition=submit_sam2bam
+[refine_genes]
+condition=SubmitChromosome
+[RNA-SeqBlast]
+condition=SubmitChromosome
+
+These config are loaded into the pipeline databases using scripts found in ensembl-pipeline/Scripts
+
+# analyses
+  perl ensembl-pipeline/analysis_setup.pl -dbname my_pipeline_db -dbuser admin -pass password -port 3306 -read -file RNA-Seq_analysis.conf
+# rules
+  perl ensembl-pipeline/rule_setup.pl  -dbname my_pipeline_db -dbuser admin -pass password -port 3306   -read -file RNA-Seq_rules.conf
+
+Once the pipeline and output databases are set up you need to configure the module; this can be based on the example config in:
+/ensembl-analysis/modules/Bio/EnsEMBL/Analysis/Config/GeneBuild/Bam2Genes.pm.example
+
+A typical config would look like this:
+
+package Bio::EnsEMBL::Analysis::Config::GeneBuild::Bam2Genes;
+
+use strict;
+use vars qw( %Config );
+
+# Hash containing config info
+%Config = (
+
+BAM2GENES_CONFIG_BY_LOGIC =>
+    {
+     DEFAULT => {
+                 # databases are defined as hash keys from Bio::EnsEMBL::Analysis::Config::Databases
+                 OUTPUT_DB    => '',
+                 
+                 # location of sorted and indexed bam file containing genomic alignments
+                 ALIGNMENT_BAM_FILE => '',
+                 
+                 # logic_name for repeats will be used to merge exons separated by repeats
+
+                 # leave blank if you don't want to fill in the gaps ( shouldn't be needed  with BWA anyway )
+                 REPEAT_LN  => '',
+
+                 # options for filtering out small gene models
+                 MIN_LENGTH => 300,
+                 MIN_EXONS  =>   1,
+                 
+                 # we need to remove the 1 or 2 tag from the end of the paired read names so
+                 # we can pair them by name, this regex will usually work but if you have
+                 # reads with differently structured headers you may need to tweak it
+                 PAIRING_REGEX => '_\d',
+                 
+                 #?genes with a span < MIN_SPAN will also be considered single exon
+                 MIN_SINGLE_EXON_LENGTH => 1000,
+                 
+                 # 'span' = genomic extent / cdna length
+                 MIN_SPAN   =>   1.5,
+                 
+                 },
+       bam2genes => {
+                     OUTPUT_DB    => 'ROUGH_MODELS',
+                         ALIGNMENT_BAM_FILE => '/path/to/my/sorted/indexed/bam_file.bam',
+                     },
+    }
+);
+
+Starting the pipeline should result in writing transcript models into your output database.
+
+3. Making Intron features
+=========================
+In order to make the intron alignments it is first necessary to give stable ids to your rough models this can be done thus:
+mysql -u admin -ppassword -h database_instance -P3306 -D"rough_models" -e"\
+truncate table gene_stable_id; truncate table transcript_stable_id; truncate table exon_stable_id;\
+insert into gene_stable_id select gene_id, concat( 'BAMG',lpad(gene_id,11,'0')), 0, now(),now() from gene;\
+insert into transcript_stable_id select transcript_id, concat( 'BAMT',lpad(transcript_id,11,'0')), 0, now(),now() from transcript;\
+insert into exon_stable_id select exon_id, concat( 'BAME',lpad(exon_id,11,'0')), 0, now(),now() from exon;"
+
+These are used as input ids for the next stage - the input ids can be made in this way:
+mysql -N -u admin -ppassword -h database_instance -P3306 -D"rough_models"   -e"\
+select 'INSERT INTO input_id_analysis values(@',stable_id,'@,@STABLEID@,X,now(),@@,@@,0);' from gene_stable_id;" \
+| sed 's/@/"/g' | sed 's/\t//g' > intron_iids.sql
+
+mysql -N -u admin -ppassword -h database_instance -P3306 -D"rough_models"  < $BUILD/intron_iids.sql
+
+NOTE: the X in the first line "@STABLEID@,X,now()" should be replaced with the analysis_id of the Bam2Introns module.
+
+This module works by selecting partially aligned reads from the bam file and realining then against the sequence of the rough model or the genomic range covered by the model,
+the realignment is preformed using Exonerate with a shorter word length and the est2genome splice model.
+The realignment needs to be perfomed using a specific read length so if your BAM file contains a mixture of read lengths you should run multiple analyses, one for each
+length.
+
+A typical config would look like this:
+package Bio::EnsEMBL::Analysis::Config::GeneBuild::Bam2Introns;
+
+use strict;
+use vars qw( %Config );
+
+%Config = (
+
+ BAM2INTRONS_CONFIG_BY_LOGIC =>  {
+           DEFAULT =>  {
+            ##############################################
+            # You can write out the alignments in SAM / BAM format
+        # specify the path to an output directory here
+        # files will be created as input_id.sam - overrides the output db(s)
+        OUT_SAM_DIR => '/path/to/output/directory',   
+        # dont allow more then X % missmatches ie a number of 6%  = 2 missmatches on a 35 bp read
+        # and 4 missmatches on a 75 bp read etc..
+        MISSMATCH => 6,
+            # Database to fetch the trancripts from
+            TRANSDB => 'ROUGH_DB',
+        # Loaction of BAM file containg the genomic alignments
+        BAM_FILE  => '/path/to/bam/sw4/file/pooled_PE.bam',
+        # Exonerate word length, smaller = more accurate takes longer
+        WORD_LENGTH => '10 ',
+        # repeat masks the transcript sequences - quick but you might miss something
+        MASK => '0',
+        # length of the reads to fetch
+        READ_LENGTH => '100',
+        # use the full genomic sequence rather than just the transcript sequence
+        FULLSEQ   => 1,
+        # maximum (genomic) length roughmodel for using fullseq, any larger and it will switch
+        # to transcript seq to save CPU and mem
+        MAX_TRANSCRIPT => 1000000,
+        # number of reads to align in each batch
+        BATCH_SIZE => 100000,
+               },
+   bam2introns =>{},
+    }
+
+Once the rulemanager has finished there should be a large directory structure within the output directory that contains SAM files for each of the rough models that produced
+results. The Sam2Bam module will tidy these files up into one large BAM file and will warn if there were any failures during the previous run. Failures can ususaly be
+resolved by rerunning the specific jobs that failed.
+
+A sample config for Sam2Bam
+package Bio::EnsEMBL::Analysis::Config::GeneBuild::Sam2Bam;
+
+use strict;
+use vars qw( %Config );
+
+%Config = (
+ SAM2BAM_CONFIG_BY_LOGIC =>  {
+           DEFAULT =>  {
+         # directory containing the sam file(s)
+         SAM_DIR => '/path/to/output/directory',
+         # path to the bam file to produce as output
+         BAMFILE => '/path/to/output/bam/introns.sam',
+         # regex to identify which SAM files to merge
+         REGEX => '.sam',
+         # path to dumped genome file used for the alignment
+         # it will make an index for it if one does not already exist
+         GENOMEFILE => '/path/to/my/genome_file.fa',
+           },    
+       sam2bam => {},
+    }
+
+4. Building Refined genes
+==========================
+
+Once the BAM file containing introns is complete the next stage is to combine the introns and exons from the rough models in a combinatorial way to create finished
+transcripts with CDS. The RefineSolexaGenes module performs this task.
+Here is an example config file
+package Bio::EnsEMBL::Analysis::Config::GeneBuild::RefineSolexaGenes;
+
+use strict;
+use vars qw( %Config );
+
+# Hash containing config info
+%Config = (
+
+        REFINESOLEXAGENES_CONFIG_BY_LOGIC =>
+          {
+           DEFAULT => {
+               # databases are defined as hash keys from Bio::EnsEMBL::Analysis::Config::Databases
+                       OUTPUT_DB => 'REFINED_DB',
+           INTRON_DB => '',
+           MODEL_DB  => 'ROUGH_DB',
+           
+
+           # Using bam file to fetch intron features overrides the INTRON_DB
+                   INTRON_BAM_FILE => '/path/to/my/intron/BAM/introns_sorted.bam',
+
+           # write the intron features into the OUTPUT_DB along with the models
+           WRITE_INTRONS => 1,
+           
+           # maximum number of times to loop when building all possible paths through the transcript
+           MAX_RECURSIONS => 100000,
+                       
+           # analysis logic_name for the dna_align_features to fetch from the INTRON_DB
+           # If left blank all features will be fetched
+           LOGICNAME => [],
+           
+           # logic name of the gene models to fetch
+           MODEL_LN  => '',
+           
+           # penalty for removing a retined intron
+           RETAINED_INTRON_PENALTY => 2,
+           
+           # minimum size for an intron
+           MIN_INTRON_SIZE  => 30,   
+           
+           # biotype to give to single exon models if left blank single exons are ignored
+           SINGLE_EXON_MODEL => 'single_exon',
+       
+           # minimum single exon size (bp)
+           MIN_SINGLE_EXON => 1000,
+       
+           # minimum percentage of single exon length that is coding
+           SINGLE_EXON_CDS => 66,
+           
+           # Intron with most support determines the splice sites for an internal exon
+           # lower scoring introns with different splice sites are rejected
+           
+           STRICT_INTERNAL_SPLICE_SITES => 1,
+           
+           # In some species alternate splice sites for end exons seem to be common
+           STRICT_INTERNAL_END_EXON_SPLICE_SITES => 1,
+           
+           # biotypes to give gene models if left blank these models will not get written to the output database
+           # best score - model with most supporting intron features
+           BEST_SCORE => 'best',
+           # all other possible models
+           OTHER_ISOFORMS => '',
+                       # max number of other models to make - blank = all
+           OTHER_NUM      => '10',
+           
+                       # max number of other models to process - blank = all
+           MAX_NUM      => '1000',
+           
+           # biotype to label bad models ( otherwise they are not written )
+           BAD_MODELS     => '',
+                  },
+       refine_genes => {},
+       }
+       
+);
+
+The module will produce a configurable number of transcripts per loci, here it is configured to output the single highest scoring transcript per loci.
+The WRITE_INTRONS variable enables the intron features to be written to the output database as dna_align_features with a score that represents the number of reads that splice
+in that way, these can be useful for visualisation and analysis of the models.
+
+5. Alignment of the predicted open reading frames to a BLAST database ie: Uniprot (BlastRNA-SeqPep module)
+=========================================================================================================
+
+This module is a QC step that takes the sequence of the RNA-Seq transcripts and blasts them against an WASHU formatted protein blast db of your choice, I use Uniprot PE 1 and 2
+proteins. You also need to index the protein sequences used in the BLASTDB using indicate.
+The resulting hits are processed and stored as transcript supporting protein align features, the hcoverage field represents the % coverage of the target protein ( in
+this case Uniprot) by the RNA-Seq open reading frame (ORF)and the %ID value is replaced by the % coverage of the RNA-Seq ORF by the target.
+Here is an example config:
+package Bio::EnsEMBL::Analysis::Config::GeneBuild::BlastRNA-SeqPep;
+
+use strict;
+use vars qw( %Config );
+
+# Hash containing config info
+%Config = (
+
+        BLASTRNA-SeqPEP_CONFIG_BY_LOGIC =>
+          {
+           DEFAULT => {
+               # databases are defined as hash keys from Bio::EnsEMBL::Analysis::Config::Databases
+                       OUTPUT_DB => 'REFINED_UNIPROT',
+           MODEL_DB  => 'REFINED_DB',
+           
+           # If left blank all refined genes will be fetched
+           LOGICNAME => '',
+           
+           # path to index to fetch the sequence of the blast hit to calculate % coverage
+           INDEX => '/path/to/my/protein/index/index',
+                },
+       RNA-SeqBlast => {},
+       }
+       
+);
+
+Filtering the RNA-Seq models based on the percentage coverage should help clean up the final gene set for use in a genebuild.
