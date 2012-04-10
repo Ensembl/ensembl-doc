@@ -124,13 +124,10 @@ The steps 4 & 5 need to be repeated for the different ditag libraries and usuall
 6. Reduce Complexity & Mess
 ===========================
 
-Check for redundancy in loaded ditags:
- perl scripts/reduce_complexity.pl -duplication -oldanalysis FANTOM_GSC > duplicates.sql
-Collapse same locations if necessary:
- perl scripts/reduce_complexity.pl -oldanalysis FANTOM_GSC -newanalysis FANTOM_GSC_collapsed -oldtype ZZ11 -newtype ZZ11_c [-write]
-Rename the analysis' at the end, as only the collapsed set should be drawn for web display.
+Run the script ensembl-analysis/scripts/remove_messy_tags.pl to remove clusters of nasty ditags.
+ perl ensembl-analysis/scripts/remove_messy_tags.pl -dbhost host -dbname dbname -ditag_analysis FANTOM_GSC > remove_tags
 
-Run the script scripts/remove_messy_tags.pl to remove clusters of nasty ditags.
+the output file contains UPDATE commands, setting the analysis_id to 1001 (arbitrarily chosen) for ditags to remove
 
 
 7. Check display
