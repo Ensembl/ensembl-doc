@@ -108,6 +108,6 @@ This database is carried through each release. The data within does not change b
 
 9. The Rnaseq database
 ==
-This database holds gene models base don rnaseq data. Currently only human has an rnaseq database.
+This database can hold gene models and intron features (dna_align_features) based on rnaseq data. The data_file table may also be used to store a list of BAM files available. Not all species have an rnaseq database as rnaseq data are sometimes stored in the otherfeatures database.
 
 
