@@ -169,6 +169,9 @@ translation of a non coding primary transcript.
 
 This should be all you need to run the ncRNA analysis for a genome.
 
+Please remember that we usually import annotation on the MT chromosome directly from the relevant Genbank file
+so if this ncRNA pipeline predicts any ncRNAs on the MT chromosome then we usually delete these from the database.
+
 The next section talks in detail about how the modules work.
 
 
