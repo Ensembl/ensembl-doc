@@ -416,7 +416,7 @@ OUTPUT FEATURE TYPE: Bio::EnsEMBL::SimpleFeature
 OUTPUT TABLE: simple_feature
 
 SOURCE: the program is available from here: 
-http://selab.janelia.org/tRNAscan-SE/
+http://lowelab.ucsc.edu/tRNAscan-SE/
 
 
 Setting up and running the raw compute pipeline
