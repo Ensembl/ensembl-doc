@@ -485,6 +485,7 @@ input_id_type=CHUNK
 
 [Prints]
 db=Prints
+db_version=2011-06-28
 db_file=/data/blastdb/Ensembl/interpro_scan/prints.pval
 program=/software//ensembl/bin/FingerPRINTScan
 program_file=/software//ensembl/bin/FingerPRINTScan
@@ -496,6 +497,7 @@ input_id_type=CHUNK
 
 [pfscan]
 db=Prosite_profiles
+db_version=2011-08-24
 db_file=/data/blastdb/Ensembl/interpro_scan/prosite.profiles
 program=pfscan
 program_file=pfscan
@@ -507,6 +509,7 @@ input_id_type=CHUNK
 [Pfam]
 db=Pfam
 db_file=/data/blastdb/Ensembl/interpro_scan/Pfam-A.hmm
+db_version=2011-08-24
 program=/software/ensembl/bin/hmmer3/hmmscan
 program_file=/software/ensembl/bin/hmmer3/hmmscan
 parameters=--acc --noali --cut_ga --cpu 1
@@ -518,6 +521,7 @@ input_id_type=CHUNK
 [Tigrfam]
 db=TIGRfam
 db_file=/data/blastdb/Ensembl/interpro_scan/TIGRFAMs_HMM.LIB
+db_version=2011-06-28
 program=/software/ensembl/bin/hmmer3/hmmscan
 program_file=/software/ensembl/bin/hmmer3/hmmscan
 parameters=--acc --noali --cut_tc --cpu 1
@@ -529,6 +533,7 @@ input_id_type=CHUNK
 [Superfamily]
 db=Superfamily
 db_file=/data/blastdb/Ensembl/interpro_scan/superfamily.hmm
+db_version=2012-02-27
 program=/software/ensembl/bin/superfamily.pl
 program_file=/software/ensembl/bin/superfamily.pl
 parameters=-t /tmp -m /data/blastdb/Ensembl/interpro_scan/superfamily.hmm -d /data/blastdb/Ensembl/interpro_scan/superfamily.tab -a /data/blastdb/Ensembl/interpro_scan/superfamily.acc -p /software/ensembl/bin/hmmpfam -s /software/ensembl/bin/ -e 1e-05 -r y
@@ -540,6 +545,7 @@ input_id_type=CHUNK
 [Smart]
 db=Smart
 db_file=/data/blastdb/Ensembl/interpro_scan/smart.HMMs
+db_version=2011-06-28
 program=hmmpfam
 program_file=hmmpfam
 parameters=-E 0.01 -A 100 -Z 350000 --acc --cpu 1
@@ -551,6 +557,7 @@ input_id_type=CHUNK
 [PIRSF]
 db=PIRSF
 db_file=/data/blastdb/Ensembl/interpro_scan/pirsf.dat
+db_version=2011-06-28
 program=/software/ensembl/bin/pirsf.pl
 program_file=/software/ensembl/bin/pirsf.pl
 parameters=-pirsf /data/blastdb/Ensembl/interpro_scan/pirsf.dat -sfhmm /data/blastdb/Ensembl/interpro_scan/sf_hmm.bin -subsf /data/blastdb/Ensembl/interpro_scan/sf_hmm_sub -sfseq /data/blastdb/Ensembl/interpro_scan/sf.seq -sftb /data/blastdb/Ensembl/interpro_scan/sf.tb -hmmer /software/ensembl/bin/hmmpfam -blast /software/ensembl/bin/blastall
