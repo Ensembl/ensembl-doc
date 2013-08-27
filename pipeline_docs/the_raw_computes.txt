@@ -549,7 +549,7 @@ db=uniuni
 db_file=uniuni
 program=wutblastn
 program_file=wutblastn
-parameters=-cpus => 1, -hitdist => 40
+parameters=cpus 1 -hitdist 40
 module=BlastGenscanDNA
 input_id_type=CONTIG
 
@@ -597,7 +597,7 @@ db=embl_vertrna
 db_file=embl_vertrna
 program=wutblastn
 program_file=wutblastn
-parameters=-cpus => 1, -hitdist => 40
+parameters=cpus 1 -hitdist 40
 module=BlastGenscanDNA
 input_id_type=CONTIG
 
@@ -612,7 +612,7 @@ db=uniprot
 db_file=uniprot
 program=wublastp
 program_file=wublastp
-parameters=-cpus => 1, -hitdist => 40
+parameters=cpus 1 -hitdist 40
 module=BlastGenscanPep
 input_id_type=CONTIG
 
