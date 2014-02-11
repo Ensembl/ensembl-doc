@@ -148,7 +148,7 @@ Configuration of Bio::EnsEMBL::Analysis::Config::Databases:
                            -dbname => 'jhv_fsk_3_41_orth',
                            -host =>   'genebuild6',
                            -port =>   '3306'
-                           -user =>   '***REMOVED***',
+                           -user =>   'ensadmin',
                            -pass =>   '********',
                          },
 

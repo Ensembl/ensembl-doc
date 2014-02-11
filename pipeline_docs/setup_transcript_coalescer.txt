@@ -123,7 +123,7 @@ in one of the Database-configuration-files.
     need to specify the dbconnection parameters to your refdb. The results are written
     in a file which you than can source in using the command
 
-     mysql -h ia64g -D my_refdb -u***REMOVED*** -pxxxxxx  < input_ids.sql
+     mysql -h ia64g -D my_refdb -uensadmin -pxxxxxx  < input_ids.sql
 
     perl ensembl-pipeline/scripts/GeneBuild/make_TranscriptCoalescer_inputIDS.pl \
     -seq_region_name all \

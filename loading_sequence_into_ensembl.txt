@@ -8,7 +8,7 @@ What you need
 =============
 
 *a mysql instance
-*The ensembl core CVS module named ***REMOVED***
+*The ensembl core CVS module named 'ensembl'
 *bioperl
 
 This documents describes scripts which are found in the ensembl-pipeline

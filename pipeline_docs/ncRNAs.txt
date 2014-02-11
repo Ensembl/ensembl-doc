@@ -327,7 +327,7 @@ module to run on.
 
 The script is in ensembl-pipeline/scripts
 
-perl predict_ncRNA -dbname name -dbuser ***REMOVED*** -dbport 3306 -dbpass
+perl predict_ncRNA -dbname name -dbuser ensadmin -dbport 3306 -dbpass
 ******* -dbhost ecs1a -aln ncRNA -dln DummyFlag -chunk 50
 
 -aln is the analysis logic name for the Infernal module
@@ -375,7 +375,7 @@ database.
 4. run the predict_ncRNA script - identifies likely ncRNAs and makes input ids
 for the Infernal module. (ensembl-pipeline/scripts/ncRNA/predict_ncRNA.pl)
 
-ie : perl predict_ncRNA -dbname name -dbuser ***REMOVED*** -dbport 3306 -dbpass
+ie : perl predict_ncRNA -dbname name -dbuser ensadmin -dbport 3306 -dbpass
 ******* -dbhost ecs1a -aln ncRNA -dln DummyFlag -chunk 50
 
 5. re-run the rule manager - Infernal will run and write ncRNA genes into

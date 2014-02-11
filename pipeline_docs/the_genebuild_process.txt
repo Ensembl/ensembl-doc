@@ -1530,7 +1530,7 @@ Now you are ready to get the system running. This actually uses
 the ensembl-hive system and the control script is found in
 ensembl-hive/scripts
 
-  perl beekeeper.pl -url mysql://***REMOVED***:ensembl@genebuild7:3306/lec_tetraodon_8_compara -loop
+  perl beekeeper.pl -url mysql://***REMOVED***@genebuild7:3306/lec_tetraodon_8_compara -loop
 
 Once this has run you can run the various different orthology
 assessment code. Before doing this it is a good idea to backup your
@@ -2015,9 +2015,9 @@ Bio/EnsEMBL/Analysis/Config/Pseudogene.pm,
 Bio/EnsEMBL/Analysis/Config/GeneBuild/UTR_Builder.pm,
 Bio/EnsEMBL/Analysis/Config/GeneBuild/TranscriptConsensus.pm
 
-Nearing the end of a genebuild you may have a number of different biotypes in your database, although all transcripts are protein-coding. Running the GeneBuilder code will merge transcripts from various analyses and give all final genes a biotype of ***REMOVED***. Running the pseudogene code will update the biotypes of pseudogenes.
+Nearing the end of a genebuild you may have a number of different biotypes in your database, although all transcripts are protein-coding. Running the GeneBuilder code will merge transcripts from various analyses and give all final genes a biotype of 'ensembl'. Running the pseudogene code will update the biotypes of pseudogenes.
 
-Once the gene set is finalised then you can update the biotype of ***REMOVED*** genes to 'protein_coding' manually.
+Once the gene set is finalised then you can update the biotype of 'ensembl' genes to 'protein_coding' manually.
 
 
 ===============================

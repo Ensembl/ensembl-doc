@@ -343,7 +343,7 @@ User description (should this go elsewhere?):
 # filtering. These are typically short repetive sequencs).
 
 # Note: this needs stuff from Algorithm::Diff, which will be found under
-# $FAMPATH/modules; seeï¿½e setenv.{c}sh  bit above. 
+# $FAMPATH/modules; seeþe setenv.{c}sh  bit above. 
 
 # ------------------------------------------------------------------------
 # new directory for the families:
@@ -398,7 +398,7 @@ mkdir ../families
     mouse='database=mouse_gb_aug01;host=ecs1d;user=ensro'
     ensdbs="$human,$mouse"
 
-    famdbconnect='database=family110;host=ensrv3;user=***REMOVED***;pass=secret'
+    famdbconnect='database=family110;host=ensrv3;user=ensadmin;pass=secret'
 
     perl $scripts/family-input.pl -r 3 -C $tablesql \
 
@@ -409,8 +409,8 @@ mkdir ../families
 # database and tables). Creating the new family database + tables (when not
 # available) may be easier by hand, with 
 
-  mysqladmin -u ***REMOVED*** -pSECRET create DATABASENAME; 
-  mysql -u ***REMOVED*** -pSECRET DATABASENAME < $tablesql
+  mysqladmin -u ensadmin -pSECRET create DATABASENAME; 
+  mysql -u ensadmin -pSECRET DATABASENAME < $tablesql
 
 #
 # Very occasionally, you get one protein ending up in two families. This is
@@ -544,7 +544,7 @@ mkdir ../families
 
 # and then apply it to the database as
  
-  mysql -h host -u ***REMOVED*** -pSECRET the-database-name \ 
+  mysql -h host -u ensadmin -pSECRET the-database-name \ 
        < family-map.sql >& family-map.log 
 #
 # 

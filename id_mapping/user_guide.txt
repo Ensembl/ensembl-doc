@@ -229,7 +229,7 @@ Database connection settings:
 
   targethost - target db host (e.g. 'ens-staging')
   targetport - target db port (e.g. '3306')
-  targetuser - target db username (e.g. '***REMOVED***' since read/write access is
+  targetuser - target db username (e.g. 'ensadmin' since read/write access is
                required for target db)
   targetpass - target db password
   targetdbname - target db name (e.g. homo_sapiens_core_49_36k)

@@ -36,7 +36,7 @@ Here are the raw computes which have been run for the release 3:
 \textbf{Particularities}\\
 \textbf{RepeatMasker} is ran with a customed library (in the latest RepeatMastker directory there /usr/local/ensembl/lib/). The parameter used should be the following: \--lib anopheles.\\
 \textbf{Genscan} has been tried with the arabidopsis matrix on Anopheles but gave pretty bad results. It is not worth rerunning again unless you an anopheles specific matrix has been created.
-\textbf{Snap} (another \textit{ab initio} gene predictor) trained with anopheles specific ESTs (see section on how to train SNAP) gives much better result. In many regions it seems to get the right exon prediction, it does not tend to overpredict too much. However the transcript structure is not always right. Snap is used in the last part of the gene build and some SNAP genes (about 2000) will be elevated to the status of ***REMOVED*** gene (more details bellow on these genes).\\
+\textbf{Snap} (another \textit{ab initio} gene predictor) trained with anopheles specific ESTs (see section on how to train SNAP) gives much better result. In many regions it seems to get the right exon prediction, it does not tend to overpredict too much. However the transcript structure is not always right. Snap is used in the last part of the gene build and some SNAP genes (about 2000) will be elevated to the status of 'ensembl' gene (more details bellow on these genes).\\
 \textbf{BlastX} is ran with two different datasets. The first one (and maybe the most important one) is the protein dataset containing all of the sequences from flybase. The second one is Swall.\\
 
 NB: Make sure that the logic names in the analysis table. Please check with the web team.\\
