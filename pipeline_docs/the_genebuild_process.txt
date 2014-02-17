@@ -702,7 +702,7 @@ Note:
 
 The majority of the code below is found in the ensembl module
 ensembl-analysis. This and the rest of the ensembl code can be got
-from the sanger cvs repository. Instructions on how to do this can be
+from the Ensembl GitHub repository. Instructions on how to do this can be
 found
 
 http://www.ensembl.org/info/using/api/api_installation.html
@@ -710,24 +710,15 @@ http://www.ensembl.org/info/using/api/api_installation.html
 You also need the bioperl code and instructions on how to fetch that
 can also be found in the above document.
 
-Note for the pipeline and analysis code the cvs modules are not
+Note for the pipeline and analysis modules are not
 branched in the same way as the core api is. This means it is
 generally advised to checkout the main trunk of the respository. To do
 this rather than using the checkout command as show above you need to
-use
+use fetch the repositories from https://github.com
 
-For the core (ensembl) code:
-# password is CVSUSER is prompted
-cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r branch-ensembl-52 ensembl
+ensembl-code - branched by default when cloned
 
-This will checkout the core ensembl modules on a cvs branch called
-branch-ensembl-52 (the code base use for Ensembl release 52). The
-stable branch number will increment for every release.
-
-The analysis, pipeline and kill-list code are not branched. We use the HEAD code:
-cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r HEAD ensembl-pipeline
-cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r HEAD ensembl-analysis
-cvs -d :pserver:cvsuser@cvs.sanger.ac.uk:/cvsroot/ensembl checkout -r HEAD ensembl-killlist
+The analysis, pipeline and kill-list code are not branched, use the master code.
 
 
 First a few pieces of code/tips which are useful for the process.
@@ -1530,7 +1521,7 @@ Now you are ready to get the system running. This actually uses
 the ensembl-hive system and the control script is found in
 ensembl-hive/scripts
 
-  perl beekeeper.pl -url mysql://***REMOVED***@genebuild7:3306/lec_tetraodon_8_compara -loop
+  perl beekeeper.pl -url mysql://username@host:3306/lec_tetraodon_8_compara -loop
 
 Once this has run you can run the various different orthology
 assessment code. Before doing this it is a good idea to backup your
