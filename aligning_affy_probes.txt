@@ -232,7 +232,7 @@ This doesn't need a pipeline to be set up, since it is run as one big job. It sh
 out to a big node, though, just for safety's sake. For this reason I insert a record
 into the analysis table that points to the right runnabledb:
 
-mysql -hecs4 -uensadmin -***REMOVED*** -P3352 -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -uensadmin -pxxx -P3352 -Dvivek_homo_sapiens_core_29_35b_affy \
 -e"insert into analysis set analysis_id = 5000, logic_name = 'CollapseAffyProbes', module='CollapseAffyProbes'"
 
 and submit the job to the farm:
@@ -367,7 +367,7 @@ I will do this using the ensembl-hive job control system, but you can also use
 ensembl-pipeline, if that's your thing.
 
 1. Create the hive admin database inside our human db:
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "source /ecs2/work3/vvi/affy_march_2005/code/ensembl/ensembl-hive/sql/tables.sql"
 
 This creates the tables for hive:
@@ -387,7 +387,7 @@ are not running in a 'compara' context, I think we can get away with the followi
 
 2. Store a parameter hive_output_dir in the meta table for the admin database
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "insert into meta set meta_key = 'hive_output_dir', meta_value ='/ecs2/scratch1/vvi/affy_hive_outupt/'"
 
 -- and make sure that output directory exists
@@ -479,12 +479,12 @@ $AFFYANALYSISCODEDIR/scripts/test_RunnableDB \
 -------------------------
 
 Test a single worker using a runWorker locally:
-runWorker.pl -bk LSF -url mysql://***REMOVED***@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -limit 1 -job_id 91
+runWorker.pl -bk LSF -url mysql://username@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -limit 1 -job_id 91
 
 Will 'create' single worker, which will then request a single input_id from the queen, and
 start the runnabledb pointed at by the analysis.
 
-$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://username@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
 
 How to check if things went wrong:
 SELECT hive_id
@@ -509,7 +509,7 @@ Yields this for me:
 So now we can re-try a single worker on the failing input id by passing in an option "-job_id 29"
 into the runWorker script...
 
-runWorker.pl -bk LSF -url mysql://***REMOVED***@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -limit 1 -job_id 91 -outdir ''
+runWorker.pl -bk LSF -url mysql://username@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -limit 1 -job_id 91 -outdir ''
 -- in this particular case the problem was that the mitochondrial chromosome had a name
 "MT_NC_001807" in the sequence dumps, but was only called 'MT' in my database
 
@@ -520,7 +520,7 @@ resetting the analysis stats table:
 - update analysis_stats set batch_size = 3, avg_msec_per_job = null, unclaimed_job_count = 22683, done_job_count = 0;
 
 and restart the lsf_beekeeper:
-$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://username@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
 -- note, no jlimit, so I will create a max of 600 workers at a time, which will each 
 live for an hour before dying.
 
@@ -611,7 +611,7 @@ update analysis_stats object to set unclaimed_job count=>3 and status=>WORKING
 
 Now restart the lsf_beekeeper -
 
-$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://username@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
 
 And this completes all the jobs! Yaay!
 
@@ -620,7 +620,7 @@ And this completes all the jobs! Yaay!
 -----------------------
 
 mysql -hecs4 -P3352 -Dvivek_homo_sapiens_core_29_35b_affy\
--uensadmin -***REMOVED*** \
+-uensadmin -pxxx \
 -e "select affy_array.name array_name, affy_probe.probeset, affy_probe.name probe_name, seq_region.name,\
 affy_feature.seq_region_start, affy_feature.seq_region_end, affy_feature.seq_region_strand \
 into outfile '/ecs2/work3/vvi/affy_march_2005/check3/all_new_affy_features.txt'\
@@ -636,7 +636,7 @@ sort all_new_affy_features.txt > all_new_sorted_affy_features.txt
 uniq all_new_sorted_affy_features.txt > all_new_unique_sorted_affy_features.txt
 
 mysql -hecs2 -P3365 -Dhomo_sapiens_core_28_35a\
--uensadmin -***REMOVED*** \
+-uensadmin -pxxx \
 -e "select affy_array.name array_name, affy_probe.probeset, affy_probe.name probe_name, seq_region.name,\
 affy_feature.seq_region_start, affy_feature.seq_region_end, affy_feature.seq_region_strand \
 into outfile '/ecs2/work3/vvi/affy_march_2005/check/all_old_affy_features.txt'\
@@ -765,7 +765,7 @@ Now change the config file back to the old non-redundant sequence file,
 and alter the hive output directory (stored in the meta table) to point to 
 /ecs2/scratch1/vvi/affy_output2/
 Now restart the lsf beekeeper -
-$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://username@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -loop
 
 Process finishes:
 mysql> select count(*), analysis_id from affy_feature group by analysis_id;
@@ -894,28 +894,28 @@ and run load_hive_analysis to do this, with input_id's 1:7 -> 7:7
 -------
 Undo the assembly exceptions, and put the hap seq regions & assembly back to the
 'native' state:
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "delete from assembly_exception";
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update seq_region set length = 139182 where seq_region_id = 966000"
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update seq_region set length = 150447 where seq_region_id = 966001"
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update assembly set asm_start = 1, asm_end = 99464 \
 where asm_seq_region_id = 966000 and cmp_seq_region_id = 412319 "
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update assembly \
 set asm_start = 99465, asm_end = 123383 \
 where asm_seq_region_id = 966000 and cmp_seq_region_id = 317628 "
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update assembly \
 set asm_start = 123384, asm_end = 139182 \
 where asm_seq_region_id = 966000 and cmp_seq_region_id = 412299"
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update assembly \
 set asm_start = 1, asm_end = 90547 \
 where asm_seq_region_id = 966001 and cmp_seq_region_id = 965889"
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update assembly \
 set asm_start = 90548, asm_end = 150447 \
 where asm_seq_region_id = 966001 and cmp_seq_region_id = 965890"
@@ -924,7 +924,7 @@ where asm_seq_region_id = 966001 and cmp_seq_region_id = 965890"
 update hive_output_dir in the meta table to point to the new analysis:
 /ecs2/scratch1/vvi/affy_remaining_output/
 
-$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -logic_name AlignRemainingAffyProbes -loop
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://username@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -logic_name AlignRemainingAffyProbes -loop
 
 DONE. This added less than one thousand extra affy features.
 
@@ -1041,7 +1041,7 @@ Get the output directory right:
 /ecs2/scratch1/vvi/affy_missing_output/
 
 We have the hive tables filled in, so we need to run 130 jobs -
-$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -logic_name RealignMissingAffyProbes -loop
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://username@ecs4:3352/vivek_homo_sapiens_core_29_35b_affy -logic_name RealignMissingAffyProbes -loop
 
 Now which features should we keep? Certainly not the redundant ones...how many of the new ones
 are redundant?
@@ -1051,7 +1051,7 @@ are redundant?
 start a new set of diffs in the check4 directory.
 
 mysql -hecs4 -P3352 -Dvivek_homo_sapiens_core_29_35b_affy\
--uensadmin -***REMOVED*** \
+-uensadmin -pxxx \
 -e "select affy_array.name array_name, affy_probe.probeset, affy_probe.name probe_name, seq_region.name,\
 affy_feature.seq_region_start, affy_feature.seq_region_end, affy_feature.seq_region_strand \
 into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/check4/all_new_affy_features.txt'\
@@ -1112,7 +1112,7 @@ select count(*) from affy_feature
 3967611
 
 How redundant is affy_feature now?
-mysql -hecs4 -uensadmin -***REMOVED*** -P3352 -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -uensadmin -pxxx -P3352 -Dvivek_homo_sapiens_core_29_35b_affy \
 -e"select affy_probe_id, seq_region_id , seq_region_start, seq_region_end, seq_region_strand \
 into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/check4/new_affy_table_dump.txt' \
 from affy_feature"
@@ -1121,7 +1121,7 @@ uniq tmp > tmp2
 wc -l tmp2:
 3603328
 
-mysql -hecs2 -uensadmin -***REMOVED*** -P3364 -Dhomo_sapiens_core_30_35c \
+mysql -hecs2 -uensadmin -pxxx -P3364 -Dhomo_sapiens_core_30_35c \
 -e"select affy_probe_id, seq_region_id , seq_region_start, seq_region_end, seq_region_strand \
 into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/check4/old_affy_table_dump.txt' \
 from affy_feature"
@@ -1137,7 +1137,7 @@ stymied by this number.
 Now we make a backup of affy_array, affy_probe and affy_feature tables, and then alter
 the analysis_id from 5003->5000, and 5004->5000.
 
-mysql -hecs4 -uensadmin -***REMOVED*** -P3352 -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -uensadmin -pxxx -P3352 -Dvivek_homo_sapiens_core_29_35b_affy \
 -e"select affy_probe_id, seq_region_id , seq_region_start, seq_region_end, seq_region_strand \
 into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/check4/new_affy_table_dump_5000_5003.txt' \
 from affy_feature where analysis_id = 5001 or analysis_id = 5003"
@@ -1160,15 +1160,15 @@ original undershooting bunch.
 
 Put back the assembly exceptions by copying from another db:
 
-mysql -hecs2 -P3365 -uensadmin -***REMOVED*** -Dhomo_sapiens_core_28_35a \
+mysql -hecs2 -P3365 -uensadmin -pxxx -Dhomo_sapiens_core_28_35a \
 -e"select * into outfile '/nfs/acari/vvi/assembly_exception.txt' from assembly_exception;"
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy\
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy\
 -e"load data infile '/nfs/acari/vvi/assembly_exception.txt' into table assembly_exception;"
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update seq_region set length = 170972699 where seq_region_id = 966000"
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update seq_region set length = 170972699 where seq_region_id = 966001"
 
 Restore the HAP regions - these, for h sapiens - are:
@@ -1181,16 +1181,16 @@ Restore the HAP regions - these, for h sapiens - are:
 |            966000 |            412299 |  32634806 | 32650604 |     60000 |   75798 |  -1 |
 +-------------------+-------------------+-----------+----------+-----------+---------+-----+
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update assembly set asm_start = 32511423, asm_end = 32610886\
 where asm_seq_region_id = 966000 and cmp_seq_region_id = 412319 "
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update assembly \
 set asm_start = 32610887, asm_end = 32634805\
 where asm_seq_region_id = 966000 and cmp_seq_region_id = 317628 "
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update assembly \
 set asm_start = 32634806, asm_end = 32650604\
 where asm_seq_region_id = 966000 and cmp_seq_region_id = 412299"
@@ -1203,12 +1203,12 @@ where asm_seq_region_id = 966000 and cmp_seq_region_id = 412299"
 |            966001 |            965890 |  32593945 | 32653844 |         1 |   59900 |   1 |
 +-------------------+-------------------+-----------+----------+-----------+---------+-----+
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update assembly \
 set asm_start = 32503398, asm_end = 32593944\
 where asm_seq_region_id = 966001 and cmp_seq_region_id = 965889"
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "update assembly \
 set asm_start = 32593945, asm_end = 32653844\
 where asm_seq_region_id = 966001 and cmp_seq_region_id = 965890"
@@ -1228,13 +1228,13 @@ where seq_region_id = 966001
 ---------------------------------
 ---------------------------------
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/affy_array' from affy_array"
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/affy_probe' from affy_probe"
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_homo_sapiens_core_29_35b_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_homo_sapiens_core_29_35b_affy \
 -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/affy_feature' from affy_feature \
 where analysis_id = 5001 or analysis_id = 5003"
 
@@ -1255,16 +1255,16 @@ There is only one array for dog:
 /ecs2/work3/vvi/affy_march_2005/dog/data/Canine_probe_fasta
 
 Copy the admin tables into the db:
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_canis_familiaris_core_30_1a_affy \
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_canis_familiaris_core_30_1a_affy \
 -e "source /ecs2/work3/vvi/affy_march_2005/code/ensembl/ensembl-hive/sql/tables.sql"
 
 $AFFYROOT/dog/scripts/load_hive_analyses.pl to set up the hive admin for the next step.
 ...and add the row for the hive_output_dir into meta:
 |      100 | hive_output_dir        | /ecs2/scratch1/vvi/affy_dog_output    |
 
-mysql -hecs4 -uensadmin -***REMOVED*** -P3352 -Dvivek_canis_familiaris_core_30_1a_affy \
+mysql -hecs4 -uensadmin -pxxx -P3352 -Dvivek_canis_familiaris_core_30_1a_affy \
 -e"insert into analysis set analysis_id = 5000, logic_name = 'CollapseAffyProbes', module='CollapseAffyProbes'"
-mysql -hecs4 -uensadmin -***REMOVED*** -P3352 -Dvivek_canis_familiaris_core_30_1a_affy \
+mysql -hecs4 -uensadmin -pxxx -P3352 -Dvivek_canis_familiaris_core_30_1a_affy \
 -e"insert into analysis set analysis_id = 5100, logic_name = 'AlignDogAffyProbes', module='AlignAffyProbes'"
 
 and submit the job to the farm:
@@ -1321,10 +1321,10 @@ $AFFYANALYSISCODEDIR/scripts/test_RunnableDB \
 AffyFeature's constructor is buggered.
 
 Run the runWorker
-runWorker.pl -bk LSF -url mysql://***REMOVED***@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -limit 1 -job_id 1 This works. And the job is set to DONE.
+runWorker.pl -bk LSF -url mysql://username@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -limit 1 -job_id 1 This works. And the job is set to DONE.
 
 Now let the system go: 
-$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -loop
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://username@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -loop
 
 Crash: 
 -------------------- EXCEPTION --------------------
@@ -1345,37 +1345,37 @@ This is fixed by altering the parsing code:
     my $chr = $1;
 
 Now reset the hive:
-$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -reset_all_jobs_for_analysis_id 5101
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://username@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -reset_all_jobs_for_analysis_id 5101
 
 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_canis_familiaris_core_30_1a_affy\
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_canis_familiaris_core_30_1a_affy\
 -e "delete from affy_feature"
 
 and restart:
-$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://***REMOVED***@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -loop
+$AFFYHIVECODEDIR/scripts/lsf_beekeeper.pl -url mysql://username@ecs4:3352/vivek_canis_familiaris_core_30_1a_affy -loop
 
 OK, this completes, creates 330213 affy features, uniformly distributed
 across all the seq regions.
 
 Copy into staging dog:
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_canis_familiaris_core_30_1a_affy -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_array' from affy_array"
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_canis_familiaris_core_30_1a_affy -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_array' from affy_array"
                                                                                 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_canis_familiaris_core_30_1a_affy -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_probe' from affy_probe"
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_canis_familiaris_core_30_1a_affy -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_probe' from affy_probe"
                                                                                 
-mysql -hecs4 -P3352 -uensadmin -***REMOVED*** -Dvivek_canis_familiaris_core_30_1a_affy -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_feature' from affy_feature 
+mysql -hecs4 -P3352 -uensadmin -pxxx -Dvivek_canis_familiaris_core_30_1a_affy -e "select * into outfile '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_feature' from affy_feature 
 
-mysql -hecs2 -P3364 -uensadmin -***REMOVED*** -Dcanis_familiaris_core_30_1a \
+mysql -hecs2 -P3364 -uensadmin -pxxx -Dcanis_familiaris_core_30_1a \
 -e "load data infile \
 '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_array' \
 into table affy_array"
 
-mysql -hecs2 -P3364 -uensadmin -***REMOVED*** \
+mysql -hecs2 -P3364 -uensadmin -pxxx \
 -Dcanis_familiaris_core_30_1a -e \
 "load data infile \
 '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_probe' \
 into table affy_probe"
 
-mysql -hecs2 -P3364 -uensadmin -***REMOVED*** -Dcanis_familiaris_core_30_1a \
+mysql -hecs2 -P3364 -uensadmin -pxxx -Dcanis_familiaris_core_30_1a \
 -e "load data infile \
 '/ecs2/work3/vvi/affy_march_2005/scripts/final_dumps/dog_affy_feature' \
 into table affy_feature"
